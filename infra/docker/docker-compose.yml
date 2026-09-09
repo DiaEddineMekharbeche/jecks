@@ -1,0 +1,93 @@
+name: jecks
+
+# Development stack. PRD Section 10.10 targets this same compose file on a single VPS;
+# the production overlay lives in docker-compose.prod.yml.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: jecks-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-jecks}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-jecks}
+      POSTGRES_DB: ${POSTGRES_DB:-jecks}
+      # Reporting is Africa/Algiers but storage stays UTC (PRD Section 3).
+      TZ: UTC
+      PGTZ: UTC
+    ports:
+      - '${POSTGRES_PORT:-5432}:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-jecks} -d ${POSTGRES_DB:-jecks}']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    container_name: jecks-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy noeviction
+    ports:
+      - '${REDIS_PORT:-6379}:6379'
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  minio:
+    image: minio/minio:latest
+    container_name: jecks-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-jecks}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-jecks-secret}
+    ports:
+      - '${MINIO_PORT:-9000}:9000'
+      - '${MINIO_CONSOLE_PORT:-9001}:9001'
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ['CMD', 'mc', 'ready', 'local']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  # Creates the media bucket once MinIO is up, then exits.
+  minio-init:
+    image: minio/mc:latest
+    container_name: jecks-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 ${MINIO_ROOT_USER:-jecks} ${MINIO_ROOT_PASSWORD:-jecks-secret};
+      mc mb --ignore-existing local/${S3_BUCKET:-jecks-media};
+      mc anonymous set download local/${S3_BUCKET:-jecks-media};
+      echo 'bucket ready';
+      "
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: jecks-mailpit
+    restart: unless-stopped
+    environment:
+      MP_MAX_MESSAGES: 500
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+    ports:
+      - '${MAILPIT_SMTP_PORT:-1025}:1025'
+      - '${MAILPIT_UI_PORT:-8025}:8025'
+
+volumes:
+  postgres-data:
+  redis-data:
+  minio-data:

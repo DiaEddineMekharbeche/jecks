@@ -1,0 +1,12 @@
+{
+  "extends": "@jecks/config/tsconfig/base.json",
+  "compilerOptions": {
+    // The package is ESM ("type": "module"): tsup emits both flavours, and the seed
+    // uses `import.meta.url` to resolve paths relative to itself.
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "types": ["node"],
+    "noEmit": true
+  },
+  "include": ["src", "prisma"]
+}

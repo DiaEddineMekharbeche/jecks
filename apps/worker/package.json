@@ -1,0 +1,33 @@
+{
+  "name": "@jecks/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "build": "tsc",
+    "start": "node dist/main.js",
+    "lint": "eslint src --ext .ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "clean": "rimraf dist .turbo",
+    "test:cov": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@jecks/db": "workspace:*",
+    "@jecks/shared": "workspace:*",
+    "bullmq": "^5.13.2",
+    "dotenv": "^16.4.5",
+    "ioredis": "^5.4.1",
+    "pino": "^9.4.0"
+  },
+  "devDependencies": {
+    "@jecks/config": "workspace:*",
+    "@types/node": "^20.14.10",
+    "pino-pretty": "^11.2.2",
+    "tsx": "^4.19.1",
+    "typescript": "^5.5.4",
+    "vitest": "^2.1.1",
+    "@vitest/coverage-v8": "^2.1.1"
+  }
+}

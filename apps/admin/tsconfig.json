@@ -1,0 +1,9 @@
+{
+  "extends": "@jecks/config/tsconfig/react.json",
+  "compilerOptions": {
+    "types": ["vite/client"],
+    "paths": { "@/*": ["./src/*"] },
+    "baseUrl": "."
+  },
+  "include": ["src", "vite.config.ts"]
+}

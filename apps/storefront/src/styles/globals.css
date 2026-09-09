@@ -1,0 +1,65 @@
+@import '@jecks/ui/styles/tokens.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /*
+   * The storefront is a dark room with lit product. Headlines use the condensed
+   * display face; body copy stays on the grotesk (PRD Section 9.1).
+   */
+  h1,
+  h2,
+  .display {
+    font-family: var(--jk-font-display), Impact, sans-serif;
+    letter-spacing: 0.01em;
+    line-height: 0.95;
+  }
+
+  /* Arabic headlines need the Arabic face and normal leading, not the condensed one. */
+  [dir='rtl'] h1,
+  [dir='rtl'] h2,
+  [dir='rtl'] .display {
+    font-family: var(--jk-font-arabic), Tahoma, sans-serif;
+    line-height: 1.3;
+    letter-spacing: 0;
+  }
+}
+
+@layer components {
+  .shell {
+    @apply mx-auto w-full max-w-shell px-gutter;
+  }
+
+  .eyebrow {
+    @apply text-eyebrow font-semibold uppercase text-muted;
+  }
+
+  /* Product cards lift slightly on hover — the subtle 3D tilt of PRD Section 9.1. */
+  .card-lift {
+    @apply transition-transform duration-300 ease-brand will-change-transform;
+  }
+  @media (hover: hover) {
+    .card-lift:hover {
+      transform: translateY(-4px);
+    }
+  }
+
+  .skip-link {
+    @apply sr-only;
+  }
+  .skip-link:focus {
+    @apply not-sr-only fixed left-4 top-4 z-50 rounded-sm bg-brass px-4 py-2 text-base;
+  }
+}
+
+@layer utilities {
+  /* Hides a scrollbar on horizontal carousels without losing keyboard scrolling. */
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}

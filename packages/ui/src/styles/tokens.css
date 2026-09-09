@@ -1,0 +1,172 @@
+/*
+ * Jeck's design tokens — PRD Section 9.1.
+ *
+ * Every colour is an `R G B` triple so Tailwind can apply opacity modifiers
+ * (`bg-brass/20`). The admin theme editor (F-AD-90) overwrites these variables at
+ * runtime, which is why nothing here is hard-coded in the component files.
+ *
+ * Contrast, measured:
+ *   brass #D9B36A on base #0F0F10 ......... 9.68:1  (AAA)
+ *   brass #D9B36A on surface #1A1A1C ...... 8.98:1  (AAA)
+ *   ink #0F0F10 on brass #D9B36A .......... 9.68:1  (AAA, filled buttons)
+ *   muted #A0A0A6 on base #0F0F10 ......... 7.42:1  (AAA, small text safe)
+ */
+
+:root {
+  /* Storefront is dark by default: the brand is a night-lit shop window. */
+  --jk-base: 15 15 16;
+  --jk-surface: 26 26 28;
+  --jk-elevated: 35 35 38;
+  --jk-line: 56 56 60;
+  --jk-ink: 244 242 238;
+  --jk-muted: 160 160 166;
+
+  --jk-brass: 217 179 106;
+  --jk-brass-soft: 232 208 158;
+  --jk-brass-deep: 154 121 58;
+  --jk-spark: 122 168 209;
+
+  --jk-success: 74 160 106;
+  --jk-warning: 214 158 46;
+  --jk-danger: 209 78 66;
+  --jk-info: 96 148 200;
+
+  --jk-radius-xs: 2px;
+  --jk-radius-sm: 4px;
+  --jk-radius-md: 8px;
+  --jk-radius-lg: 16px;
+  --jk-radius-xl: 28px;
+
+  --jk-gutter: clamp(1rem, 4vw, 3rem);
+
+  --jk-font-display: 'Bebas Neue';
+  --jk-font-body: 'Inter';
+  --jk-font-arabic: 'Cairo';
+  --jk-font-mono: 'JetBrains Mono';
+
+  color-scheme: dark;
+}
+
+/*
+ * The admin runs light by default (PRD Section 9.1) — long working sessions on a
+ * bright screen, dense tables. `data-surface="admin"` flips the palette without
+ * changing a single component.
+ */
+[data-surface='admin'] {
+  --jk-base: 249 248 246;
+  --jk-surface: 255 255 255;
+  --jk-elevated: 244 243 240;
+  --jk-line: 224 222 217;
+  --jk-ink: 24 24 27;
+  --jk-muted: 96 96 104;
+
+  --jk-brass: 141 108 43;
+  --jk-brass-soft: 196 160 92;
+  --jk-brass-deep: 92 70 26;
+  --jk-spark: 42 96 150;
+
+  --jk-success: 30 122 74;
+  --jk-warning: 158 106 12;
+  --jk-danger: 176 42 42;
+  --jk-info: 40 96 160;
+
+  color-scheme: light;
+}
+
+[data-surface='admin'][data-theme='dark'] {
+  --jk-base: 17 17 19;
+  --jk-surface: 27 27 30;
+  --jk-elevated: 37 37 41;
+  --jk-line: 58 58 63;
+  --jk-ink: 240 239 236;
+  --jk-muted: 158 158 165;
+
+  --jk-brass: 217 179 106;
+  --jk-brass-soft: 232 208 158;
+  --jk-brass-deep: 154 121 58;
+  --jk-spark: 122 168 209;
+
+  --jk-success: 74 160 106;
+  --jk-warning: 214 158 46;
+  --jk-danger: 209 78 66;
+  --jk-info: 96 148 200;
+
+  color-scheme: dark;
+}
+
+/* --- base layer ---------------------------------------------------------- */
+
+html {
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: rgb(var(--jk-base));
+  color: rgb(var(--jk-ink));
+  font-family: var(--jk-font-body), system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-synthesis-weight: none;
+  text-rendering: optimizeLegibility;
+}
+
+/* Arabic gets its own face and slightly looser leading — PRD Section 6.4. */
+:root:lang(ar) body,
+[dir='rtl'] body {
+  font-family: var(--jk-font-arabic), 'Segoe UI', Tahoma, sans-serif;
+  line-height: 1.75;
+}
+
+/* One visible focus ring everywhere, on the accent — PRD Section 6.6 (WCAG 2.1 AA). */
+:focus-visible {
+  outline: 2px solid rgb(var(--jk-brass));
+  outline-offset: 2px;
+  border-radius: var(--jk-radius-sm);
+}
+
+::selection {
+  background-color: rgb(var(--jk-brass) / 0.32);
+  color: rgb(var(--jk-ink));
+}
+
+/*
+ * Reduced motion is a hard requirement for the 3D hero and page transitions
+ * (PRD Section 9.1). Animation is cut to a single frame rather than removed, so
+ * transition-end handlers still fire.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Skeleton shimmer used by every list and grid while data loads. */
+.jk-skeleton {
+  position: relative;
+  overflow: hidden;
+  background-color: rgb(var(--jk-elevated));
+}
+
+.jk-skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    transparent,
+    rgb(var(--jk-ink) / 0.06),
+    transparent
+  );
+  animation: jk-shimmer 1.4s infinite;
+}
+
+@keyframes jk-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}

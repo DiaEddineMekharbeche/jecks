@@ -1,0 +1,50 @@
+{
+  "name": "@jecks/db",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "scripts": {
+    "generate": "prisma generate",
+    "migrate": "prisma migrate dev",
+    "migrate:deploy": "prisma migrate deploy",
+    "push": "prisma db push",
+    "reset": "prisma migrate reset --force",
+    "seed": "tsx prisma/seed/index.ts",
+    "studio": "prisma studio",
+    "validate": "prisma validate",
+    "format": "prisma format",
+    "typecheck": "tsc --noEmit",
+    "build": "prisma generate && tsup",
+    "clean": "rimraf dist .turbo",
+    "dev": "tsup --watch"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed/index.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.5.0"
+  },
+  "devDependencies": {
+    "@jecks/config": "workspace:*",
+    "@jecks/shared": "workspace:*",
+    "prisma": "^6.5.0",
+    "tsx": "^4.19.1",
+    "typescript": "^5.5.4",
+    "@node-rs/argon2": "^2.0.2",
+    "dotenv": "^16.4.5",
+    "tsup": "^8.3.0"
+  },
+  "module": "./dist/index.js",
+  "files": [
+    "dist"
+  ]
+}

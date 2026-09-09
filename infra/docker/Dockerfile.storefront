@@ -1,0 +1,43 @@
+# syntax=docker/dockerfile:1
+#
+# Storefront (Next.js standalone output).
+#   docker build -f infra/docker/Dockerfile.storefront -t jecks/storefront .
+#
+# NEXT_PUBLIC_* values are inlined at build time, so they are build arguments rather
+# than runtime environment variables.
+
+FROM node:20-alpine AS base
+RUN corepack enable
+WORKDIR /app
+
+FROM base AS deps
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml .npmrc ./
+COPY packages/config/package.json packages/config/
+COPY packages/shared/package.json packages/shared/
+COPY packages/ui/package.json packages/ui/
+COPY apps/storefront/package.json apps/storefront/
+RUN pnpm install --frozen-lockfile --filter @jecks/storefront...
+
+FROM deps AS build
+ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_SITE_URL
+ARG NEXT_PUBLIC_MEDIA_URL
+ENV NEXT_TELEMETRY_DISABLED=1
+COPY packages/ packages/
+COPY apps/storefront/ apps/storefront/
+RUN pnpm --filter @jecks/shared build && pnpm --filter @jecks/storefront build
+
+FROM base AS runtime
+ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1
+RUN addgroup -S jecks && adduser -S jecks -G jecks
+
+# `output: standalone` bundles only the files the server actually reaches.
+COPY --from=build --chown=jecks:jecks /app/apps/storefront/.next/standalone ./
+COPY --from=build --chown=jecks:jecks /app/apps/storefront/.next/static ./apps/storefront/.next/static
+COPY --from=build --chown=jecks:jecks /app/apps/storefront/public ./apps/storefront/public
+
+USER jecks
+EXPOSE 3000
+ENV PORT=3000 HOSTNAME=0.0.0.0
+
+CMD ["node", "apps/storefront/server.js"]

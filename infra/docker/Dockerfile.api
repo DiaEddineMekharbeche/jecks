@@ -1,0 +1,52 @@
+# syntax=docker/dockerfile:1
+#
+# Jeck's API. Built from the repo root:
+#   docker build -f infra/docker/Dockerfile.api -t jecks/api .
+#
+# Multi-stage so the runtime image carries no compiler, no source and no dev
+# dependencies — the Prisma engines it does need are copied deliberately.
+
+FROM node:20-alpine AS base
+RUN corepack enable && apk add --no-cache openssl
+WORKDIR /app
+
+# --- dependencies -----------------------------------------------------------
+FROM base AS deps
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml .npmrc ./
+COPY packages/config/package.json packages/config/
+COPY packages/shared/package.json packages/shared/
+COPY packages/db/package.json packages/db/
+COPY apps/api/package.json apps/api/
+RUN pnpm install --frozen-lockfile --filter @jecks/api... --filter @jecks/db...
+
+# --- build ------------------------------------------------------------------
+FROM deps AS build
+COPY packages/ packages/
+COPY apps/api/ apps/api/
+RUN pnpm --filter @jecks/db exec prisma generate \
+ && pnpm --filter @jecks/shared build \
+ && pnpm --filter @jecks/db build \
+ && pnpm --filter @jecks/api build
+
+# Drop everything that only mattered at build time.
+RUN pnpm prune --prod
+
+# --- runtime ----------------------------------------------------------------
+FROM base AS runtime
+ENV NODE_ENV=production
+# Never run as root; a compromised process should not own the filesystem.
+RUN addgroup -S jecks && adduser -S jecks -G jecks
+
+COPY --from=build --chown=jecks:jecks /app/node_modules ./node_modules
+COPY --from=build --chown=jecks:jecks /app/packages ./packages
+COPY --from=build --chown=jecks:jecks /app/apps/api/dist ./apps/api/dist
+COPY --from=build --chown=jecks:jecks /app/apps/api/package.json ./apps/api/
+
+USER jecks
+WORKDIR /app/apps/api
+EXPOSE 4000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:4000/api/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+
+CMD ["node", "dist/main.js"]

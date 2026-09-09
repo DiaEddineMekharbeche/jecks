@@ -1,0 +1,53 @@
+import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { JwtModule } from '@nestjs/jwt';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { AllExceptionsFilter } from './common/filters/http-exception.filter.js';
+import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
+import { PermissionsGuard } from './common/guards/permissions.guard.js';
+import { CorrelationInterceptor } from './common/interceptors/correlation.interceptor.js';
+import { EnvelopeInterceptor } from './common/interceptors/envelope.interceptor.js';
+import { validateEnv } from './config/env.js';
+import { AuthModule } from './modules/auth/auth.module.js';
+import { CatalogModule } from './modules/catalog/catalog.module.js';
+import { DashboardModule } from './modules/dashboard/dashboard.module.js';
+import { HealthModule } from './modules/health/health.module.js';
+import { SettingsModule } from './modules/settings/settings.module.js';
+import { ShippingModule } from './modules/shipping/shipping.module.js';
+import { StorageModule } from './modules/storage/storage.module.js';
+import { PrismaModule } from './prisma/prisma.module.js';
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      // Read the repo-root .env so one file drives every app.
+      envFilePath: ['.env', '../../.env'],
+      validate: validateEnv,
+    }),
+    // Baseline rate limit; auth routes tighten it with @Throttle (PRD F-ST-44).
+    ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 120 }]),
+    // Global so the JwtAuthGuard registered below can verify tokens; secrets are
+    // still passed per call, since access and refresh use different keys.
+    JwtModule.register({ global: true }),
+    PrismaModule,
+    StorageModule,
+    SettingsModule,
+    HealthModule,
+    AuthModule,
+    CatalogModule,
+    ShippingModule,
+    DashboardModule,
+  ],
+  providers: [
+    // Order matters: correlation id first so the filter can quote it, then the envelope.
+    { provide: APP_INTERCEPTOR, useClass: CorrelationInterceptor },
+    { provide: APP_INTERCEPTOR, useClass: EnvelopeInterceptor },
+    { provide: APP_FILTER, useClass: AllExceptionsFilter },
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: PermissionsGuard },
+  ],
+})
+export class AppModule {}

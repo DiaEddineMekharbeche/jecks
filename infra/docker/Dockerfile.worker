@@ -1,0 +1,39 @@
+# syntax=docker/dockerfile:1
+#
+# Background worker. Same layering as the API; it needs Prisma and Redis, not HTTP.
+#   docker build -f infra/docker/Dockerfile.worker -t jecks/worker .
+
+FROM node:20-alpine AS base
+RUN corepack enable && apk add --no-cache openssl
+WORKDIR /app
+
+FROM base AS deps
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml .npmrc ./
+COPY packages/config/package.json packages/config/
+COPY packages/shared/package.json packages/shared/
+COPY packages/db/package.json packages/db/
+COPY apps/worker/package.json apps/worker/
+RUN pnpm install --frozen-lockfile --filter @jecks/worker... --filter @jecks/db...
+
+FROM deps AS build
+COPY packages/ packages/
+COPY apps/worker/ apps/worker/
+RUN pnpm --filter @jecks/db exec prisma generate \
+ && pnpm --filter @jecks/shared build \
+ && pnpm --filter @jecks/db build \
+ && pnpm --filter @jecks/worker build
+RUN pnpm prune --prod
+
+FROM base AS runtime
+ENV NODE_ENV=production
+RUN addgroup -S jecks && adduser -S jecks -G jecks
+
+COPY --from=build --chown=jecks:jecks /app/node_modules ./node_modules
+COPY --from=build --chown=jecks:jecks /app/packages ./packages
+COPY --from=build --chown=jecks:jecks /app/apps/worker/dist ./apps/worker/dist
+COPY --from=build --chown=jecks:jecks /app/apps/worker/package.json ./apps/worker/
+
+USER jecks
+WORKDIR /app/apps/worker
+
+CMD ["node", "dist/main.js"]

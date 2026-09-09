@@ -1,0 +1,190 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  # A new push supersedes the run in progress for the same branch.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+  # Every job that touches Prisma needs these; the values are throwaway CI ones.
+  DATABASE_URL: postgresql://jecks:jecks@localhost:5432/jecks_test?schema=public
+  REDIS_URL: redis://localhost:6379
+  JWT_ACCESS_SECRET: ci-access-secret-that-is-long-enough-32
+  JWT_REFRESH_SECRET: ci-refresh-secret-that-is-long-enough-32
+  CREDENTIALS_KEY: Y2ktb25seS1jaGFuZ2UtbWUtMzItYnl0ZXMta2V5IQ==
+
+jobs:
+  quality:
+    name: Lint, typecheck and unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: jecks
+          POSTGRES_PASSWORD: jecks
+          POSTGRES_DB: jecks_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U jecks"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # Turbo caches by task and input hash, so a docs-only change skips the builds.
+      - name: Cache turbo
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-${{ runner.os }}-${{ github.sha }}
+          restore-keys: turbo-${{ runner.os }}-
+
+      - name: Generate Prisma client
+        run: pnpm db:generate
+
+      - name: Migrate the test database
+        run: pnpm --filter @jecks/db exec prisma migrate deploy
+
+      - name: Seed structure only
+        run: pnpm db:seed
+        env:
+          SEED_DEMO_DATA: 'false'
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Unit tests with coverage
+        run: pnpm test:cov
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: '**/coverage/lcov.info'
+          if-no-files-found: ignore
+          retention-days: 7
+
+  build:
+    name: Build all apps
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: quality
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:generate
+      - run: pnpm build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:4000/api/v1
+          NEXT_PUBLIC_SITE_URL: http://localhost:3000
+
+      - name: Build Storybook
+        run: pnpm --filter @jecks/ui build-storybook
+
+  migrations:
+    name: Migrations apply to an empty database
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: jecks
+          POSTGRES_PASSWORD: jecks
+          POSTGRES_DB: jecks_migrate
+        ports: ['5433:5432']
+        options: >-
+          --health-cmd "pg_isready -U jecks"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # Catches a migration that only works against a database that already has data,
+      # and a schema.prisma edited without a matching migration.
+      - name: Apply migrations
+        run: pnpm --filter @jecks/db exec prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://jecks:jecks@localhost:5433/jecks_migrate?schema=public
+
+      - name: Schema matches the migrations
+        run: pnpm --filter @jecks/db exec prisma migrate diff --from-migrations prisma/migrations --to-schema-datamodel prisma/schema.prisma --shadow-database-url "$DATABASE_URL" --exit-code
+        env:
+          DATABASE_URL: postgresql://jecks:jecks@localhost:5433/jecks_migrate?schema=public
+
+  images:
+    name: Docker images
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Images are only worth building for a release.
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [quality, build]
+
+    strategy:
+      matrix:
+        app: [api, worker, storefront, admin]
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/docker/Dockerfile.${{ matrix.app }}
+          push: false
+          tags: jecks/${{ matrix.app }}:${{ github.ref_name }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

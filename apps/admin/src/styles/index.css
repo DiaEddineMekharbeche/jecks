@@ -1,0 +1,27 @@
+@import '@jecks/ui/styles/tokens.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Admin-only chrome. Everything visual lives in the token file; this holds the few
+ * rules that only make sense for a dense back-office.
+ */
+@layer base {
+  /* Tables and long lists read better with tabular figures. */
+  table,
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer components {
+  /* Keyboard users must be able to skip the left nav (PRD Section 9.3). */
+  .skip-link {
+    @apply sr-only;
+  }
+  .skip-link:focus {
+    @apply not-sr-only fixed left-4 top-4 z-50 rounded-sm bg-brass px-4 py-2 text-base;
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "extends": "@jecks/config/tsconfig/node.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "baseUrl": "./",
+    "noEmit": false,
+    "declaration": false,
+    "noUncheckedIndexedAccess": false,
+    "declarationMap": false
+  },
+  "include": [
+    "src"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}
