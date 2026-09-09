@@ -141,14 +141,48 @@ straight at the bucket and this route is idle.
 
 ## Admin
 
+Every admin list endpoint takes the same query parameters and returns the same envelope.
+
+| Parameter | Notes |
+|---|---|
+| `page`, `pageSize` | `pageSize` caps at 100 |
+| `sort`, `order` | `sort` must be in that endpoint's whitelist; anything else is a 400 `INVALID_SORT` naming the allowed keys |
+| `q` | Free text over the columns the module declares |
+| `filter[name]` | Repeat the key for multiple values |
+| `format` | `csv` or `xlsx`; streams a file of the whole filtered set, ignoring pagination |
+
+Responses carry `meta: { page, pageSize, total, totalPages }`.
+
 | Method | Path | Permission |
 |---|---|---|
 | GET | `/admin/dashboard/summary?period=` | `reports.read` |
+| GET | `/admin/orders` | `orders.read` |
+| GET | `/admin/orders/counts` | `orders.read` |
+| GET | `/admin/search?q=` | `orders.read` |
+| GET | `/admin/events` | `orders.read` |
+| GET POST PATCH DELETE | `/admin/views` | `orders.read` |
 
-`period` is `7d`, `30d`, `90d`, `mtd` or `ytd`. The response has KPI tiles with a
-comparison against the preceding window of equal length, a daily series, and the
+**Dashboard.** `period` is `7d`, `30d`, `90d`, `mtd` or `ytd`. The response has KPI tiles
+with a comparison against the preceding window of equal length, a daily series, and the
 "needs attention" counters. It reads the pre-aggregated `daily_stats` table, so it does
 not get slower as orders accumulate.
+
+**Orders.** Read-only for now; transitions, edits and documents land in M3. Sortable by
+`createdAt`, `number`, `total`, `status`, `customer`, `wilaya`, `deliveredAt`. Filterable
+by `status`, `paymentStatus`, `paymentMethod`, `wilayaCode`, `source`, `from`, `to`.
+`/counts` returns per-status totals for the list tabs, computed against every filter
+except status, so a tab shows its own count while another tab is open.
+
+**Search.** Backs the command palette. Matches order numbers, customer names and phone
+numbers — normalized to E.164 first, so `0551 23 45 67` finds `+213551234567` — plus
+product names and SKUs. Groups the caller lacks permission for are never queried.
+
+**Events.** A server-sent stream. Frames are `connected`, then `ping` every 25 seconds,
+then `order.created`, `order.transitioned`, `shipment.updated`, `inventory.low` and
+`notification`. An event may declare required permissions and is filtered per subscriber.
+
+**Views.** Saved list state per user and module. A shared view is readable by anyone who
+can see the module but editable only by its author.
 
 ---
 
@@ -171,7 +205,7 @@ here so integrators can see the shape of the finished API, not because they exis
 `/admin/users`, `/admin/audit`.
 
 **M3 — checkout and orders.** `POST /cart`, `PATCH /cart/items`, `POST /cart/promo`,
-`POST /orders`, `GET /orders/track`, `/admin/orders` with `/:id/transition`,
+`POST /orders`, `GET /orders/track`, order writes on `/admin/orders` with `/:id/transition`,
 `/:id/call-logs` and `/:id/documents`, `/admin/promotions`.
 
 **M4 — delivery.** `/admin/shipping/{zones,rates,couriers,shipments,vehicles,drivers,runs,settlements}`,

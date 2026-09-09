@@ -28,7 +28,9 @@ export class CorrelationInterceptor implements NestInterceptor {
     const incoming = request.headers['x-correlation-id'];
     const correlationId = (typeof incoming === 'string' && incoming.slice(0, 64)) || nanoid(12);
     request.correlationId = correlationId;
-    response.setHeader('x-correlation-id', correlationId);
+    // A streaming route may already have flushed its headers by the time a retry
+    // reaches here; setting one then throws and kills the stream.
+    if (!response.headersSent) response.setHeader('x-correlation-id', correlationId);
 
     const started = Date.now();
     return next.handle().pipe(

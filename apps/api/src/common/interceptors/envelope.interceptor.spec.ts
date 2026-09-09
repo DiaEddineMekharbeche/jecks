@@ -1,18 +1,36 @@
 import type { CallHandler, ExecutionContext } from '@nestjs/common';
+import type { Reflector } from '@nestjs/core';
 import { of } from 'rxjs';
 import { firstValueFrom } from 'rxjs';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { EnvelopeInterceptor } from './envelope.interceptor.js';
 
-const context = {} as ExecutionContext;
+const context = {
+  getHandler: () => undefined,
+  getClass: () => undefined,
+} as unknown as ExecutionContext;
+
+/** No route in these tests opts out of the envelope. */
+const reflector = { getAllAndOverride: vi.fn().mockReturnValue(false) } as unknown as Reflector;
 const handlerFor = (value: unknown): CallHandler => ({ handle: () => of(value) });
 
 async function run(value: unknown): Promise<unknown> {
-  const interceptor = new EnvelopeInterceptor();
+  const interceptor = new EnvelopeInterceptor(reflector);
   return firstValueFrom(interceptor.intercept(context, handlerFor(value)));
 }
 
 describe('EnvelopeInterceptor', () => {
+  it('leaves a @RawResponse route untouched, so SSE framing survives', async () => {
+    const rawReflector = {
+      getAllAndOverride: vi.fn().mockReturnValue(true),
+    } as unknown as Reflector;
+    const interceptor = new EnvelopeInterceptor(rawReflector);
+    const frame = { type: 'ping', data: { at: 'now' } };
+    await expect(
+      firstValueFrom(interceptor.intercept(context, handlerFor(frame))),
+    ).resolves.toEqual(frame);
+  });
+
   it('wraps a bare payload in { data }', async () => {
     expect(await run({ id: 'abc' })).toEqual({ data: { id: 'abc' } });
   });

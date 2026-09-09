@@ -6,6 +6,7 @@ import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { LoginPage } from '@/features/auth/LoginPage';
 import { useSession } from '@/features/auth/session';
 import { DashboardPage } from '@/features/dashboard/DashboardPage';
+import { OrdersListPage } from '@/features/orders/OrdersListPage';
 import { AppShell } from './AppShell';
 import { NAVIGATION } from './navigation';
 
@@ -45,6 +46,15 @@ export function AppRoutes() {
           element={
             <Protected permission="reports.read">
               <DashboardPage />
+            </Protected>
+          }
+        />
+
+        <Route
+          path="/orders"
+          element={
+            <Protected permission="orders.read">
+              <OrdersListPage />
             </Protected>
           }
         />

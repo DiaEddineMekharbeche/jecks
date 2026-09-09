@@ -251,6 +251,7 @@ model User {
   expenses         Expense[]
   notifications    Notification[]
   invitationsSent  StaffInvitation[] @relation("InvitedBy")
+  savedViews       SavedView[]
   avatar           Media?            @relation("UserAvatar", fields: [avatarMediaId], references: [id])
 
   @@index([type, active])
@@ -438,6 +439,7 @@ model Customer {
 
   @@index([segment, createdAt])
   @@index([blacklisted])
+  @@index([phone(ops: raw("gin_trgm_ops"))], type: Gin)
   @@map("customers")
 }
 
@@ -540,6 +542,7 @@ model Category {
 
   @@index([parentId, position])
   @@index([path])
+  @@index([name(ops: JsonbPathOps)], type: Gin)
   @@map("categories")
 }
 
@@ -557,6 +560,8 @@ model Collection {
   published      Boolean   @default(true)
   seoTitle       Json?
   seoDescription Json?
+  /// Trigger-maintained, see migration 20260909170000.
+  searchText     String    @default("") @map("search_text")
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
   deletedAt      DateTime?
@@ -568,6 +573,7 @@ model Collection {
   promotions PromotionCollection[]
   homeSections HomeSection[]
 
+  @@index([searchText(ops: raw("gin_trgm_ops"))], type: Gin)
   @@map("collections")
 }
 
@@ -667,9 +673,11 @@ model Product {
   salesCount      Int      @default(0)
   viewsCount      Int      @default(0)
 
-  /// Weighted tsvector, a generated column created in migration 20260909120500.
-  /// Prisma only needs to know it exists; the expression lives in SQL.
+  /// Weighted tsvector and a flattened, accent-folded copy of the name. Both are
+  /// maintained by the trigger in migration 20260909170000; declaring them here is
+  /// what lets Prisma own their indexes.
   searchVector Unsupported("tsvector")? @map("search_vector")
+  searchText   String                   @default("") @map("search_text")
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -696,6 +704,9 @@ model Product {
   @@index([status, publishedAt])
   @@index([categoryId, status])
   @@index([salesCount(sort: Desc)])
+  @@index([searchVector], type: Gin)
+  @@index([searchText(ops: raw("gin_trgm_ops"))], type: Gin)
+  @@index([name(ops: JsonbPathOps)], type: Gin)
   @@map("products")
 }
 
@@ -1459,6 +1470,9 @@ model Order {
   @@index([paymentStatus, status])
   @@index([wilayaCode, createdAt])
   @@index([createdAt])
+  @@index([deliveredAt])
+  @@index([number(ops: raw("gin_trgm_ops"))], type: Gin)
+  @@index([customerPhone(ops: raw("gin_trgm_ops"))], type: Gin)
   @@map("orders")
 }
 
@@ -1494,6 +1508,7 @@ model OrderItem {
 
   @@index([orderId])
   @@index([variantId])
+  @@index([variantId, createdAt])
   @@map("order_items")
 }
 
@@ -2471,4 +2486,29 @@ model Job {
 
   @@index([queue, status, runAt])
   @@map("jobs")
+}
+
+/// Saved list views — PRD-COMPLETION M1.0. A staff member pins a filter set
+/// ("Commandes à confirmer, Alger") and returns to it from the list toolbar.
+model SavedView {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  userId    String   @db.Uuid
+  /// Which list it belongs to: "orders", "products", "customers"…
+  module    String   @db.VarChar(48)
+  name      String   @db.VarChar(120)
+  /// The whole list state: filters, sort, page size, visible columns.
+  state     Json
+  /// Opens by default when this user lands on the module.
+  isDefault Boolean  @default(false)
+  /// Visible to every user who can see the module, not just its author.
+  isShared  Boolean  @default(false)
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, module, name])
+  @@index([module, isShared])
+  @@map("saved_views")
 }

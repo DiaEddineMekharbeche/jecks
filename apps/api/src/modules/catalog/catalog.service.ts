@@ -237,19 +237,39 @@ export class CatalogService {
     const trimmed = term.trim();
     if (trimmed.length < 2) return { products: [], collections: [] };
 
-    const products = await this.prisma.$queryRaw<Array<{ id: string; slug: string; rank: number }>>`
+    // `search_text` is the accent-folded, lower-cased name kept current by a trigger
+    // (migration 20260909164000). Matching a column rather than an expression is what
+    // lets the trigram index actually be used.
+    const folded = trimmed.toLowerCase();
+
+    // Stemmed match first: it is indexed, and it is what a correctly spelled query hits.
+    let products = await this.prisma.$queryRaw<Array<{ id: string; slug: string; rank: number }>>`
       SELECT p.id, p.slug,
              ts_rank(p.search_vector, plainto_tsquery('fr_unaccent', ${trimmed})) AS rank
       FROM products p
       WHERE p.status = 'ACTIVE'
         AND p."deletedAt" IS NULL
-        AND (
-          p.search_vector @@ plainto_tsquery('fr_unaccent', ${trimmed})
-          OR similarity(p.name ->> 'fr', ${trimmed}) > 0.25
-        )
-      ORDER BY rank DESC, similarity(p.name ->> 'fr', ${trimmed}) DESC
+        AND p.search_vector @@ plainto_tsquery('fr_unaccent', ${trimmed})
+      ORDER BY rank DESC
       LIMIT ${limit}
     `;
+
+    // Only a misspelling falls through to trigrams. `word_similarity` compares the term
+    // against the closest word in the text rather than the whole string, so a typo in
+    // "trucker" still scores against that word and is not diluted by the rest of the
+    // product name (PRD F-ST-25).
+    if (products.length === 0) {
+      products = await this.prisma.$queryRaw<Array<{ id: string; slug: string; rank: number }>>`
+        SELECT p.id, p.slug,
+               word_similarity(unaccent(${folded}), p.search_text) AS rank
+        FROM products p
+        WHERE p.status = 'ACTIVE'
+          AND p."deletedAt" IS NULL
+          AND word_similarity(unaccent(${folded}), p.search_text) > 0.35
+        ORDER BY rank DESC
+        LIMIT ${limit}
+      `;
+    }
 
     const ids = products.map((row) => row.id);
     const hydrated =
@@ -262,10 +282,9 @@ export class CatalogService {
     const collections = await this.prisma.collection.findMany({
       where: {
         published: true,
-        OR: [
-          { slug: { contains: trimmed.toLowerCase() } },
-          { name: { path: ['fr'], string_contains: trimmed } },
-        ],
+        deletedAt: null,
+        // Same folded column, so "ete" finds "Collection Été".
+        searchText: { contains: folded },
       },
       take: 4,
       select: { slug: true, name: true },

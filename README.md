@@ -81,7 +81,25 @@ generated SQL. CI fails if the schema and the migrations disagree.
 
 ## Status
 
-Milestone **M0 (Foundation)** is complete, with parts of M1 and M2 delivered early:
+**M0 (Foundation)** and **M1.0 (admin framework)** are complete. See
+[`docs/PRD-COMPLETION.md`](docs/PRD-COMPLETION.md) for the milestone plan.
+
+M1.0 added the pieces every later module builds on:
+
+- **Design system.** Table, dialog, sheet, dropdown, tabs, select, combobox, multi-select,
+  date range picker, switch, checkbox, radio, money input, toast, command palette,
+  file dropzone, translated input, stat tile, status badge, timeline.
+- **List framework.** `useServerTable` keeps page, sort, filters and search in the URL, so
+  a filtered list is a shareable link. Saved views, column visibility, density, bulk
+  selection and CSV/Excel export come with it.
+- **Realtime.** Server-sent events with per-permission filtering, reconnect backoff, live
+  nav badges and a connection indicator.
+- **Command palette.** ⌘K across orders, products, customers and navigation.
+- **Audit.** Every mutating admin request is logged with a redacted payload diff.
+- **Search.** Full-text and fuzzy matching moved onto trigger-maintained columns, so the
+  schema and the migrations agree with no hand-written expression indexes.
+
+Earlier, M0 delivered:
 
 - Prisma schema covering all of PRD Section 8, with migrations and a reproducible seed
 - Staff sign-in with password and TOTP, phone OTP for customers, rotating refresh

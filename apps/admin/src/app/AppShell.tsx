@@ -1,8 +1,10 @@
-import { Badge, Button, cn } from '@jecks/ui';
-import { LogOut, Menu, Moon, Sun, X } from 'lucide-react';
+import { Badge, Button, Kbd, Tooltip, cn, useCommandPalette } from '@jecks/ui';
+import { Bell, BellOff, LogOut, Menu, Moon, Search, Sun, Wifi, WifiOff, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useSession } from '@/features/auth/session';
+import { useAdminEventStream, useRealtimeStore } from '@/lib/realtime';
+import { CommandPalette } from './CommandPalette';
 import { NAVIGATION } from './navigation';
 
 /**
@@ -15,6 +17,16 @@ export function AppShell() {
   const can = useSession((state) => state.can);
   const signOut = useSession((state) => state.signOut);
   const location = useLocation();
+
+  const { open: paletteOpen, setOpen: setPaletteOpen } = useCommandPalette();
+  const realtimeStatus = useRealtimeStore((state) => state.status);
+  const unseen = useRealtimeStore((state) => state.unseen);
+  const clearUnseen = useRealtimeStore((state) => state.clearUnseen);
+  const soundEnabled = useRealtimeStore((state) => state.soundEnabled);
+  const toggleSound = useRealtimeStore((state) => state.toggleSound);
+
+  // One stream for the whole session, opened once the user is known.
+  useAdminEventStream(Boolean(user));
 
   const [navOpen, setNavOpen] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>(() => readStoredTheme());
@@ -67,11 +79,13 @@ export function AppShell() {
             {items.map((item) => {
               const Icon = item.icon;
               const planned = item.status === 'planned';
+              const pending = unseen[item.key] ?? 0;
               return (
                 <li key={item.to}>
                   <NavLink
                     to={item.to}
                     end={item.to === '/'}
+                    onClick={() => clearUnseen(item.key)}
                     className={({ isActive }) =>
                       cn(
                         'flex items-center gap-3 rounded-sm px-3 py-2 text-sm transition-colors',
@@ -83,7 +97,14 @@ export function AppShell() {
                   >
                     <Icon className="h-4 w-4 shrink-0" />
                     <span className="flex-1">{item.label}</span>
-                    {planned ? <Badge tone="neutral">{item.milestone}</Badge> : null}
+                    {/* A live count outranks the milestone tag: it needs acting on. */}
+                    {pending > 0 ? (
+                      <Badge tone="brass" className="animate-badge-pop">
+                        {pending}
+                      </Badge>
+                    ) : planned ? (
+                      <Badge tone="neutral">{item.milestone}</Badge>
+                    ) : null}
                   </NavLink>
                 </li>
               );
@@ -113,21 +134,67 @@ export function AppShell() {
           >
             <Menu className="h-5 w-5" />
           </button>
-          <div className="flex-1" />
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label={theme === 'dark' ? 'Passer en clair' : 'Passer en sombre'}
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          <button
+            type="button"
+            onClick={() => setPaletteOpen(true)}
+            className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-sm border border-line px-3 text-sm text-muted transition-colors hover:border-muted hover:text-ink sm:max-w-sm"
           >
-            {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-          </Button>
+            <Search className="h-4 w-4 shrink-0" aria-hidden />
+            <span className="truncate">Rechercher…</span>
+            <Kbd className="ms-auto hidden sm:inline-flex">⌘K</Kbd>
+          </button>
+
+          <div className="ms-auto flex items-center gap-1">
+            <Tooltip
+              content={
+                realtimeStatus === 'open'
+                  ? 'Mises à jour en direct actives'
+                  : 'Connexion aux mises à jour en direct…'
+              }
+            >
+              <span
+                className={cn(
+                  'flex h-9 w-9 items-center justify-center',
+                  realtimeStatus === 'open' ? 'text-success' : 'text-muted',
+                )}
+                role="status"
+                aria-label={realtimeStatus === 'open' ? 'En direct' : 'Hors ligne'}
+              >
+                {realtimeStatus === 'open' ? (
+                  <Wifi className="h-4 w-4" />
+                ) : (
+                  <WifiOff className="h-4 w-4" />
+                )}
+              </span>
+            </Tooltip>
+
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={soundEnabled ? 'Couper le son des alertes' : 'Activer le son des alertes'}
+              aria-pressed={soundEnabled}
+              onClick={toggleSound}
+            >
+              {soundEnabled ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={theme === 'dark' ? 'Passer en clair' : 'Passer en sombre'}
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            >
+              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </Button>
+          </div>
         </header>
 
         <main className="flex-1 p-4 lg:p-6">
           <Outlet />
         </main>
       </div>
+
+      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
     </div>
   );
 }

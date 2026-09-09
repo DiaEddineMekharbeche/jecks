@@ -9,7 +9,6 @@ import {
 type Row = Record<string, unknown>;
 
 const past = new Date(Date.now() - 3_600_000);
-const future = new Date(Date.now() + 3_600_000);
 
 describe('applyPriceSchedules', () => {
   function harness(due: Row[], expired: Row[]) {

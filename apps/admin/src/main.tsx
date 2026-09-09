@@ -1,3 +1,4 @@
+import { Toaster, TooltipProvider } from '@jecks/ui';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { StrictMode, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -40,9 +41,12 @@ if (!container) throw new Error('#root is missing from index.html');
 createRoot(container).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
+      <TooltipProvider delayDuration={200}>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+        <Toaster />
+      </TooltipProvider>
     </QueryClientProvider>
   </StrictMode>,
 );

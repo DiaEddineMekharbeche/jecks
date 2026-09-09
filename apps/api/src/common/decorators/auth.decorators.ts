@@ -4,6 +4,15 @@ import type { Request } from 'express';
 
 export const IS_PUBLIC_KEY = 'jecks:isPublic';
 export const PERMISSIONS_KEY = 'jecks:permissions';
+export const RAW_RESPONSE_KEY = 'jecks:rawResponse';
+
+/**
+ * Marks a route whose response must reach the client untouched: server-sent events,
+ * file downloads, PDFs. The envelope interceptor would otherwise wrap every frame in
+ * `{ data }`, which breaks the SSE framing and corrupts a binary body.
+ */
+export const RawResponse = (): MethodDecorator & ClassDecorator =>
+  SetMetadata(RAW_RESPONSE_KEY, true);
 
 /** Marks a route as reachable without a token — storefront catalog, checkout, tracking. */
 export const Public = (): MethodDecorator & ClassDecorator => SetMetadata(IS_PUBLIC_KEY, true);

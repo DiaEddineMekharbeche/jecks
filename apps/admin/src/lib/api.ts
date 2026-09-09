@@ -48,9 +48,15 @@ export class ApiRequestError extends Error {
   }
 }
 
+/** Repeated keys are how list filters travel: filter[status]=A&filter[status]=B. */
+export type QueryParams = Record<
+  string,
+  string | number | boolean | string[] | undefined | null
+>;
+
 export interface RequestOptions extends Omit<RequestInit, 'body'> {
   body?: unknown;
-  query?: Record<string, string | number | boolean | undefined | null>;
+  query?: QueryParams;
   /** Set on the refresh call itself, so a failing refresh cannot recurse. */
   skipRefresh?: boolean;
 }
@@ -59,11 +65,7 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
   const { body, query, skipRefresh, headers, ...rest } = options;
 
   const url = new URL(`${BASE}${path}`, window.location.origin);
-  for (const [key, value] of Object.entries(query ?? {})) {
-    if (value !== undefined && value !== null && value !== '') {
-      url.searchParams.set(key, String(value));
-    }
-  }
+  applyQuery(url, query);
 
   const response = await fetch(url.toString(), {
     ...rest,
@@ -125,11 +127,7 @@ export async function apiWithMeta<T>(
 ): Promise<{ data: T; meta?: Record<string, unknown> }> {
   const { body, query, headers, ...rest } = options;
   const url = new URL(`${BASE}${path}`, window.location.origin);
-  for (const [key, value] of Object.entries(query ?? {})) {
-    if (value !== undefined && value !== null && value !== '') {
-      url.searchParams.set(key, String(value));
-    }
-  }
+  applyQuery(url, query);
   const response = await fetch(url.toString(), {
     ...rest,
     credentials: 'include',
@@ -147,4 +145,18 @@ export async function apiWithMeta<T>(
     throw new ApiRequestError(response.status, error.code, error.message, error.details);
   }
   return { data: payload?.data as T, meta: payload?.meta as Record<string, unknown> | undefined };
+}
+
+/** Appends query values, repeating a key once per entry for array values. */
+export function applyQuery(url: URL, query: QueryParams | undefined): void {
+  for (const [key, value] of Object.entries(query ?? {})) {
+    if (value === undefined || value === null || value === '') continue;
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        if (item !== '') url.searchParams.append(key, item);
+      }
+    } else {
+      url.searchParams.set(key, String(value));
+    }
+  }
 }

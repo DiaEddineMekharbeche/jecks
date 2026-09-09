@@ -30,6 +30,11 @@ when the trade-off matters. Update this file whenever a decision changes; never 
 | D23 | Fonts | `next/font` self-hosting, bridged onto the design tokens | 9.1 |
 | D24 | Hero 3D asset | Procedural geometry until a real GLB is uploaded | 9.1 |
 | D25 | Denormalized rollups | Price range, stock, rating and sales cached on `products` | 10.7 |
+| D26 | Search columns | Trigger-maintained `search_vector` and `search_text`, no expression indexes | 6.2 |
+| D27 | Admin list state | Lives in the URL; `useServerTable` is the only reader and writer | Completion 2.2 |
+| D28 | Admin components | Radix primitives, brand-tokened, in `@jecks/ui` | 9.2 |
+| D29 | Export | `exceljs` streaming, same endpoint as the list via `?format=` | 5 |
+| D30 | Audit | Global interceptor on mutating `/admin` routes, opt-out decorator | F-AD-93 |
 
 ---
 
@@ -161,6 +166,69 @@ request, and Section 10.7 budgets p95 under 200 ms for catalog reads.
 The cost is that these columns have owners: the price range follows variant writes and
 the price scheduler, stock follows the movement ledger, ratings follow review moderation.
 Anything that writes the underlying table refreshes the rollup in the same transaction.
+
+## D26 — Search lives in columns, not in expressions
+
+Migration `20260909120500` created a GENERATED tsvector column and GIN indexes over
+expressions like `("name" ->> 'fr')`. Prisma's schema language can express neither, so
+its differ proposed dropping them on every `migrate dev`. The schema and the migrations
+could never agree, and the CI drift check would have had to be switched off.
+
+Migration `20260909164000` replaces both with plain columns — `products.search_vector`
+and `products.search_text`, `collections.search_text` — kept current by triggers that
+fire only when their inputs change. Prisma declares the columns and owns their indexes;
+only the function and the trigger stay outside its model, which its differ ignores.
+
+Search itself is now two steps rather than one `OR`. The stemmed `tsvector` match runs
+first and is indexed. Only when it returns nothing does a trigram pass run, using
+`word_similarity` against the folded text: comparing the term to the closest *word*
+rather than to the whole string is what stops a typo's score being diluted by the rest
+of a product name. The practical difference is large — "trukker" went from finding two
+truckers to finding all seven.
+
+## D27 — Admin list state belongs in the URL
+
+Page, page size, sort, search and every filter are query parameters, read and written
+only by `useServerTable`. That makes a filtered list shareable, bookmarkable and
+reload-proof, and it makes saved views a matter of storing and restoring a query string
+rather than a bespoke state tree per module.
+
+Row selection and table density stay in React state: they are about the current glance,
+not about which rows exist.
+
+## D28 — Radix, not a component framework
+
+`@jecks/ui` builds on Radix primitives and the design tokens. Focus trapping, escape
+handling, scroll locking, typeahead and ARIA wiring are solved problems that are easy to
+get subtly wrong, and a component framework would bring a second design language into a
+codebase that already has one.
+
+The one rule this imposes: components that use hooks or context carry `'use client'`,
+and class recipes live in `lib/variants.ts` with no directive, so a React Server
+Component on the storefront can style a plain `<a>` with `buttonVariants(...)` without
+pulling a client component into its tree.
+
+## D29 — One endpoint serves the list and its export
+
+`?format=csv|xlsx` on the same route, with the same filters, sort and permission check.
+A separate export endpoint drifts: the file stops matching what the operator was looking
+at. Both formats stream, so a large export starts downloading immediately rather than
+being assembled in memory.
+
+The CSV carries a UTF-8 byte-order mark. Without it Excel on Windows reads the file as
+Latin-1 and mangles every accent and every Arabic character, which for this catalogue
+means most of it.
+
+## D30 — Auditing is global, not per-route
+
+`AuditInterceptor` logs every successful mutating request under `/admin`, so a new module
+is audited the moment it exists rather than when someone remembers a decorator. Reads are
+ignored: logging every list request would bury the changes that matter. `@NoAudit()` opts
+out the handful of routes that are personal preference rather than business change, such
+as saving a list view.
+
+Payloads are redacted by key before they are written — passwords, tokens, TOTP codes,
+encrypted credentials — and long strings and large arrays are truncated.
 
 ## Deferred / not yet decided
 
