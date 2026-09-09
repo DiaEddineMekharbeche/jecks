@@ -47,6 +47,7 @@ import {
 } from 'lucide-react';
 import { useRef, useState, type ChangeEvent, type DragEvent } from 'react';
 import { ApiRequestError, api, getAccessToken } from '@/lib/api';
+import { renditionUrl } from '@/lib/media';
 import { useServerTable } from '@/lib/server-table';
 
 /**
@@ -371,7 +372,7 @@ function MediaTile({ media, onOpen }: { media: MediaDto; onOpen: () => void }) {
   const Icon = KIND_ICONS[media.kind];
   const thumb = pickRendition(media.renditions, 200)?.key;
   const preview = thumb
-    ? media.url.replace(/\/media\/.*$/, `/media/${thumb}`)
+    ? renditionUrl(media.url, thumb)
     : media.kind === 'IMAGE'
       ? media.url
       : media.posterUrl;

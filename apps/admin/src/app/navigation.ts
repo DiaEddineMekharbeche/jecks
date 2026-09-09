@@ -37,14 +37,14 @@ export interface NavItem {
 export const NAVIGATION: NavItem[] = [
   { key: "dashboard", label: 'Tableau de bord', to: '/', icon: LayoutDashboard, permission: 'reports.read', status: 'ready' },
   { key: "orders", label: 'Commandes', to: '/orders', icon: ShoppingCart, permission: 'orders.read', status: 'ready' },
-  { key: "catalog", label: 'Catalogue', to: '/catalog', icon: Package, permission: 'catalog.read', status: 'planned', milestone: 'M1' },
-  { key: "inventory", label: 'Stock', to: '/inventory', icon: Boxes, permission: 'inventory.read', status: 'planned', milestone: 'M1' },
+  { key: "catalog", label: 'Catalogue', to: '/catalog/products', icon: Package, permission: 'catalog.read', status: 'ready' },
+  { key: "inventory", label: 'Stock', to: '/inventory', icon: Boxes, permission: 'inventory.read', status: 'planned', milestone: 'M1.3' },
   { key: "customers", label: 'Clients', to: '/customers', icon: Users, permission: 'customers.read', status: 'planned', milestone: 'M5' },
   { key: "delivery", label: 'Livraison', to: '/delivery', icon: Truck, permission: 'delivery.read', status: 'planned', milestone: 'M4' },
   { key: "promotions", label: 'Promotions', to: '/promotions', icon: Megaphone, permission: 'promotions.read', status: 'planned', milestone: 'M3' },
   { key: "finance", label: 'Finances', to: '/finance', icon: Wallet, permission: 'finance.read', status: 'planned', milestone: 'M5' },
   { key: "reports", label: 'Rapports', to: '/reports', icon: BarChart3, permission: 'reports.read', status: 'planned', milestone: 'M5' },
   { key: "content", label: 'Contenu', to: '/content', icon: FileText, permission: 'content.read', status: 'planned', milestone: 'M6' },
-  { key: "audit", label: 'Journal', to: '/audit', icon: ClipboardList, permission: 'audit.read', status: 'planned', milestone: 'M1' },
-  { key: "settings", label: 'Réglages', to: '/settings', icon: Settings, permission: 'settings.read', status: 'planned', milestone: 'M1' },
+  { key: "audit", label: 'Journal', to: '/audit', icon: ClipboardList, permission: 'audit.read', status: 'planned', milestone: 'M1.4' },
+  { key: "settings", label: 'Réglages', to: '/settings', icon: Settings, permission: 'settings.read', status: 'planned', milestone: 'M1.4' },
 ];

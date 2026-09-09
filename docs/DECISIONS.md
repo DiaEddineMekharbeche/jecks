@@ -39,6 +39,12 @@ when the trade-off matters. Update this file whenever a decision changes; never 
 | D32 | Upload validation | Content sniffing, not the declared type or the extension | 10.8 |
 | D33 | Renditions | sharp, 3 widths x WebP+AVIF, served via `<picture>` not next/image | 6.3 |
 | D34 | GLB posters | Draco compression and embedded-texture posters; no headless renderer | 9.1 |
+| D35 | Smart-collection rules | One translator shared by the storefront read and the admin preview | F-AD-11 |
+| D36 | Merchandising | Pins, hides and boosts live on the membership row, created on demand for smart collections | F-AD-13 |
+| D37 | Product autosave | Drafts autosave; an active product waits for an explicit save | Completion 2.2 |
+| D38 | Product import | Synchronous, dry-run first, one row per variant keyed by SKU | F-AD-10 |
+| D39 | Search synonyms | Query expansion in the database, ORed `tsquery` fragments | F-AD-13 |
+| D40 | sharp version | One version across the workspace; two native copies cannot coexist | 6.3 |
 
 ---
 
@@ -299,6 +305,93 @@ a model carries none, the admin assigns one from the media library
 
 This supersedes nothing in D24: the storefront hero still uses procedural geometry until a
 real GLB is uploaded.
+
+## D35 — One smart-collection rule translator
+
+A smart collection is resolved to its rules on every read rather than materialized, so a
+rule change is live immediately. That means two callers evaluate the same rules: the
+storefront, answering a shopper, and the admin preview, answering "what would this rule
+select?". Two implementations would drift, and the drift would be invisible — the preview
+would keep promising matches the shop never shows.
+
+`apps/api/src/modules/catalog/collection-rules.ts` is the single translator. It also
+validates: a price rule whose value is not a whole number of centimes is refused at write
+time rather than silently matching nothing, and a rule set with no rules matches nothing
+rather than matching the whole catalogue.
+
+The one rule that is coarser than it looks is `DISCOUNT`. The rollups carry the highest
+compare-at price and the lowest selling price, not a discount percentage, so the rule reads
+as "currently marked down" rather than "marked down by more than N %". Storing a percentage
+would mean a fourth denormalized column with a fourth owner (D25); the coarse version covers
+the "Dernière chance" collection the PRD actually asks for.
+
+## D36 — Merchandising lives on the membership row
+
+Pinning, hiding and boosting apply per collection, not per product: the same cap can lead
+the summer grid and sit mid-page in the new arrivals. `collection_products` already joins
+the two, so the three columns hang there.
+
+A smart collection has no membership rows — its members come from rules. Rather than
+introduce a second table, an override row is created on demand the first time an operator
+touches a product in that collection. It carries no membership meaning: the rules still
+decide who appears, and the row only decides where.
+
+Boost is a nudge on the default sort rather than a fixed slot. A fixed slot freezes a
+product at rank three for ever, including long after it stopped selling; a nudge lets it
+keep moving with its own numbers.
+
+## D37 — A draft autosaves, a published product does not
+
+The product editor holds seven tabs of one entity and writes them with a single PATCH.
+While the product is a draft it autosaves 1.5 s after the last keystroke: a draft is not on
+the storefront, so saving early costs nothing and losing an afternoon of work costs a lot.
+
+An active product does not autosave. It is what shoppers are looking at, and a half-typed
+name or a partially updated price should reach them when someone decides it should, not
+while they are still typing. That editor keeps a dirty-state guard instead, and an explicit
+save button.
+
+## D38 — Product import is synchronous and dry-run first
+
+One row is one variant, keyed by SKU; rows sharing a slug become one product with several
+variants, which is how a spreadsheet naturally describes "black S, black M, white S".
+
+The import runs in the request rather than as a queued job, because the validation report
+is only useful while the operator still has the file open. The ceiling is 5 000 rows, which
+is comfortably inside a request and far beyond a season's catalogue.
+
+It defaults to a dry run, and the commit button stays disabled until a run comes back with
+no issues. Money is read in dinars and converted to centimes here, because that is what an
+operator types; the alternative is discovering on the storefront that column F meant
+centimes.
+
+## D39 — Synonyms expand the query, not the index
+
+A shopper types "cap", "kaskita" or "قبعة" and the catalogue says "casquette". The bridge is
+a small table the shop maintains (F-AD-13), applied by expanding the query before it runs:
+each term becomes a `plainto_tsquery`, and the fragments are ORed into one indexed lookup.
+None of the operator's text is interpolated into the query language.
+
+Expanding at query time rather than baking synonyms into `search_vector` means a new
+synonym works immediately, with no reindex, and the typed term stays first in the list so an
+exact match still outranks a synonym match. A pathological synonym list is capped at eight
+terms so one search cannot become forty index scans.
+
+## D40 — One sharp version across the workspace
+
+`@gltf-transform/functions` pulls `ndarray-pixels`, which depends on `sharp`. When the
+workspace pinned an older sharp than that, pnpm installed two copies, and the 3D pipeline
+failed on the second native module to load: `ERR_DLOPEN_FAILED`. Two native sharp addons
+cannot share a process.
+
+The workspace therefore tracks the version the deepest dependency needs, so the tree
+deduplicates to one copy. Bumping sharp now means checking what `ndarray-pixels` asks for,
+not only what the image pipeline needs.
+
+The model processor was hardened at the same time: texture compression is skipped when a
+model has no textures and degrades to a warning when the encoder cannot read them, and a
+Draco pass that makes a file larger — which happens on very simple meshes — keeps the
+original instead.
 
 ## Deferred / not yet decided
 

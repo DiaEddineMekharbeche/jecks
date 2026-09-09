@@ -674,7 +674,9 @@ async function seedReviews(prisma: PrismaClient, rng: () => number): Promise<voi
         rating,
         body: pick(rng, bodies),
         authorName: order.customerName.split(' ')[0] ?? 'Client',
-        status: rng() < 0.85 ? 'APPROVED' : 'PENDING',
+        // A moderation queue with nothing in it teaches an operator nothing, so the
+        // demo data leaves a realistic mix waiting and a few already turned away.
+        status: rng() < 0.78 ? 'APPROVED' : rng() < 0.85 ? 'REJECTED' : 'PENDING',
         verified: true,
       },
     });

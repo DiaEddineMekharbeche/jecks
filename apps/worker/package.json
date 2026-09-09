@@ -20,7 +20,7 @@
     "dotenv": "^16.4.5",
     "ioredis": "^5.4.1",
     "pino": "^9.4.0",
-    "sharp": "^0.33.5",
+    "sharp": "^0.35.4",
     "@gltf-transform/core": "^4.1.0",
     "@gltf-transform/extensions": "^4.1.0",
     "@gltf-transform/functions": "^4.1.0",

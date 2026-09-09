@@ -166,3 +166,136 @@ describe('processMedia — failures', () => {
     expect(String(updates.at(-1)?.processingError).length).toBeLessThanOrEqual(500);
   });
 });
+
+/**
+ * 3D models run the real glTF pipeline against a real GLB, for the same reason the
+ * image tests run the real sharp pipeline: the value of this job is the bytes it
+ * produces, and a mocked encoder proves none of it.
+ */
+describe('processMedia — 3D models', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  const modelRow = (sizeBytes: number) => ({
+    id: 'media-3d',
+    kind: 'MODEL_3D',
+    storageKey: 'media/ab/cd/cap.glb',
+    mimeType: 'model/gltf-binary',
+    sizeBytes,
+  });
+
+  it('reads a GLB, counts its meshes and marks it processed', async () => {
+    const glb = buildPlaceholderGlb();
+    const { prisma, storage, updates } = harness(modelRow(glb.length), glb);
+
+    const result = await processMedia(prisma, storage, 'media-3d');
+
+    expect(result.renditions).toBe(0);
+    // One mesh in, one mesh out: dedup and prune must not eat the geometry.
+    expect(updates[0]?.width).toBe(1);
+    expect(updates.at(-1)?.processedAt).toBeInstanceOf(Date);
+    expect(updates.at(-1)?.processingError).toBeNull();
+  });
+
+  it('keeps the original when Draco makes the file bigger', async () => {
+    // A box has eight vertices; Draco's header costs more than it saves on one.
+    const glb = buildPlaceholderGlb();
+    const { prisma, storage, written, updates } = harness(modelRow(glb.length), glb);
+
+    const result = await processMedia(prisma, storage, 'media-3d');
+
+    expect(result.skipped).toContain('larger');
+    expect(updates[0]?.storageKey).toBe('media/ab/cd/cap.glb');
+    expect(updates[0]?.sizeBytes).toBe(glb.length);
+    // Nothing was written, because there was nothing better to write.
+    expect(written.has('media/ab/cd/cap.optimized.glb')).toBe(false);
+  });
+
+  it('has no poster to extract from a model with no textures', async () => {
+    const glb = buildPlaceholderGlb();
+    const { prisma, storage } = harness(modelRow(glb.length), glb);
+
+    const result = await processMedia(prisma, storage, 'media-3d');
+
+    // The admin assigns one from the library instead — DECISIONS D34.
+    expect(result.posterKey).toBeNull();
+  });
+
+  it('records a failure on the row and rethrows for the queue to retry', async () => {
+    const { prisma, storage, updates } = harness(modelRow(64), Buffer.from('not a glb'));
+
+    await expect(processMedia(prisma, storage, 'media-3d')).rejects.toThrow();
+    expect(updates.at(-1)?.processingError).toEqual(expect.any(String));
+  });
+});
+
+/**
+ * A minimal valid GLB: an indexed box with one PBR material and no textures. Built here
+ * rather than checked in, so the fixture is reviewable.
+ */
+function buildPlaceholderGlb(): Buffer {
+  const positions = new Float32Array([
+    -0.5, 0, -0.5, 0.5, 0, -0.5, 0.5, 0.5, -0.5, -0.5, 0.5, -0.5, -0.5, 0, 0.5, 0.5, 0, 0.5, 0.5,
+    0.5, 0.5, -0.5, 0.5, 0.5,
+  ]);
+  const indices = new Uint16Array([
+    0, 1, 2, 0, 2, 3, 4, 6, 5, 4, 7, 6, 0, 3, 7, 0, 7, 4, 1, 5, 6, 1, 6, 2, 3, 2, 6, 3, 6, 7, 0, 4,
+    5, 0, 5, 1,
+  ]);
+
+  const align = (value: number) => Math.ceil(value / 4) * 4;
+  const positionBytes = Buffer.from(positions.buffer);
+  const indexBytes = Buffer.from(indices.buffer);
+  const indexOffset = align(positionBytes.length);
+  const binary = Buffer.alloc(align(indexOffset + indexBytes.length));
+  positionBytes.copy(binary, 0);
+  indexBytes.copy(binary, indexOffset);
+
+  const gltf = {
+    asset: { version: '2.0' },
+    scene: 0,
+    scenes: [{ nodes: [0] }],
+    nodes: [{ mesh: 0 }],
+    meshes: [{ primitives: [{ attributes: { POSITION: 0 }, indices: 1, material: 0 }] }],
+    materials: [{ pbrMetallicRoughness: { baseColorFactor: [0.85, 0.7, 0.42, 1] } }],
+    accessors: [
+      {
+        bufferView: 0,
+        componentType: 5126,
+        count: 8,
+        type: 'VEC3',
+        min: [-0.5, 0, -0.5],
+        max: [0.5, 0.5, 0.5],
+      },
+      { bufferView: 1, componentType: 5123, count: indices.length, type: 'SCALAR' },
+    ],
+    bufferViews: [
+      { buffer: 0, byteOffset: 0, byteLength: positionBytes.length, target: 34962 },
+      { buffer: 0, byteOffset: indexOffset, byteLength: indexBytes.length, target: 34963 },
+    ],
+    buffers: [{ byteLength: binary.length }],
+  };
+
+  const pad = (buffer: Buffer, fill: number) => {
+    const padded = Buffer.alloc(align(buffer.length), fill);
+    buffer.copy(padded, 0);
+    return padded;
+  };
+
+  const json = pad(Buffer.from(JSON.stringify(gltf), 'utf8'), 0x20);
+  const bin = pad(binary, 0x00);
+
+  const header = Buffer.alloc(12);
+  header.write('glTF', 0, 'ascii');
+  header.writeUInt32LE(2, 4);
+  header.writeUInt32LE(12 + 8 + json.length + 8 + bin.length, 8);
+
+  const jsonHeader = Buffer.alloc(8);
+  jsonHeader.writeUInt32LE(json.length, 0);
+  jsonHeader.write('JSON', 4, 'ascii');
+
+  const binHeader = Buffer.alloc(8);
+  binHeader.writeUInt32LE(bin.length, 0);
+  binHeader.write('BIN\0', 4, 'ascii');
+
+  return Buffer.concat([header, jsonHeader, json, binHeader, bin]);
+}

@@ -5,6 +5,20 @@ import type { ReactNode } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { LoginPage } from '@/features/auth/LoginPage';
 import { useSession } from '@/features/auth/session';
+import { CatalogLayout } from '@/features/catalog/CatalogLayout';
+import { CategoriesPage } from '@/features/catalog/CategoriesPage';
+import { CollectionEditorPage } from '@/features/catalog/CollectionEditorPage';
+import { CollectionsPage } from '@/features/catalog/CollectionsPage';
+import { MerchandisingPage } from '@/features/catalog/MerchandisingPage';
+import { ProductEditorPage } from '@/features/catalog/ProductEditorPage';
+import { ProductsListPage } from '@/features/catalog/ProductsListPage';
+import { ReviewsPage } from '@/features/catalog/ReviewsPage';
+import {
+  AttributesPage,
+  BrandsPage,
+  SizeGuidesPage,
+  TagsPage,
+} from '@/features/catalog/TaxonomyPages';
 import { DashboardPage } from '@/features/dashboard/DashboardPage';
 import { MediaLibraryPage } from '@/features/media/MediaLibraryPage';
 import { OrdersListPage } from '@/features/orders/OrdersListPage';
@@ -60,14 +74,30 @@ export function AppRoutes() {
           }
         />
 
+        {/* One layout, ten screens: the sub-navigation and the permission gate are
+            declared once rather than repeated on every catalogue route. */}
         <Route
-          path="/catalog/media"
+          path="/catalog"
           element={
             <Protected permission="catalog.read">
-              <MediaLibraryPage />
+              <CatalogLayout />
             </Protected>
           }
-        />
+        >
+          <Route index element={<Navigate to="/catalog/products" replace />} />
+          <Route path="products" element={<ProductsListPage />} />
+          <Route path="products/:id" element={<ProductEditorPage />} />
+          <Route path="categories" element={<CategoriesPage />} />
+          <Route path="collections" element={<CollectionsPage />} />
+          <Route path="collections/:id" element={<CollectionEditorPage />} />
+          <Route path="brands" element={<BrandsPage />} />
+          <Route path="tags" element={<TagsPage />} />
+          <Route path="attributes" element={<AttributesPage />} />
+          <Route path="size-guides" element={<SizeGuidesPage />} />
+          <Route path="reviews" element={<ReviewsPage />} />
+          <Route path="merchandising" element={<MerchandisingPage />} />
+          <Route path="media" element={<MediaLibraryPage />} />
+        </Route>
 
         {/* Modules whose screens arrive in later milestones still route, so the nav
             never dead-ends and the permission wiring is testable today. */}

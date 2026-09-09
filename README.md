@@ -82,8 +82,30 @@ generated SQL. CI fails if the schema and the migrations disagree.
 
 ## Status
 
-**M0 (Foundation)**, **M1.0 (admin framework)** and **M1.1 (media pipeline)** are
-complete. See [`docs/PRD-COMPLETION.md`](docs/PRD-COMPLETION.md) for the milestone plan.
+**M0 (Foundation)**, **M1.0 (admin framework)**, **M1.1 (media pipeline)** and
+**M1.2 (catalog admin)** are complete. See
+[`docs/PRD-COMPLETION.md`](docs/PRD-COMPLETION.md) for the milestone plan.
+
+M1.2 made the catalogue editable:
+
+- **Products list** with status tabs, filters on category, collection, brand, tag, stock
+  state and price, bulk edit, duplicate, archive, CSV/Excel export, and a CSV/XLSX
+  import that reports every problem before it writes anything.
+- **Product editor** over seven tabs: general, media, variants and pricing, stock,
+  shipping, SEO, related. Margin per variant is live, publication can be scheduled, and
+  a draft autosaves while a published product waits for an explicit save.
+- **Variants** generated from option sets. Regenerating keeps the SKU, price, cost and
+  stock of every combination that still applies, and never deletes one that has sold.
+- **Categories** as a drag-and-drop tree. A move rewrites the materialized path of the
+  node and everything under it in one transaction.
+- **Collections**, manual or rule-based, with a rule builder whose preview runs the same
+  translator the storefront runs, so what it promises is what shoppers get.
+- **Merchandising**: pin, hide and boost per collection, plus search synonyms so
+  "cap" and "kaskita" reach the casquettes.
+- **Reviews** moderation with reply, where approving recomputes the product's rating in
+  the same transaction.
+- **Brands, tags, attributes and size guides**, each with its usage count so nothing is
+  deleted out from under a product.
 
 M1.1 added the media pipeline:
 
@@ -122,6 +144,6 @@ Earlier, M0 delivered:
 - Admin: sign-in, permission-gated navigation, dashboard reading pre-aggregated stats
 - Worker: daily statistics, scheduled prices, abandoned carts, low-stock alerts
 
-Not built yet: cart and checkout, order management, delivery operations, finance
-reporting, marketing tools. Those are M3 to M6 in PRD Section 13. **Do not point a live
-domain at this yet.**
+Not built yet: inventory and purchasing (M1.3), settings, users and audit screens
+(M1.4), cart and checkout, order management, delivery operations, finance reporting and
+marketing tools (M2 to M6 in PRD Section 13). **Do not point a live domain at this yet.**

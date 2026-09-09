@@ -7,7 +7,7 @@ import {
   type RenditionFormat,
   type RenditionName,
 } from '@jecks/shared';
-import sharp from 'sharp';
+import sharp, { type Sharp } from 'sharp';
 
 /**
  * Media processing — PRD Section 6.3 and PRD-COMPLETION M1.1.
@@ -134,7 +134,7 @@ async function processImage(
   return { mediaId: media.id, renditions: renditions.length, width, height };
 }
 
-function encode(pipeline: sharp.Sharp, format: RenditionFormat): Promise<Buffer> {
+function encode(pipeline: Sharp, format: RenditionFormat): Promise<Buffer> {
   return format === 'avif'
     ? // AVIF at effort 4 is a deliberate compromise: effort 9 is roughly ten times
       // slower for a few percent of size, which is the wrong trade in a queue.
@@ -184,27 +184,46 @@ async function processModel(
   const { draco, dedup, prune, textureCompress } = await import('@gltf-transform/functions');
   const draco3d = await import('draco3dgltf');
 
-  const io = new NodeIO()
-    .registerExtensions(ALL_EXTENSIONS)
-    .registerDependencies({
-      'draco3d.decoder': await draco3d.createDecoderModule(),
-      'draco3d.encoder': await draco3d.createEncoderModule(),
-    });
+  const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({
+    'draco3d.decoder': await draco3d.createDecoderModule(),
+    'draco3d.encoder': await draco3d.createEncoderModule(),
+  });
 
   const document = await io.readBinary(new Uint8Array(source));
 
+  /** Set when the textures could not be re-encoded; reported, never fatal. */
+  let textureWarning: string | null = null;
+
   // Order matters: dedup and prune first so Draco is not asked to compress geometry
   // that is about to be thrown away.
-  await document.transform(
-    dedup(),
-    prune(),
-    textureCompress({ encoder: sharp, targetFormat: 'webp', resize: [2048, 2048] }),
-    draco({ method: 'edgebreaker' }),
-  );
+  await document.transform(dedup(), prune());
+
+  // Texture compression is an optimisation, and it is the only step that needs an image
+  // encoder. A model with no textures must not pay for it, and a model whose textures
+  // the encoder cannot read must not be lost over it — the geometry pass below is what
+  // actually matters for download size.
+  if (document.getRoot().listTextures().length > 0) {
+    try {
+      await document.transform(
+        textureCompress({ encoder: sharp, targetFormat: 'webp', resize: [2048, 2048] }),
+      );
+    } catch (error) {
+      textureWarning = error instanceof Error ? error.message : String(error);
+    }
+  }
+
+  await document.transform(draco({ method: 'edgebreaker' }));
 
   const compressed = Buffer.from(await io.writeBinary(document));
-  const optimizedKey = media.storageKey.replace(/\.glb$/i, '.optimized.glb');
-  await storage.put(optimizedKey, compressed);
+
+  // Draco carries a fixed header, so on a very simple mesh the "compressed" file comes
+  // out larger than the original. Serving that would be a pure loss, so the original is
+  // kept and the row records that nothing was gained.
+  const worthIt = compressed.length < media.sizeBytes;
+  const optimizedKey = worthIt
+    ? media.storageKey.replace(/\.glb$/i, '.optimized.glb')
+    : media.storageKey;
+  if (worthIt) await storage.put(optimizedKey, compressed);
 
   // A model that already carries a texture can use its first one as the poster.
   const posterKey = await extractPoster(document, storage, media.storageKey);
@@ -216,8 +235,8 @@ async function processModel(
     where: { id: media.id },
     data: {
       storageKey: optimizedKey,
-      sizeBytes: compressed.length,
-      originalSizeBytes: media.sizeBytes,
+      sizeBytes: worthIt ? compressed.length : media.sizeBytes,
+      originalSizeBytes: worthIt ? media.sizeBytes : null,
       posterKey,
       renditions: [
         {
@@ -226,7 +245,7 @@ async function processModel(
           width: 0,
           height: 0,
           key: optimizedKey,
-          sizeBytes: compressed.length,
+          sizeBytes: worthIt ? compressed.length : media.sizeBytes,
         },
       ] as never,
       alt: undefined,
@@ -235,12 +254,18 @@ async function processModel(
     },
   });
 
+  const notes = [
+    textureWarning ? `textures left as-is: ${textureWarning}` : null,
+    worthIt ? null : 'Draco made the file larger; the original was kept',
+  ].filter(Boolean);
+
   return {
     mediaId: media.id,
     renditions: 0,
     posterKey,
-    sizeBytes: compressed.length,
+    sizeBytes: worthIt ? compressed.length : media.sizeBytes,
     originalSizeBytes: media.sizeBytes,
+    ...(notes.length > 0 ? { skipped: notes.join('; ') } : {}),
   };
 }
 

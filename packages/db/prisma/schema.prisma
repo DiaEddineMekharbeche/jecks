@@ -597,6 +597,10 @@ model CollectionProduct {
   position     Int      @default(0)
   /// Merchandising pin — keeps a product at the top of the grid (F-AD-13).
   pinned       Boolean  @default(false)
+  /// Hides the product inside this collection without unpublishing it (F-AD-13).
+  hidden       Boolean  @default(false)
+  /// Relative nudge on the default sort; negative pushes a product down (F-AD-13).
+  boost        Int      @default(0)
   createdAt    DateTime @default(now())
 
   collection Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
@@ -604,6 +608,7 @@ model CollectionProduct {
 
   @@id([collectionId, productId])
   @@index([collectionId, pinned, position])
+  @@index([collectionId, hidden])
   @@map("collection_products")
 }
 
@@ -658,6 +663,9 @@ model Product {
   seoTitle          Json?
   seoDescription    Json?
   publishedAt       DateTime?
+  /// Set when the product leaves the catalogue. `status` says ARCHIVED, this says
+  /// when, so an archive list sorts by it and un-archiving is a single write.
+  archivedAt        DateTime?
   trackInventory    Boolean       @default(true)
   allowBackorder    Boolean       @default(false)
   lowStockThreshold Int           @default(5)
@@ -1016,6 +1024,26 @@ model StockNotification {
 
   @@index([variantId, notifiedAt])
   @@map("stock_notifications")
+}
+
+/// Search synonyms — PRD F-AD-13. "casquette" should also find "cap", and a
+/// customer typing "snapback" should reach the products tagged "snap-back". The
+/// storefront search expands the term through this table before querying.
+model SearchSynonym {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  /// What the shopper types, folded to lowercase on write.
+  term      String   @db.VarChar(80)
+  /// Terms the search also looks for. One row per direction unless `twoWay`.
+  synonyms  String[]
+  /// When true the expansion also runs from each synonym back to the term.
+  twoWay    Boolean  @default(true)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([term])
+  @@index([active])
+  @@map("search_synonyms")
 }
 
 // ---------------------------------------------------------------------------

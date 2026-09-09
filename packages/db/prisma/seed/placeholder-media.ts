@@ -59,7 +59,10 @@ function svg({ title, subtitle, hex }: PlaceholderOptions): string {
 `;
 }
 
-export async function writePlaceholderImage(key: string, options: PlaceholderOptions): Promise<void> {
+export async function writePlaceholderImage(
+  key: string,
+  options: PlaceholderOptions,
+): Promise<void> {
   const path = join(STORAGE_ROOT, key);
   await mkdir(dirname(path), { recursive: true });
   await writeFile(path, svg(options), 'utf8');
@@ -67,4 +70,147 @@ export async function writePlaceholderImage(key: string, options: PlaceholderOpt
 
 export function placeholderStorageRoot(): string {
   return STORAGE_ROOT;
+}
+
+/**
+ * A minimal but genuinely valid GLB — PRD Section 6.3 and DECISIONS D24.
+ *
+ * The catalogue ships with no 3D scans, and a fixture file checked into the repository
+ * would be a binary nobody can review. This writes a real glTF 2.0 binary instead: an
+ * indexed box with a PBR material, which the worker can Draco-compress and the
+ * storefront can render, so the whole 3D path is exercised by the seed rather than
+ * waiting for someone to have a model to upload.
+ */
+export function buildPlaceholderGlb(): Buffer {
+  // A flattened box, roughly cap-proportioned: 1 x 0.5 x 1.
+  const positions = new Float32Array([
+    -0.5, 0.0, -0.5, 0.5, 0.0, -0.5, 0.5, 0.5, -0.5, -0.5, 0.5, -0.5, -0.5, 0.0, 0.5, 0.5, 0.0, 0.5,
+    0.5, 0.5, 0.5, -0.5, 0.5, 0.5,
+  ]);
+
+  const indices = new Uint16Array([
+    0,
+    1,
+    2,
+    0,
+    2,
+    3, // back
+    4,
+    6,
+    5,
+    4,
+    7,
+    6, // front
+    0,
+    3,
+    7,
+    0,
+    7,
+    4, // left
+    1,
+    5,
+    6,
+    1,
+    6,
+    2, // right
+    3,
+    2,
+    6,
+    3,
+    6,
+    7, // top
+    0,
+    4,
+    5,
+    0,
+    5,
+    1, // bottom
+  ]);
+
+  const positionBytes = Buffer.from(positions.buffer);
+  const indexBytes = Buffer.from(indices.buffer);
+  // Every bufferView offset must sit on a four-byte boundary.
+  const indexOffset = align4(positionBytes.length);
+  const binary = Buffer.alloc(align4(indexOffset + indexBytes.length));
+  positionBytes.copy(binary, 0);
+  indexBytes.copy(binary, indexOffset);
+
+  const gltf = {
+    asset: { version: '2.0', generator: "Jeck's seed" },
+    scene: 0,
+    scenes: [{ nodes: [0] }],
+    nodes: [{ mesh: 0, name: 'cap' }],
+    meshes: [
+      { name: 'cap', primitives: [{ attributes: { POSITION: 0 }, indices: 1, material: 0 }] },
+    ],
+    materials: [
+      {
+        name: 'brass',
+        pbrMetallicRoughness: {
+          baseColorFactor: [0.85, 0.7, 0.42, 1],
+          metallicFactor: 0.2,
+          roughnessFactor: 0.7,
+        },
+      },
+    ],
+    accessors: [
+      {
+        bufferView: 0,
+        componentType: 5126, // FLOAT
+        count: 8,
+        type: 'VEC3',
+        min: [-0.5, 0, -0.5],
+        max: [0.5, 0.5, 0.5],
+      },
+      {
+        bufferView: 1,
+        componentType: 5123, // UNSIGNED_SHORT
+        count: indices.length,
+        type: 'SCALAR',
+      },
+    ],
+    bufferViews: [
+      { buffer: 0, byteOffset: 0, byteLength: positionBytes.length, target: 34962 },
+      { buffer: 0, byteOffset: indexOffset, byteLength: indexBytes.length, target: 34963 },
+    ],
+    buffers: [{ byteLength: binary.length }],
+  };
+
+  // The JSON chunk pads with spaces and the binary chunk with zeroes; both are what the
+  // specification requires, and a viewer will reject the file otherwise.
+  const json = padTo4(Buffer.from(JSON.stringify(gltf), 'utf8'), 0x20);
+  const bin = padTo4(binary, 0x00);
+
+  const header = Buffer.alloc(12);
+  header.write('glTF', 0, 'ascii');
+  header.writeUInt32LE(2, 4);
+  header.writeUInt32LE(12 + 8 + json.length + 8 + bin.length, 8);
+
+  const jsonHeader = Buffer.alloc(8);
+  jsonHeader.writeUInt32LE(json.length, 0);
+  jsonHeader.write('JSON', 4, 'ascii');
+
+  const binHeader = Buffer.alloc(8);
+  binHeader.writeUInt32LE(bin.length, 0);
+  binHeader.write('BIN\0', 4, 'ascii');
+
+  return Buffer.concat([header, jsonHeader, json, binHeader, bin]);
+}
+
+export async function writePlaceholderModel(key: string): Promise<number> {
+  const glb = buildPlaceholderGlb();
+  const path = join(STORAGE_ROOT, key);
+  await mkdir(dirname(path), { recursive: true });
+  await writeFile(path, glb);
+  return glb.length;
+}
+
+function align4(value: number): number {
+  return Math.ceil(value / 4) * 4;
+}
+
+function padTo4(buffer: Buffer, fill: number): Buffer {
+  const padded = Buffer.alloc(align4(buffer.length), fill);
+  buffer.copy(padded, 0);
+  return padded;
 }

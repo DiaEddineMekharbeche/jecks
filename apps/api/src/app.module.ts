@@ -12,6 +12,7 @@ import { EnvelopeInterceptor } from './common/interceptors/envelope.interceptor.
 import { validateEnv } from './config/env.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { CatalogModule } from './modules/catalog/catalog.module.js';
+import { CatalogAdminModule } from './modules/catalog/admin/catalog-admin.module.js';
 import { ListModule } from './common/list/list.module.js';
 import { DashboardModule } from './modules/dashboard/dashboard.module.js';
 import { HealthModule } from './modules/health/health.module.js';
@@ -47,6 +48,7 @@ import { PrismaModule } from './prisma/prisma.module.js';
     HealthModule,
     AuthModule,
     CatalogModule,
+    CatalogAdminModule,
     ShippingModule,
     DashboardModule,
     MediaModule,

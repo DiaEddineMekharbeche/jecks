@@ -228,3 +228,25 @@ export const RuleOperator = {
   IN: 'IN',
 } as const;
 export type RuleOperator = (typeof RuleOperator)[keyof typeof RuleOperator];
+
+export const ReviewStatus = {
+  PENDING: 'PENDING',
+  APPROVED: 'APPROVED',
+  REJECTED: 'REJECTED',
+} as const;
+export type ReviewStatus = (typeof ReviewStatus)[keyof typeof ReviewStatus];
+
+/**
+ * Which rule operators make sense for which field — the rule builder narrows its
+ * operator list from this rather than offering "contains" on a price.
+ */
+export const RULE_OPERATORS_BY_FIELD: Record<CollectionRuleField, readonly RuleOperator[]> = {
+  TAG: ['EQUALS', 'NOT_EQUALS', 'IN'],
+  CATEGORY: ['EQUALS', 'NOT_EQUALS'],
+  BRAND: ['EQUALS', 'NOT_EQUALS'],
+  PRICE: ['GREATER_THAN', 'LESS_THAN'],
+  DISCOUNT: ['GREATER_THAN'],
+  STOCK: ['GREATER_THAN', 'LESS_THAN'],
+  CREATED_AT: ['GREATER_THAN'],
+  TITLE: ['CONTAINS', 'EQUALS', 'NOT_EQUALS'],
+};

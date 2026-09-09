@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@jecks/db';
 import type { CatalogQuery } from '@jecks/shared';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { MATCHES_NOTHING, rulesToFilter } from './collection-rules.js';
 
 /** Shape sent to product grids — deliberately narrow, PRD F-ST-23. */
 const cardSelect = {
@@ -87,16 +88,24 @@ export class CatalogService {
     const where = await this.buildWhere(query);
     const skip = (query.page - 1) * query.perPage;
 
-    const [items, total] = await this.prisma.$transaction([
-      this.prisma.product.findMany({
-        where,
-        select: cardSelect,
-        orderBy: ORDER_BY[query.sort],
-        skip,
-        take: query.perPage,
-      }),
-      this.prisma.product.count({ where }),
-    ]);
+    // Merchandising only applies inside a collection, and only to the default order:
+    // a shopper who has asked for "price, low to high" means it (F-AD-13).
+    const placement =
+      query.collection && query.sort === 'relevance'
+        ? await this.collectionPlacement(query.collection, where)
+        : null;
+
+    const total = await this.prisma.product.count({ where });
+
+    const items = placement
+      ? await this.pageWithPlacement(query, where, placement, skip)
+      : await this.prisma.product.findMany({
+          where,
+          select: cardSelect,
+          orderBy: ORDER_BY[query.sort],
+          skip,
+          take: query.perPage,
+        });
 
     return {
       data: items,
@@ -107,6 +116,96 @@ export class CatalogService {
         totalPages: Math.max(Math.ceil(total / query.perPage), 1),
       },
     };
+  }
+
+  /**
+   * The pinned and boosted products of a collection, as two ordered id lists that
+   * bracket the normal ordering — PRD F-AD-13.
+   *
+   * Prisma cannot order a product list by a column on the join row, and rewriting this
+   * query in SQL would take the whole grid out of the query builder for the sake of a
+   * handful of rows. Instead the override rows are read on their own — there are rarely
+   * more than a dozen — and used as a lead and a tail around the ordinary page.
+   */
+  private async collectionPlacement(
+    slug: string,
+    where: Prisma.ProductWhereInput,
+  ): Promise<{ lead: string[]; tail: string[] } | null> {
+    const collection = await this.prisma.collection.findFirst({
+      where: { slug, published: true, deletedAt: null },
+      select: { id: true },
+    });
+    if (!collection) return null;
+
+    const overrides = await this.prisma.collectionProduct.findMany({
+      where: {
+        collectionId: collection.id,
+        hidden: false,
+        OR: [{ pinned: true }, { boost: { not: 0 } }],
+      },
+      orderBy: [{ pinned: 'desc' }, { boost: 'desc' }, { position: 'asc' }],
+      select: { productId: true, pinned: true, boost: true },
+    });
+    if (overrides.length === 0) return null;
+
+    // An override on a product the filters exclude must not conjure it back into the
+    // grid, so the list is intersected with what the query would have returned anyway.
+    const visible = await this.prisma.product.findMany({
+      where: { AND: [where, { id: { in: overrides.map((row) => row.productId) } }] },
+      select: { id: true },
+    });
+    const allowed = new Set(visible.map((row) => row.id));
+
+    const lead = overrides
+      .filter((row) => allowed.has(row.productId) && (row.pinned || row.boost > 0))
+      .map((row) => row.productId);
+    const tail = overrides
+      .filter((row) => allowed.has(row.productId) && !row.pinned && row.boost < 0)
+      // Most demoted last.
+      .sort((a, b) => a.boost - b.boost)
+      .map((row) => row.productId);
+
+    return lead.length + tail.length === 0 ? null : { lead, tail };
+  }
+
+  /** Slices one page out of the lead / middle / tail sequence. */
+  private async pageWithPlacement(
+    query: CatalogQuery,
+    where: Prisma.ProductWhereInput,
+    placement: { lead: string[]; tail: string[] },
+    skip: number,
+  ) {
+    const { lead, tail } = placement;
+    const bracketed = [...lead, ...tail];
+    const middleWhere: Prisma.ProductWhereInput = {
+      AND: [where, { id: { notIn: bracketed } }],
+    };
+    const middleTotal = await this.prisma.product.count({ where: middleWhere });
+
+    const plan = planPlacementPage(lead, middleTotal, tail, skip, query.perPage);
+    const ids = [...plan.leadIds];
+
+    if (plan.middleTake > 0) {
+      const rows = await this.prisma.product.findMany({
+        where: middleWhere,
+        select: { id: true },
+        orderBy: ORDER_BY[query.sort],
+        skip: plan.middleSkip,
+        take: plan.middleTake,
+      });
+      ids.push(...rows.map((row) => row.id));
+    }
+
+    ids.push(...plan.tailIds);
+
+    if (ids.length === 0) return [];
+
+    const products = await this.prisma.product.findMany({
+      where: { id: { in: ids } },
+      select: cardSelect,
+    });
+    const byId = new Map(products.map((product) => [product.id, product]));
+    return ids.map((id) => byId.get(id)).filter(Boolean) as typeof products;
   }
 
   async getProduct(slug: string) {
@@ -251,6 +350,34 @@ export class CatalogService {
   }
 
   /**
+   * Expands a query through the synonym table — PRD F-AD-13.
+   *
+   * A two-way entry matches from either side, so one row covers "casquette" finding
+   * "cap" and "cap" finding "casquette". The typed term stays first in the list, which
+   * is what keeps an exact match ranked above a synonym match.
+   */
+  private async expandTerm(folded: string, original: string): Promise<string[]> {
+    const entries = await this.prisma.searchSynonym.findMany({
+      where: {
+        active: true,
+        OR: [{ term: folded }, { twoWay: true, synonyms: { has: folded } }],
+      },
+      select: { term: true, synonyms: true },
+    });
+
+    const expanded = new Set<string>([original]);
+    for (const entry of entries) {
+      if (entry.term !== folded) expanded.add(entry.term);
+      for (const synonym of entry.synonyms) {
+        if (synonym !== folded) expanded.add(synonym);
+      }
+    }
+
+    // A pathological synonym list must not turn one search into forty tsquery scans.
+    return [...expanded].slice(0, 8);
+  }
+
+  /**
    * Typo-tolerant search over the weighted tsvector, falling back to trigram similarity
    * when the stemmed query matches nothing — PRD Section 6.2.
    */
@@ -263,14 +390,25 @@ export class CatalogService {
     // lets the trigram index actually be used.
     const folded = trimmed.toLowerCase();
 
+    // Synonyms the shop has taught the search, so "snapback" also finds "snap-back"
+    // (PRD F-AD-13). The typed term always leads the list and so keeps its ranking.
+    const terms = await this.expandTerm(folded, trimmed);
+
+    // `plainto_tsquery` per term, ORed: one indexed lookup covers the whole expansion,
+    // and none of the operator's text is interpolated into the query language.
+    const tsQuery = Prisma.join(
+      terms.map((value) => Prisma.sql`plainto_tsquery('fr_unaccent', ${value})`),
+      ' || ',
+    );
+
     // Stemmed match first: it is indexed, and it is what a correctly spelled query hits.
     let products = await this.prisma.$queryRaw<Array<{ id: string; slug: string; rank: number }>>`
       SELECT p.id, p.slug,
-             ts_rank(p.search_vector, plainto_tsquery('fr_unaccent', ${trimmed})) AS rank
+             ts_rank(p.search_vector, (${tsQuery})) AS rank
       FROM products p
       WHERE p.status = 'ACTIVE'
         AND p."deletedAt" IS NULL
-        AND p.search_vector @@ plainto_tsquery('fr_unaccent', ${trimmed})
+        AND p.search_vector @@ (${tsQuery})
       ORDER BY rank DESC
       LIMIT ${limit}
     `;
@@ -305,7 +443,7 @@ export class CatalogService {
         published: true,
         deletedAt: null,
         // Same folded column, so "ete" finds "Collection Été".
-        searchText: { contains: folded },
+        OR: terms.map((value) => ({ searchText: { contains: value.toLowerCase() } })),
       },
       take: 4,
       select: { slug: true, name: true },
@@ -353,60 +491,62 @@ export class CatalogService {
         include: { rules: true },
       });
       if (collection?.isSmart) {
-        const ruleFilters = collection.rules.map((rule) => this.ruleToFilter(rule));
-        if (ruleFilters.length > 0) {
-          and.push(collection.matchAll ? { AND: ruleFilters } : { OR: ruleFilters });
+        if (collection.rules.length > 0) {
+          and.push(rulesToFilter(collection.rules, collection.matchAll));
         }
+        // The rules decide who belongs; merchandising can still take one out of this
+        // grid without unpublishing it, and a smart collection stores that on the same
+        // join row (F-AD-13).
+        and.push({
+          collections: { none: { collectionId: collection.id, hidden: true } },
+        });
       } else if (collection) {
-        and.push({ collections: { some: { collectionId: collection.id } } });
+        and.push({
+          collections: {
+            some: {
+              collectionId: collection.id,
+              // A product hidden by merchandising stays published but leaves this grid.
+              hidden: false,
+            },
+          },
+        });
       } else {
         // Unknown slug must return nothing rather than the whole catalog.
-        and.push({ id: '00000000-0000-0000-0000-000000000000' });
+        and.push(MATCHES_NOTHING);
       }
     }
 
     return { AND: and };
   }
+}
 
-  private ruleToFilter(rule: {
-    field: string;
-    operator: string;
-    value: string;
-  }): Prisma.ProductWhereInput {
-    const { field, operator, value } = rule;
+/**
+ * Slices one page out of the lead / middle / tail sequence a merchandised collection
+ * produces — PRD F-AD-13.
+ *
+ * Pure, because this is the part that is easy to get wrong: the middle has to be offset
+ * by however much of the lead has already been consumed, and the tail by the lead plus
+ * the whole middle, or a product appears twice or vanishes between pages.
+ */
+export function planPlacementPage(
+  lead: string[],
+  middleTotal: number,
+  tail: string[],
+  skip: number,
+  take: number,
+): { leadIds: string[]; middleSkip: number; middleTake: number; tailIds: string[] } {
+  const leadIds = lead.slice(skip, skip + take);
 
-    switch (field) {
-      case 'TAG':
-        return operator === 'NOT_EQUALS'
-          ? { tags: { none: { tag: { slug: value } } } }
-          : { tags: { some: { tag: { slug: value } } } };
-      case 'CATEGORY':
-        return { category: { slug: value } };
-      case 'BRAND':
-        return { brand: { slug: value } };
-      case 'PRICE':
-        return operator === 'LESS_THAN'
-          ? { minPrice: { lt: BigInt(value) } }
-          : { minPrice: { gt: BigInt(value) } };
-      case 'DISCOUNT':
-        // "any product currently marked down" — the Last Chance rule of F-ST-24.
-        return { maxCompareAt: { not: null } };
-      case 'STOCK':
-        return operator === 'LESS_THAN'
-          ? { totalStock: { lt: Number(value) } }
-          : { totalStock: { gt: Number(value) } };
-      case 'CREATED_AT': {
-        // Relative windows like "-30d" keep a smart collection rolling.
-        const match = /^-(\d+)d$/.exec(value);
-        const since = match
-          ? new Date(Date.now() - Number(match[1]) * 86_400_000)
-          : new Date(value);
-        return { publishedAt: { gte: since } };
-      }
-      case 'TITLE':
-        return { name: { path: ['fr'], string_contains: value } };
-      default:
-        return {};
-    }
-  }
+  const middleSkip = Math.max(skip - lead.length, 0);
+  const remainingAfterLead = take - leadIds.length;
+  const middleTake =
+    remainingAfterLead > 0 && middleSkip < middleTotal
+      ? Math.min(remainingAfterLead, middleTotal - middleSkip)
+      : 0;
+
+  const tailSkip = Math.max(skip - lead.length - middleTotal, 0);
+  const tailTake = take - leadIds.length - middleTake;
+  const tailIds = tailTake > 0 ? tail.slice(tailSkip, tailSkip + tailTake) : [];
+
+  return { leadIds, middleSkip, middleTake, tailIds };
 }

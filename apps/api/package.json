@@ -32,7 +32,7 @@
     "rxjs": "^7.8.1",
     "zod": "^3.23.8",
     "exceljs": "^4.4.0",
-    "sharp": "^0.33.5",
+    "sharp": "^0.35.4",
     "bullmq": "^5.13.2",
     "ioredis": "^5.4.1",
     "@jecks/storage": "workspace:*"

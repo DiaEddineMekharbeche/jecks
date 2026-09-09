@@ -168,6 +168,38 @@ Responses carry `meta: { page, pageSize, total, totalPages }`.
 | DELETE | `/admin/media/:id` | `catalog.delete` |
 | GET POST | `/admin/media/folders` | `catalog.read` / `catalog.write` |
 | DELETE | `/admin/media/folders/:id` | `catalog.write` |
+| GET | `/admin/products` | `catalog.read` |
+| GET | `/admin/products/counts` | `catalog.read` |
+| GET | `/admin/products/import/template?format=` | `catalog.write` |
+| POST | `/admin/products/import` | `catalog.write` |
+| POST | `/admin/products` | `catalog.write` |
+| PATCH | `/admin/products/bulk` | `catalog.write` |
+| POST | `/admin/products/archive` | `catalog.write` |
+| POST | `/admin/products/delete` | `catalog.delete` |
+| GET PATCH DELETE | `/admin/products/:id` | `catalog.read` / `catalog.write` / `catalog.delete` |
+| POST | `/admin/products/:id/duplicate` | `catalog.write` |
+| POST | `/admin/products/:id/variants/generate` | `catalog.write` |
+| PATCH | `/admin/products/:id/variants` | `catalog.write` |
+| POST | `/admin/products/:id/variants/reorder` | `catalog.write` |
+| POST | `/admin/products/:id/price-schedules` | `catalog.write` |
+| DELETE | `/admin/products/:id/price-schedules/:scheduleId` | `catalog.write` |
+| GET POST | `/admin/categories` | `catalog.read` / `catalog.write` |
+| POST | `/admin/categories/reorder` | `catalog.write` |
+| GET PATCH DELETE | `/admin/categories/:id` | `catalog.read` / `catalog.write` / `catalog.delete` |
+| POST | `/admin/categories/:id/move` | `catalog.write` |
+| GET POST | `/admin/collections` | `catalog.read` / `catalog.write` |
+| POST | `/admin/collections/preview` | `catalog.read` |
+| GET PATCH DELETE | `/admin/collections/:id` | `catalog.read` / `catalog.write` / `catalog.delete` |
+| GET POST | `/admin/collections/:id/products` | `catalog.read` / `catalog.write` |
+| POST | `/admin/collections/:id/products/{remove,reorder}` | `catalog.write` |
+| POST | `/admin/collections/:id/merchandising` | `catalog.write` |
+| GET POST | `/admin/{brands,tags,attributes,size-guides,search-synonyms}` | `catalog.read` / `catalog.write` |
+| PATCH DELETE | `/admin/{brands,tags,attributes,size-guides,search-synonyms}/:id` | `catalog.write` / `catalog.delete` |
+| GET | `/admin/reviews` | `catalog.read` |
+| GET | `/admin/reviews/counts` | `catalog.read` |
+| POST | `/admin/reviews/moderate` | `reviews.moderate` |
+| POST | `/admin/reviews/:id/reply` | `reviews.moderate` |
+| DELETE | `/admin/reviews/:id` | `reviews.moderate` |
 
 **Dashboard.** `period` is `7d`, `30d`, `90d`, `mtd` or `ytd`. The response has KPI tiles
 with a comparison against the preceding window of equal length, a daily series, and the
@@ -211,7 +243,68 @@ poster is extracted from its first embedded texture when it has one.
 
 `DELETE` refuses with `MEDIA_IN_USE` and a `usageCount` while anything references the
 file. `GET /admin/media` accepts `kind`, `folderId` (`root` for the top level) and
-`unusedOnly=true`.
+`unusedOnly=true` — as plain parameters, not through `filter[...]`.
+
+**Products.** Sortable by `createdAt`, `updatedAt`, `name`, `status`, `price`, `stock`,
+`sales`, `rating`. Filterable by `status`, `categoryId`, `collectionId`, `brandId`,
+`tagId`, `stock` (`in`, `low`, `out`), `minPrice`, `maxPrice` and `hasMedia`. "Low" means
+at or under the product's own threshold, which is a column-to-column comparison and so is
+resolved with one indexed query rather than a filter expression. Search covers names, slugs
+and SKUs. `/counts` returns per-status totals for the list tabs.
+
+`POST` creates the product with its first variants. Options are not part of that payload:
+their values need the product to exist before a variant can reference them, which is what
+`POST /:id/variants/generate` is for. `PATCH` writes only the keys it is sent.
+
+**Variants.** `generate` replaces the option sets and rebuilds the matrix. A combination
+that still applies keeps its SKU, price, cost and stock; one that no longer applies is
+deleted if it has never been ordered and deactivated if it has, so an order from last month
+still resolves its line to a real SKU. Three options and 300 combinations are the ceiling.
+
+`PATCH /:id/variants` writes the whole grid: entries with an id are updated, entries
+without one created, and a variant the grid no longer lists is retired the same way. A
+product always keeps at least one variant.
+
+**Prices.** `POST /:id/price-schedules` queues a change for one or more variants; the
+worker applies it at `startsAt` and reverts it at `endsAt`. A schedule that has already run
+cannot be cancelled — edit the price instead.
+
+**Bulk.** `PATCH /admin/products/bulk` takes a selection and a set of changes: status,
+category, brand, collections to add or remove, tags to add or remove, and a price
+operation. The price move is an operation (`set`, `increase`, `decrease`, by amount or by
+percentage, against `price`, `compareAtPrice` or `costPrice`) rather than a final amount,
+so "raise everything 10 %" rounds once, in the API, on minor units.
+
+**Import.** `POST /admin/products/import` is `multipart/form-data` with one `file`, CSV or
+XLSX, plus `dryRun` (default true) and `updateExisting` (default true). One row is one
+variant keyed by SKU; rows sharing a slug become one product with several variants. Prices
+are read in dinars. The response is a validation report: counts of what would be or was
+created and updated, plus one issue per problem with its row number and column.
+`GET /admin/products/import/template` returns the same columns as a blank sheet.
+
+**Categories.** `GET` returns the whole tree with per-node product counts — it is tens of
+rows, so it is not paginated. `POST /:id/move` takes a new parent and index; the API
+rewrites the materialized `path` of the node and its whole subtree in one transaction
+(D09) and refuses a move into the node's own branch. Deleting is refused while the category
+has children or products.
+
+**Collections.** A smart collection's `productCount` is the live match count, computed from
+its rules on every read. `POST /admin/collections/preview` runs a rule set that has not
+been saved yet and returns what it would select, through the same translator the storefront
+uses (D35). Manual membership endpoints refuse on a smart collection with
+`SMART_COLLECTION_MANUAL`.
+
+**Merchandising.** `POST /admin/collections/:id/merchandising` sets `pinned`, `hidden` and
+`boost` per product within one collection, creating the row on demand for a smart
+collection (D36). A hidden product stays published but leaves that collection's grid.
+
+**Reviews.** Filterable by `status`, `rating`, `productId` and `verified`; searchable over
+the body, title and author. Moderation is a selection plus a target status, and every
+status change recomputes the product's rating rollup in the same transaction, so the stars
+a shopper sees only ever count approved reviews. `reply` publishes the shop's answer; an
+empty string clears it.
+
+**Search synonyms.** Maintained here, applied by the public `/catalog/search` — see D39.
 
 ---
 
@@ -229,9 +322,11 @@ file. `GET /admin/media` accepts `kind`, `folderId` (`root` for the top level) a
 The modules below are specified in the PRD and scheduled by milestone. They are listed
 here so integrators can see the shape of the finished API, not because they exist.
 
-**M1 — catalog administration.** `/admin/products`, `/admin/variants`, `/admin/media`,
-`/admin/categories`, `/admin/collections`, `/admin/inventory`, `/admin/settings`,
-`/admin/users`, `/admin/audit`.
+**M1.3 — inventory and purchasing.** `/admin/locations`, `/admin/inventory`,
+`/admin/suppliers`, `/admin/purchase-orders`, `/admin/stock-counts`.
+
+**M1.4 — settings, users, audit.** `/admin/settings` (write), `/admin/users`,
+`/admin/roles`, `/admin/audit`, `/admin/backups`.
 
 **M3 — checkout and orders.** `POST /cart`, `PATCH /cart/items`, `POST /cart/promo`,
 `POST /orders`, `GET /orders/track`, order writes on `/admin/orders` with `/:id/transition`,

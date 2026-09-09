@@ -34,51 +34,64 @@ export const productAttributeSchema = z.object({
   value: translatedSchema,
 });
 
-export const productInputSchema = z
-  .object({
-    name: translatedSchema,
-    slug: slugSchema,
-    description: translatedOptionalSchema.optional(),
-    shortDescription: translatedOptionalSchema.optional(),
-    status: z.nativeEnum(ProductStatus).default(ProductStatus.DRAFT),
-    brandId: idSchema.nullable().optional(),
-    categoryId: idSchema.nullable().optional(),
-    collectionIds: z.array(idSchema).default([]),
-    tagIds: z.array(idSchema).default([]),
-    styleLabel: z.string().trim().max(64).optional(),
-    sizeGuideId: idSchema.nullable().optional(),
-    attributes: z.array(productAttributeSchema).default([]),
-    seoTitle: translatedOptionalSchema.optional(),
-    seoDescription: translatedOptionalSchema.optional(),
-    publishedAt: z.coerce.date().nullable().optional(),
-    lowStockThreshold: z.coerce.number().int().min(0).default(5),
-    allowBackorder: z.boolean().default(false),
-    trackInventory: z.boolean().default(true),
-    shippingClass: z.string().trim().max(64).optional(),
-    relatedProductIds: z.array(idSchema).default([]),
-    mediaIds: z.array(idSchema).default([]),
-    variants: z.array(variantInputSchema).min(1, 'A product needs at least one variant'),
-  })
-  .superRefine((value, ctx) => {
-    const skus = value.variants.map((v) => v.sku.toLowerCase());
-    const duplicate = skus.find((sku, i) => skus.indexOf(sku) !== i);
-    if (duplicate) {
+/**
+ * The plain object half of the product payload. Split out from the refinement below
+ * because `.partial()` does not exist on a refined schema, and the editor's autosave
+ * sends whatever the operator has touched so far.
+ */
+export const productInputBase = z.object({
+  name: translatedSchema,
+  slug: slugSchema,
+  description: translatedOptionalSchema.optional(),
+  shortDescription: translatedOptionalSchema.optional(),
+  status: z.nativeEnum(ProductStatus).default(ProductStatus.DRAFT),
+  brandId: idSchema.nullable().optional(),
+  categoryId: idSchema.nullable().optional(),
+  collectionIds: z.array(idSchema).default([]),
+  tagIds: z.array(idSchema).default([]),
+  styleLabel: z.string().trim().max(64).optional(),
+  sizeGuideId: idSchema.nullable().optional(),
+  attributes: z.array(productAttributeSchema).default([]),
+  seoTitle: translatedOptionalSchema.optional(),
+  seoDescription: translatedOptionalSchema.optional(),
+  publishedAt: z.coerce.date().nullable().optional(),
+  lowStockThreshold: z.coerce.number().int().min(0).default(5),
+  allowBackorder: z.boolean().default(false),
+  trackInventory: z.boolean().default(true),
+  shippingClass: z.string().trim().max(64).optional(),
+  relatedProductIds: z.array(idSchema).default([]),
+  mediaIds: z.array(idSchema).default([]),
+  variants: z.array(variantInputSchema).min(1, 'A product needs at least one variant'),
+});
+
+/** Everything a product write must satisfy, whole-entity. */
+export const productSuperRefine: (
+  value: {
+    variants: Array<{ sku: string; price: bigint; compareAtPrice?: bigint | undefined }>;
+  },
+  ctx: z.RefinementCtx,
+) => void = (value, ctx) => {
+  const skus = value.variants.map((v) => v.sku.toLowerCase());
+  const duplicate = skus.find((sku, i) => skus.indexOf(sku) !== i);
+  if (duplicate) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['variants'],
+      message: `Duplicate SKU "${duplicate}" within the product`,
+    });
+  }
+  value.variants.forEach((variant, index) => {
+    if (variant.compareAtPrice != null && variant.compareAtPrice <= variant.price) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ['variants'],
-        message: `Duplicate SKU "${duplicate}" within the product`,
+        path: ['variants', index, 'compareAtPrice'],
+        message: 'Compare-at price must be higher than the selling price',
       });
     }
-    value.variants.forEach((variant, index) => {
-      if (variant.compareAtPrice != null && variant.compareAtPrice <= variant.price) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ['variants', index, 'compareAtPrice'],
-          message: 'Compare-at price must be higher than the selling price',
-        });
-      }
-    });
   });
+};
+
+export const productInputSchema = productInputBase.superRefine(productSuperRefine);
 
 export const optionSetSchema = z.object({
   name: translatedSchema,
@@ -117,28 +130,33 @@ export const collectionRuleSchema = z.object({
   value: z.string().min(1).max(240),
 });
 
-export const collectionInputSchema = z
-  .object({
-    name: translatedSchema,
-    slug: slugSchema,
-    description: translatedOptionalSchema.optional(),
-    isSmart: z.boolean().default(false),
-    matchAll: z.boolean().default(true),
-    rules: z.array(collectionRuleSchema).default([]),
-    productIds: z.array(idSchema).default([]),
-    mediaId: idSchema.nullable().optional(),
-    position: z.coerce.number().int().min(0).default(0),
-    published: z.boolean().default(true),
-  })
-  .superRefine((value, ctx) => {
-    if (value.isSmart && value.rules.length === 0) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['rules'],
-        message: 'A smart collection needs at least one rule',
-      });
-    }
-  });
+export const collectionInputBase = z.object({
+  name: translatedSchema,
+  slug: slugSchema,
+  description: translatedOptionalSchema.optional(),
+  isSmart: z.boolean().default(false),
+  matchAll: z.boolean().default(true),
+  rules: z.array(collectionRuleSchema).default([]),
+  productIds: z.array(idSchema).default([]),
+  mediaId: idSchema.nullable().optional(),
+  position: z.coerce.number().int().min(0).default(0),
+  published: z.boolean().default(true),
+});
+
+export const collectionSuperRefine: (
+  value: { isSmart: boolean; rules: unknown[] },
+  ctx: z.RefinementCtx,
+) => void = (value, ctx) => {
+  if (value.isSmart && value.rules.length === 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['rules'],
+      message: 'A smart collection needs at least one rule',
+    });
+  }
+};
+
+export const collectionInputSchema = collectionInputBase.superRefine(collectionSuperRefine);
 
 export const mediaUploadSchema = z.object({
   kind: z.nativeEnum(MediaKind).default(MediaKind.IMAGE),
@@ -161,7 +179,16 @@ export const catalogQuerySchema = z.object({
   inStock: z.coerce.boolean().optional(),
   onSale: z.coerce.boolean().optional(),
   sort: z
-    .enum(['relevance', 'best_selling', 'newest', 'price_asc', 'price_desc', 'name_asc', 'name_desc', 'discount'])
+    .enum([
+      'relevance',
+      'best_selling',
+      'newest',
+      'price_asc',
+      'price_desc',
+      'name_asc',
+      'name_desc',
+      'discount',
+    ])
     .default('relevance'),
   page: z.coerce.number().int().min(1).default(1),
   perPage: z.coerce.number().int().min(1).max(60).default(24),

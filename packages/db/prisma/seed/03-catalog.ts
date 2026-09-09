@@ -1,7 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import { COLORS, COLOR_AR, PRODUCTS, SIZE_AR, type ProductSeed } from './data/products.js';
 import { dzd, log, makeRng, slugify, tr } from './util.js';
-import { writePlaceholderImage } from './placeholder-media.js';
+import { writePlaceholderImage, writePlaceholderModel } from './placeholder-media.js';
 
 const CATEGORIES: Array<{ slug: string; fr: string; ar: string; en: string; parent?: string }> = [
   { slug: 'casquettes', fr: 'Casquettes', ar: 'قبعات', en: 'Caps' },
@@ -125,7 +125,9 @@ export async function seedCatalog(prisma: PrismaClient): Promise<CatalogResult> 
     '<table><thead><tr><th>المقاس</th><th>محيط الرأس</th></tr></thead><tbody><tr><td>S</td><td>54-56 سم</td></tr><tr><td>M</td><td>56-58 سم</td></tr><tr><td>L</td><td>58-60 سم</td></tr></tbody></table>',
     '<table><thead><tr><th>Size</th><th>Head circumference</th></tr></thead><tbody><tr><td>S</td><td>54-56 cm</td></tr><tr><td>M</td><td>56-58 cm</td></tr><tr><td>L</td><td>58-60 cm</td></tr><tr><td>One size</td><td>55-60 cm, adjustable</td></tr></tbody></table>',
   );
-  const existingGuide = await prisma.sizeGuide.findFirst({ where: { categoryId: categoryIds.get('casquettes') } });
+  const existingGuide = await prisma.sizeGuide.findFirst({
+    where: { categoryId: categoryIds.get('casquettes') },
+  });
   const sizeGuide =
     existingGuide ??
     (await prisma.sizeGuide.create({
@@ -168,6 +170,12 @@ export async function seedCatalog(prisma: PrismaClient): Promise<CatalogResult> 
   // --- collections -----------------------------------------------------------
   await seedCollections(prisma, productIds);
 
+  // --- search synonyms -------------------------------------------------------
+  await seedSearchSynonyms(prisma);
+
+  // --- 3D model --------------------------------------------------------------
+  await seedShowcaseModel(prisma, productIds[0]);
+
   return { variantIds, productIds, locationIds: locations.map((l) => l.id) };
 }
 
@@ -185,8 +193,21 @@ interface SeedProductArgs {
   mainLocationId: string;
 }
 
-async function seedProduct(args: SeedProductArgs): Promise<{ productId: string; createdVariantIds: string[] }> {
-  const { prisma, seed, index, rng, brandIds, categoryIds, tagIds, attributeIds, sizeGuideId, locations } = args;
+async function seedProduct(
+  args: SeedProductArgs,
+): Promise<{ productId: string; createdVariantIds: string[] }> {
+  const {
+    prisma,
+    seed,
+    index,
+    rng,
+    brandIds,
+    categoryIds,
+    tagIds,
+    attributeIds,
+    sizeGuideId,
+    locations,
+  } = args;
 
   const prices = seed.colors.length * seed.sizes.length;
   const publishedAt = new Date(Date.now() - (PRODUCTS.length - index) * 36 * 3600 * 1000);
@@ -252,7 +273,10 @@ async function seedProduct(args: SeedProductArgs): Promise<{ productId: string; 
   // options: Couleur x Taille
   const existingOptions = await prisma.productOption.findMany({ where: { productId: product.id } });
   if (existingOptions.length > 0) {
-    const existingVariants = await prisma.variant.findMany({ where: { productId: product.id }, select: { id: true } });
+    const existingVariants = await prisma.variant.findMany({
+      where: { productId: product.id },
+      select: { id: true },
+    });
     return { productId: product.id, createdVariantIds: existingVariants.map((v) => v.id) };
   }
 
@@ -301,7 +325,11 @@ async function seedProduct(args: SeedProductArgs): Promise<{ productId: string; 
   const mediaByColor = new Map<string, string>();
   for (const [i, color] of seed.colors.entries()) {
     const key = `demo/products/${seed.slug}-${slugify(color)}.svg`;
-    await writePlaceholderImage(key, { title: seed.fr, subtitle: color, hex: COLORS[color] ?? '#888888' });
+    await writePlaceholderImage(key, {
+      title: seed.fr,
+      subtitle: color,
+      hex: COLORS[color] ?? '#888888',
+    });
     const media = await prisma.media.create({
       data: {
         kind: 'IMAGE',
@@ -369,9 +397,14 @@ async function seedProduct(args: SeedProductArgs): Promise<{ productId: string; 
       for (const [i, location] of locations.entries()) {
         const base = location.isDefault ? 24 : 8;
         const roll = rng();
-        const onHand = roll < 0.06 ? 0 : roll < 0.16 ? Math.floor(rng() * 4) + 1 : Math.floor(rng() * base) + 4;
+        const onHand =
+          roll < 0.06 ? 0 : roll < 0.16 ? Math.floor(rng() * 4) + 1 : Math.floor(rng() * base) + 4;
         await prisma.inventoryLevel.create({
-          data: { variantId: variant.id, locationId: location.id, onHand: i === 0 ? onHand : Math.floor(onHand / 3) },
+          data: {
+            variantId: variant.id,
+            locationId: location.id,
+            onHand: i === 0 ? onHand : Math.floor(onHand / 3),
+          },
         });
       }
     }
@@ -449,7 +482,13 @@ async function seedCollections(prisma: PrismaClient, productIds: string[]): Prom
   const manual = [
     { slug: 'heritage', fr: 'Heritage', ar: 'تراث', en: 'Heritage', tag: 'heritage' },
     { slug: 'ete', fr: 'Collection Été', ar: 'مجموعة الصيف', en: 'Summer collection', tag: 'ete' },
-    { slug: 'hiver', fr: 'Collection Hiver', ar: 'مجموعة الشتاء', en: 'Winter collection', tag: 'hiver' },
+    {
+      slug: 'hiver',
+      fr: 'Collection Hiver',
+      ar: 'مجموعة الشتاء',
+      en: 'Winter collection',
+      tag: 'hiver',
+    },
   ];
 
   for (const [index, collection] of manual.entries()) {
@@ -468,14 +507,97 @@ async function seedCollections(prisma: PrismaClient, productIds: string[]): Prom
       select: { id: true },
     });
     for (const [position, product] of tagged.entries()) {
+      // The first two of each collection start pinned, so the merchandising board opens
+      // on a state that shows what pinning does rather than on an empty control.
+      const pinned = position < 2;
       await prisma.collectionProduct.upsert({
         where: { collectionId_productId: { collectionId: row.id, productId: product.id } },
-        create: { collectionId: row.id, productId: product.id, position },
-        update: { position },
+        create: { collectionId: row.id, productId: product.id, position, pinned },
+        update: { position, pinned },
       });
     }
   }
 
   log('collections', smart.length + manual.length);
   void productIds;
+}
+
+/**
+ * Search synonyms — PRD F-AD-13. Algerian shoppers type in three languages and rarely
+ * in the one the product is named in, so the vocabulary bridge starts populated rather
+ * than waiting for someone to notice that "cap" finds nothing.
+ */
+async function seedSearchSynonyms(prisma: PrismaClient): Promise<void> {
+  const entries = [
+    { term: 'casquette', synonyms: ['cap', 'kaskita', 'قبعة'] },
+    { term: 'trucker', synonyms: ['trukker', 'camionneur', 'filet'] },
+    { term: 'snapback', synonyms: ['snap back', 'snap-back'] },
+    { term: 'bonnet', synonyms: ['beanie', 'chachia', 'طاقية'] },
+    { term: 'bob', synonyms: ['bucket', 'bucket hat', 'chapeau de pecheur'] },
+    { term: 'chapeau', synonyms: ['hat', 'قبعة عريضة'] },
+    { term: 'enfant', synonyms: ['kids', 'enfants', 'أطفال'] },
+    { term: 'femme', synonyms: ['women', 'dame', 'نساء'] },
+  ];
+
+  for (const entry of entries) {
+    await prisma.searchSynonym.upsert({
+      where: { term: entry.term },
+      create: { term: entry.term, synonyms: entry.synonyms, twoWay: true },
+      update: { synonyms: entry.synonyms },
+    });
+  }
+  log('search synonyms', entries.length);
+}
+
+/**
+ * One real GLB in the library — PRD Section 6.3, DECISIONS D24 and D34.
+ *
+ * The 3D path only counts as built if something goes through it. Seeding a valid model
+ * means the media library shows a 3D file, the product page has a model to render, and
+ * the worker's Draco pass has something to compress on the first run.
+ */
+async function seedShowcaseModel(
+  prisma: PrismaClient,
+  productId: string | undefined,
+): Promise<void> {
+  if (!productId) return;
+
+  const key = 'demo/models/casquette-showcase.glb';
+  const sizeBytes = await writePlaceholderModel(key);
+
+  // Matched on the file name, not the storage key: processing rewrites the key to the
+  // optimized copy, and matching on it would make every re-seed create a duplicate.
+  const existing = await prisma.media.findFirst({
+    where: { kind: 'MODEL_3D', fileName: 'casquette-showcase.glb' },
+  });
+  const media =
+    existing ??
+    (await prisma.media.create({
+      data: {
+        kind: 'MODEL_3D',
+        storageKey: key,
+        fileName: 'casquette-showcase.glb',
+        mimeType: 'model/gltf-binary',
+        sizeBytes,
+        alt: tr('Modèle 3D de démonstration', 'نموذج ثلاثي الأبعاد', 'Demo 3D model'),
+        // Marked done: the seed writes straight to storage and has no queue, so leaving
+        // this null would spin in the media library for ever. The Draco pass is one
+        // click away there ("Retraiter"), and runs automatically on a real upload.
+        processedAt: new Date(),
+      },
+    }));
+
+  const last = await prisma.productMedia.findFirst({
+    where: { productId },
+    orderBy: { position: 'desc' },
+    select: { position: true },
+  });
+
+  await prisma.productMedia.upsert({
+    where: { productId_mediaId: { productId, mediaId: media.id } },
+    create: { productId, mediaId: media.id, position: (last?.position ?? -1) + 1 },
+    update: {},
+  });
+
+  log('3D models', 1);
 }
