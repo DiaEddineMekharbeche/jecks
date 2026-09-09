@@ -31,7 +31,11 @@
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "zod": "^3.23.8",
-    "exceljs": "^4.4.0"
+    "exceljs": "^4.4.0",
+    "sharp": "^0.33.5",
+    "bullmq": "^5.13.2",
+    "ioredis": "^5.4.1",
+    "@jecks/storage": "workspace:*"
   },
   "devDependencies": {
     "@jecks/config": "workspace:*",
@@ -48,6 +52,7 @@
     "supertest": "^7.0.0",
     "typescript": "^5.5.4",
     "unplugin-swc": "^1.5.1",
-    "vitest": "^2.1.1"
+    "vitest": "^2.1.1",
+    "@types/multer": "^1.4.12"
   }
 }

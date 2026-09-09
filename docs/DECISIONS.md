@@ -35,6 +35,10 @@ when the trade-off matters. Update this file whenever a decision changes; never 
 | D28 | Admin components | Radix primitives, brand-tokened, in `@jecks/ui` | 9.2 |
 | D29 | Export | `exceljs` streaming, same endpoint as the list via `?format=` | 5 |
 | D30 | Audit | Global interceptor on mutating `/admin` routes, opt-out decorator | F-AD-93 |
+| D31 | Storage driver | One `@jecks/storage` package shared by the API and the worker | 6.3 |
+| D32 | Upload validation | Content sniffing, not the declared type or the extension | 10.8 |
+| D33 | Renditions | sharp, 3 widths x WebP+AVIF, served via `<picture>` not next/image | 6.3 |
+| D34 | GLB posters | Draco compression and embedded-texture posters; no headless renderer | 9.1 |
 
 ---
 
@@ -229,6 +233,72 @@ as saving a list view.
 
 Payloads are redacted by key before they are written — passwords, tokens, TOTP codes,
 encrypted credentials — and long strings and large arrays are truncated.
+
+## D31 — One storage driver, shared
+
+The API's `StorageService` originally implemented S3 for URL building but not for reads
+and writes, which fell through to local disk. With `STORAGE_DRIVER=s3` the API wrote to
+the filesystem while the worker read from the bucket, so every upload processed into a
+404 — a split brain that no unit test would have caught, because each side was correct
+on its own.
+
+`@jecks/storage` now holds the only implementation: a local driver and an S3-compatible
+one over plain fetch with SigV4. The AWS SDK would add several megabytes to two container
+images for four verbs; signing is about sixty lines.
+
+The environment is read through one helper, `storageConfigFromEnv()`, which also resolves
+a relative `LOCAL_STORAGE_DIR` against the workspace root rather than the current
+directory. The API runs from `apps/api` and the worker from `apps/worker`, so resolving
+against the process's own directory gave them two different media roots — the same bug in
+a second guise.
+
+A related trap, worth stating because it cost time: `import 'dotenv/config'` must be the
+worker's first *import*, not a `loadEnv()` call in `main.ts`. Module imports are hoisted
+and evaluated before any statement in the importing file, so the queue module read
+`REDIS_URL` before dotenv had populated it and connected to the wrong Redis. The load now
+lives in `lib/env.ts`, imported first.
+
+## D32 — Uploads are typed by their bytes
+
+`Content-Type` and the file extension are both attacker-controlled. `file-sniffer.ts`
+reads the leading bytes and matches them against the closed set of formats the platform
+accepts; anything else is refused before it reaches storage. The ambiguous containers get
+a second check: RIFF is only WebP when the tag at offset 8 says so, and an ISO base media
+file is AVIF or MP4 depending on its brand.
+
+SVG has no magic number and can carry script. It is accepted, because staff use vector
+logos, but it is never inlined and the media route serves it under a
+`default-src 'none'` content security policy, so an uploaded SVG cannot execute on the
+API's origin.
+
+Storage paths are derived from the content hash, never from the filename, so traversal
+and collisions are structurally impossible and the same file uploaded twice occupies the
+disk once. The original name is kept only as a display label.
+
+## D33 — Renditions are pre-generated, not proxied
+
+The worker produces three widths (200, 600, 1600) in WebP and AVIF, and the storefront
+serves them through a plain `<picture>` element with `srcset`. Routing them back through
+`next/image` would re-encode work that is already done and add a hop to every request.
+
+Two rules the pipeline enforces: never upscale, because a 300 px logo rendered at 1600 px
+is bytes spent on blur; and AVIF at effort 4 rather than 9, which is roughly ten times
+faster for a few percent of size — the right trade inside a queue.
+
+Each image also stores its dominant colour, painted behind the picture while it loads. A
+real BlurHash would look better but needs a decoder on both frontends; seven characters
+buy most of the benefit.
+
+## D34 — GLB posters come from the file, not from a renderer
+
+Rendering a poster from geometry needs a GL context in Node — headless-gl or a browser —
+which is a heavy native dependency for one thumbnail. The processor instead Draco-compresses
+the model, compresses its textures, and uses the first embedded texture as the poster. When
+a model carries none, the admin assigns one from the media library
+(`PATCH /admin/media/:id` with `posterMediaId`).
+
+This supersedes nothing in D24: the storefront hero still uses procedural geometry until a
+real GLB is uploaded.
 
 ## Deferred / not yet decided
 

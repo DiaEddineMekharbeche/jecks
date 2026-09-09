@@ -7,7 +7,11 @@
     "noEmit": false,
     "declaration": false,
     "noUncheckedIndexedAccess": false,
-    "declarationMap": false
+    "declarationMap": false,
+    "types": [
+      "node",
+      "multer"
+    ]
   },
   "include": [
     "src"

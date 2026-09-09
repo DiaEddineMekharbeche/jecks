@@ -312,6 +312,9 @@ async function seedProduct(args: SeedProductArgs): Promise<{ productId: string; 
         width: 1200,
         height: 1500,
         alt: tr(`${seed.fr} coloris ${color}`, undefined, `${seed.en} in ${color}`),
+        // Vector placeholders need no renditions, so they are done on arrival; without
+        // this the media library would show them as processing forever.
+        processedAt: new Date(),
       },
     });
     mediaByColor.set(color, media.id);

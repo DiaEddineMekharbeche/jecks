@@ -2,12 +2,11 @@
 
 import { discountPercent, format, money, t, type Locale } from '@jecks/shared';
 import { Badge, cn } from '@jecks/ui';
-import Image from 'next/image';
 import Link from 'next/link';
 import { useState } from 'react';
-import { mediaUrl } from '@/lib/api';
 import type { Dictionary } from '@/lib/dictionary';
 import type { ProductCard as ProductCardData } from '@/lib/types';
+import { MediaImage } from './media-image';
 
 /**
  * Product card of PRD F-ST-23: hover swaps to the second image, colour swatches change
@@ -51,19 +50,16 @@ export function ProductCard({
           onMouseEnter={() => setHovering(true)}
           onMouseLeave={() => setHovering(false)}
         >
-          {shown ? (
-            <Image
-              src={mediaUrl(shown.storageKey) ?? ''}
-              alt={t(shown.alt, locale) || t(product.name, locale)}
-              fill
-              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-              className="object-cover transition-opacity duration-300"
-              priority={priority}
-              unoptimized={shown.storageKey.endsWith('.svg')}
-            />
-          ) : (
-            <div className="absolute inset-0 bg-elevated" />
-          )}
+          <MediaImage
+            media={shown}
+            locale={locale}
+            fallbackAlt={t(product.name, locale)}
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+            minWidth={600}
+            priority={priority}
+            className="absolute inset-0 h-full w-full"
+            imageClassName="transition-opacity duration-300"
+          />
 
           <div className="absolute start-2 top-2 flex flex-col items-start gap-1">
             {soldOut ? <Badge tone="solid">{dictionary.product.soldOut}</Badge> : null}

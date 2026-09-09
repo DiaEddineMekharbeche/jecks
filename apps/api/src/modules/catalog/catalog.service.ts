@@ -24,7 +24,18 @@ const cardSelect = {
   media: {
     orderBy: { position: 'asc' },
     take: 2,
-    select: { media: { select: { storageKey: true, alt: true, width: true, height: true } } },
+    select: {
+      media: {
+        select: {
+          storageKey: true,
+          alt: true,
+          width: true,
+          height: true,
+          renditions: true,
+          blurhash: true,
+        },
+      },
+    },
   },
   options: {
     where: { kind: 'color' },
@@ -114,7 +125,17 @@ export class CatalogService {
           select: {
             position: true,
             media: {
-              select: { id: true, kind: true, storageKey: true, posterKey: true, alt: true, width: true, height: true },
+              select: {
+                id: true,
+                kind: true,
+                storageKey: true,
+                posterKey: true,
+                alt: true,
+                width: true,
+                height: true,
+                renditions: true,
+                blurhash: true,
+              },
             },
           },
         },

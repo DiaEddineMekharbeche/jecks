@@ -795,12 +795,17 @@ model MediaFolder {
   id        String   @id @default(uuid(7)) @db.Uuid
   parentId  String?  @db.Uuid
   name      String   @db.VarChar(120)
+  position  Int      @default(0)
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   parent   MediaFolder?  @relation("FolderTree", fields: [parentId], references: [id], onDelete: SetNull)
   children MediaFolder[] @relation("FolderTree")
   media    Media[]
 
+  // Covers nested folders only: Postgres treats NULL parents as distinct, so the
+  // root case is enforced in MediaService.createFolder.
+  @@unique([parentId, name])
   @@map("media_folders")
 }
 
@@ -823,6 +828,12 @@ model Media {
   blurhash    String?   @db.VarChar(64)
   alt         Json?
   checksum    String?   @db.VarChar(64)
+  /// Set once the worker has produced the renditions; null means still processing.
+  processedAt DateTime?
+  /// Why processing failed, shown in the media library so a bad file is visible.
+  processingError String? @db.VarChar(500)
+  /// Bytes saved by Draco compression, for the 3D upload feedback.
+  originalSizeBytes Int?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?
@@ -842,6 +853,8 @@ model Media {
   pageHeroes        Page[]
 
   @@index([kind, createdAt])
+  @@index([folderId, createdAt])
+  @@index([processedAt])
   @@map("media")
 }
 

@@ -1,14 +1,17 @@
-import 'dotenv/config';
+// Must come first: it populates process.env before any other module reads it.
+import './lib/env.js';
 import { PrismaClient } from '@jecks/db';
 import { Worker, type Job } from 'bullmq';
 import pino from 'pino';
 import { rebuildDailyStats } from './jobs/daily-stats.js';
+import { processMedia } from './jobs/media-process.js';
 import {
   applyPriceSchedules,
   collectLowStockAlerts,
   detectAbandonedCarts,
 } from './jobs/scheduling.js';
 import { QUEUE_NAMES, closeQueues, connection, registerSchedules } from './lib/queues.js';
+import { createStorage, storageConfigFromEnv } from '@jecks/storage';
 
 /**
  * Background worker — PRD Section 10.3.
@@ -27,6 +30,7 @@ const logger = pino({
 });
 
 const prisma = new PrismaClient();
+const storage = createStorage(storageConfigFromEnv());
 
 const workers: Worker[] = [];
 
@@ -88,11 +92,17 @@ async function main(): Promise<void> {
     return { delivered: false, adapter: 'log' };
   }, 10);
 
-  register(QUEUE_NAMES.media, async (job) => {
-    // Responsive WebP/AVIF generation lands with M1 (PRD Section 6.3).
-    logger.info({ payload: job.data }, 'media job queued, processor pending M1');
-    return { processed: false };
-  }, 3);
+  register(
+    QUEUE_NAMES.media,
+    async (job) => {
+      if (job.name !== 'media.process') throw new Error(`Unknown media job: ${job.name}`);
+      const { mediaId } = job.data as { mediaId: string };
+      return processMedia(prisma, storage, mediaId);
+    },
+    // Sharp releases the event loop but each rendition still costs CPU; three at a
+    // time keeps a bulk gallery upload from starving the other queues.
+    3,
+  );
 
   register(QUEUE_NAMES.couriers, async (job) => {
     // Tracking polling needs a live courier adapter, which arrives in M4 (F-AD-61).

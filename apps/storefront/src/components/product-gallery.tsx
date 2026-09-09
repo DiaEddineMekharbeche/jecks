@@ -1,11 +1,10 @@
 'use client';
 
-import { t, type Locale } from '@jecks/shared';
+import type { Locale } from '@jecks/shared';
 import { cn } from '@jecks/ui';
-import Image from 'next/image';
 import { useState } from 'react';
-import { mediaUrl } from '@/lib/api';
 import type { MediaRef } from '@/lib/types';
+import { MediaImage } from './media-image';
 
 /**
  * Media gallery of PRD F-ST-30. Thumbnails on the side from `lg`, a snapping swipe
@@ -50,13 +49,13 @@ export function ProductGallery({
                   index === activeIndex ? 'border-brass' : 'border-line hover:border-muted',
                 )}
               >
-                <Image
-                  src={mediaUrl(item.storageKey) ?? ''}
-                  alt={t(item.alt, locale) || `${title} ${index + 1}`}
-                  fill
+                <MediaImage
+                  media={item}
+                  locale={locale}
+                  fallbackAlt={`${title} ${index + 1}`}
                   sizes="80px"
-                  className="object-cover"
-                  unoptimized={item.storageKey.endsWith('.svg')}
+                  minWidth={200}
+                  className="absolute inset-0 h-full w-full"
                 />
               </button>
             </li>
@@ -70,17 +69,18 @@ export function ProductGallery({
         className="relative aspect-[4/5] flex-1 overflow-hidden rounded-sm bg-surface"
         aria-label={zoomed ? 'Réduire' : 'Agrandir'}
       >
-        <Image
-          src={mediaUrl(active.storageKey) ?? ''}
-          alt={t(active.alt, locale) || title}
-          fill
+        <MediaImage
+          media={active}
+          locale={locale}
+          fallbackAlt={title}
           sizes="(max-width: 1024px) 100vw, 45vw"
+          minWidth={1600}
           priority
-          className={cn(
-            'object-cover transition-transform duration-500 ease-brand',
+          className="absolute inset-0 h-full w-full"
+          imageClassName={cn(
+            'transition-transform duration-500 ease-brand',
             zoomed && 'scale-150',
           )}
-          unoptimized={active.storageKey.endsWith('.svg')}
         />
       </button>
     </div>

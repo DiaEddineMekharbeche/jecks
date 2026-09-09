@@ -41,6 +41,7 @@ packages/
   db/           Prisma schema, migrations and seed. 108 tables.
   shared/       Zod schemas, enums, permission catalogue, money and phone utilities.
   ui/           Design tokens and primitives, with Storybook.
+  storage/      StorageProvider: local disk and S3-compatible, used by api and worker.
   config/       tsconfig, ESLint and Tailwind presets.
 infra/          Dockerfiles, compose files, Nginx.
 ```
@@ -81,8 +82,18 @@ generated SQL. CI fails if the schema and the migrations disagree.
 
 ## Status
 
-**M0 (Foundation)** and **M1.0 (admin framework)** are complete. See
-[`docs/PRD-COMPLETION.md`](docs/PRD-COMPLETION.md) for the milestone plan.
+**M0 (Foundation)**, **M1.0 (admin framework)** and **M1.1 (media pipeline)** are
+complete. See [`docs/PRD-COMPLETION.md`](docs/PRD-COMPLETION.md) for the milestone plan.
+
+M1.1 added the media pipeline:
+
+- **Uploads** typed by their bytes rather than by a claimed content type, stored under a
+  content hash so traversal and duplicates are structurally impossible.
+- **Processing** in the worker: three widths in WebP and AVIF within about a second,
+  a dominant colour for the loading placeholder, Draco compression for 3D models.
+- **Media library** with folders, usage counts, an unused filter, alt text in three
+  languages, and a retry for anything that failed.
+- **One storage driver** shared by the API and the worker, local disk or S3-compatible.
 
 M1.0 added the pieces every later module builds on:
 

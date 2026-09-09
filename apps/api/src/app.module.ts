@@ -17,7 +17,9 @@ import { DashboardModule } from './modules/dashboard/dashboard.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { SettingsModule } from './modules/settings/settings.module.js';
 import { ShippingModule } from './modules/shipping/shipping.module.js';
+import { MediaModule } from './modules/media/media.module.js';
 import { OrdersModule } from './modules/orders/orders.module.js';
+import { QueueModule } from './modules/queue/queue.module.js';
 import { GlobalSearchModule } from './modules/search/global-search.module.js';
 import { RealtimeModule } from './modules/realtime/realtime.module.js';
 import { StorageModule } from './modules/storage/storage.module.js';
@@ -39,6 +41,7 @@ import { PrismaModule } from './prisma/prisma.module.js';
     JwtModule.register({ global: true }),
     PrismaModule,
     ListModule,
+    QueueModule,
     StorageModule,
     SettingsModule,
     HealthModule,
@@ -46,6 +49,7 @@ import { PrismaModule } from './prisma/prisma.module.js';
     CatalogModule,
     ShippingModule,
     DashboardModule,
+    MediaModule,
     OrdersModule,
     RealtimeModule,
     ViewsModule,

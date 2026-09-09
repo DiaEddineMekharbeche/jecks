@@ -161,6 +161,13 @@ Responses carry `meta: { page, pageSize, total, totalPages }`.
 | GET | `/admin/search?q=` | `orders.read` |
 | GET | `/admin/events` | `orders.read` |
 | GET POST PATCH DELETE | `/admin/views` | `orders.read` |
+| GET | `/admin/media` | `catalog.read` |
+| POST | `/admin/media` | `catalog.write` |
+| GET PATCH | `/admin/media/:id` | `catalog.read` / `catalog.write` |
+| POST | `/admin/media/:id/reprocess` | `catalog.write` |
+| DELETE | `/admin/media/:id` | `catalog.delete` |
+| GET POST | `/admin/media/folders` | `catalog.read` / `catalog.write` |
+| DELETE | `/admin/media/folders/:id` | `catalog.write` |
 
 **Dashboard.** `period` is `7d`, `30d`, `90d`, `mtd` or `ytd`. The response has KPI tiles
 with a comparison against the preceding window of equal length, a daily series, and the
@@ -183,6 +190,28 @@ then `order.created`, `order.transitioned`, `shipment.updated`, `inventory.low` 
 
 **Views.** Saved list state per user and module. A shared view is readable by anyone who
 can see the module but editable only by its author.
+
+**Media.** `POST /admin/media` is `multipart/form-data` with one or more `files` and an
+optional `folderId`. Each file is validated on its own, so one bad file does not lose the
+batch: the response is `{ data: [...created], meta: { uploaded, failed: [{ fileName,
+message }] } }`.
+
+The declared content type is ignored. The leading bytes decide, against a closed set:
+JPEG, PNG, WebP, AVIF, GIF, SVG, MP4, WebM, GLB and PDF. Limits are 20 MB for an image,
+200 MB for a video, 15 MB for a GLB. A rejected file returns `UNSUPPORTED_TYPE` or
+`FILE_TOO_LARGE`.
+
+Images are queued for processing and come back with `processedAt: null`. The worker then
+produces `thumb` (200), `card` (600) and `zoom` (1600) in both WebP and AVIF, records the
+source dimensions and a dominant colour, and sets `processedAt`. A failure is recorded in
+`processingError` and can be retried with `POST /admin/media/:id/reprocess`.
+
+A GLB is Draco-compressed; `originalSizeBytes` keeps the size before compression, and a
+poster is extracted from its first embedded texture when it has one.
+
+`DELETE` refuses with `MEDIA_IN_USE` and a `usageCount` while anything references the
+file. `GET /admin/media` accepts `kind`, `folderId` (`root` for the top level) and
+`unusedOnly=true`.
 
 ---
 
