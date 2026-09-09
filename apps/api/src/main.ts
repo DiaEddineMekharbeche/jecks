@@ -52,7 +52,15 @@ async function bootstrap(): Promise<void> {
   }
 
   const port = config.get('API_PORT', { infer: true });
-  await app.listen(port, '0.0.0.0');
+  const host = config.get('API_HOST', { infer: true });
+
+  // Omitting the host makes Node bind `::` dual-stack, so `localhost` reaches the API
+  // whether the client resolves it to ::1 or 127.0.0.1. Binding `0.0.0.0` listens on
+  // IPv4 only, and browsers on Windows try ::1 first — the request is refused before it
+  // leaves the machine. Node falls back to 0.0.0.0 by itself where IPv6 is unavailable,
+  // which is what containers need. Set API_HOST to pin it.
+  if (host) await app.listen(port, host);
+  else await app.listen(port);
 
   const logger = new Logger('Bootstrap');
   logger.log(`API listening on http://localhost:${port}/api/v1`);

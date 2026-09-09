@@ -7,6 +7,8 @@ import { z } from 'zod';
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   API_PORT: z.coerce.number().int().min(1).max(65535).default(4000),
+  /** Leave unset to bind dual-stack. Set it only to pin one interface. */
+  API_HOST: z.string().optional(),
   API_PUBLIC_URL: z.string().url().default('http://localhost:4000/api/v1'),
   STOREFRONT_URL: z.string().url().default('http://localhost:3000'),
   ADMIN_URL: z.string().url().default('http://localhost:5174'),

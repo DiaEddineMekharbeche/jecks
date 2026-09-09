@@ -29,6 +29,27 @@ Sign in to the admin with the credentials the seed prints, by default
 | Mailpit | http://localhost:8025 |
 | MinIO console | http://localhost:9001 |
 
+### "Failed to fetch" in the admin, or the delivery estimator says every wilaya is
+### undeliverable
+
+The browser resolved `localhost` to `::1` and the API was only listening on IPv4. The
+request is refused before it leaves the machine, so the browser reports a network
+failure with no server log to match it.
+
+Check both families:
+
+```bash
+curl -o /dev/null -w "%{http_code}\n" http://127.0.0.1:4000/api/v1/health
+curl -o /dev/null -w "%{http_code}\n" -g "http://[::1]:4000/api/v1/health"
+```
+
+Both must return 200. The API binds dual-stack by default; if one fails, something set
+`API_HOST` to a single-family address. Unset it.
+
+The admin also goes through the Vite dev proxy rather than calling the API
+cross-origin — `VITE_API_URL=/api/v1` in development. Setting it to an absolute URL
+reintroduces the cross-origin hop and, with it, this failure mode.
+
 ### Ports already in use
 
 The compose file reads its ports from `.env`. If 5432, 6379, 9000 or 1025 are taken,

@@ -15,8 +15,11 @@ export default defineConfig(({ mode }) => {
       strictPort: true,
       proxy: {
         // Same-origin in dev, so the httpOnly refresh cookie needs no CORS exception.
+        // The target is an explicit IPv4 literal: Vite binds IPv6 loopback, and
+        // resolving `localhost` here again is what breaks when the two ends of the
+        // proxy disagree about the address family.
         '/api': {
-          target: env.API_URL ?? 'http://localhost:4000',
+          target: env.API_URL?.replace('localhost', '127.0.0.1') ?? 'http://127.0.0.1:4000',
           changeOrigin: true,
         },
       },
