@@ -5,9 +5,12 @@ import { rebuildDailyStats } from './daily-stats.js';
 /**
  * The P&L arithmetic of PRD F-AD-70, tested without a database.
  *
- * Revenue = delivered order totals, booked on the delivery date.
- * Gross    = revenue − COGS − shipping cost − refunds.
- * Net      = gross − expenses − ad spend.
+ * The figures come from `computePnl` in @jecks/shared, the same function the report
+ * uses, so these tests pin down what this job feeds it rather than a second definition:
+ *
+ * Revenue = delivered goods, net of discount, booked on the delivery date.
+ * Gross   = revenue − COGS. Delivery is a margin of its own.
+ * Net     = gross + delivery margin − fees − refunds − expenses − ad spend.
  */
 
 type Row = Record<string, unknown>;
@@ -53,10 +56,13 @@ function order(overrides: Row = {}): Row {
     deliveredAt: null,
     status: 'PENDING',
     total: 0n,
+    itemsSubtotal: 0n,
     cogsTotal: 0n,
+    shippingTotal: 0n,
     shippingCost: 0n,
     discountTotal: 0n,
     refundedTotal: 0n,
+    payments: [],
     ...overrides,
   };
 }
@@ -89,6 +95,7 @@ describe('rebuildDailyStats', () => {
           deliveredAt: day(1),
           status: 'DELIVERED',
           total: 400_000n,
+          itemsSubtotal: 400_000n,
           cogsTotal: 150_000n,
           shippingCost: 40_000n,
         }),
@@ -103,26 +110,48 @@ describe('rebuildDailyStats', () => {
     expect(written.get(key(1))?.deliveredCount).toBe(1);
   });
 
-  it('computes gross profit as revenue less COGS, shipping and refunds', async () => {
+  it('computes gross profit on the goods alone', async () => {
     const { prisma, written } = fakePrisma({
       orders: [
         order({
           createdAt: day(1),
           deliveredAt: day(1),
           status: 'DELIVERED',
-          total: 500_000n,
+          total: 540_000n,
+          itemsSubtotal: 500_000n,
           cogsTotal: 180_000n,
+          shippingTotal: 40_000n,
           shippingCost: 40_000n,
         }),
       ],
     });
     await rebuildDailyStats(prisma, { days: 2 });
 
-    // 500 000 − 180 000 − 40 000 = 280 000
-    expect(written.get(key(1))?.grossProfit).toBe(280_000n);
+    // 500 000 − 180 000. Delivery is not part of it.
+    expect(written.get(key(1))?.grossProfit).toBe(320_000n);
+    expect(written.get(key(1))?.shippingRevenue).toBe(40_000n);
   });
 
-  it('takes expenses and ad spend off the gross to reach net profit', async () => {
+  it('books revenue net of the discount', async () => {
+    const { prisma, written } = fakePrisma({
+      orders: [
+        order({
+          createdAt: day(1),
+          deliveredAt: day(1),
+          status: 'DELIVERED',
+          total: 450_000n,
+          itemsSubtotal: 500_000n,
+          discountTotal: 50_000n,
+          cogsTotal: 180_000n,
+        }),
+      ],
+    });
+    await rebuildDailyStats(prisma, { days: 2 });
+
+    expect(written.get(key(1))?.revenue).toBe(450_000n);
+  });
+
+  it('records the payment fees an order carried', async () => {
     const { prisma, written } = fakePrisma({
       orders: [
         order({
@@ -130,7 +159,30 @@ describe('rebuildDailyStats', () => {
           deliveredAt: day(1),
           status: 'DELIVERED',
           total: 500_000n,
+          itemsSubtotal: 500_000n,
+          payments: [{ feeAmount: 7_500n }],
+        }),
+      ],
+    });
+    await rebuildDailyStats(prisma, { days: 2 });
+
+    expect(written.get(key(1))?.paymentFees).toBe(7_500n);
+    // Fees come off the net, never off the gross.
+    expect(written.get(key(1))?.grossProfit).toBe(500_000n);
+    expect(written.get(key(1))?.netProfit).toBe(492_500n);
+  });
+
+  it('takes fees, expenses and ad spend off to reach net profit', async () => {
+    const { prisma, written } = fakePrisma({
+      orders: [
+        order({
+          createdAt: day(1),
+          deliveredAt: day(1),
+          status: 'DELIVERED',
+          total: 540_000n,
+          itemsSubtotal: 500_000n,
           cogsTotal: 180_000n,
+          shippingTotal: 40_000n,
           shippingCost: 40_000n,
         }),
       ],
@@ -142,8 +194,8 @@ describe('rebuildDailyStats', () => {
     const row = written.get(key(1));
     expect(row?.expenses).toBe(60_000n);
     expect(row?.adSpend).toBe(30_000n);
-    // 280 000 − 60 000 − 30 000 = 190 000
-    expect(row?.netProfit).toBe(190_000n);
+    // 320 000 gross, delivery breaks even, − 60 000 − 30 000.
+    expect(row?.netProfit).toBe(230_000n);
   });
 
   it('reports a loss when costs exceed revenue', async () => {
@@ -154,7 +206,8 @@ describe('rebuildDailyStats', () => {
           deliveredAt: day(1),
           status: 'DELIVERED',
           total: 100_000n,
-          cogsTotal: 80_000n,
+          itemsSubtotal: 100_000n,
+          cogsTotal: 130_000n,
           shippingCost: 40_000n,
         }),
       ],
@@ -162,8 +215,9 @@ describe('rebuildDailyStats', () => {
     });
     await rebuildDailyStats(prisma, { days: 2 });
 
-    expect(written.get(key(1))?.grossProfit).toBe(-20_000n);
-    expect(written.get(key(1))?.netProfit).toBe(-70_000n);
+    // Sold below cost, delivery unpaid, and advertising on top.
+    expect(written.get(key(1))?.grossProfit).toBe(-30_000n);
+    expect(written.get(key(1))?.netProfit).toBe(-120_000n);
   });
 
   it('subtracts a refund from the day the order was delivered', async () => {
@@ -182,11 +236,12 @@ describe('rebuildDailyStats', () => {
     await rebuildDailyStats(prisma, { days: 2 });
 
     const row = written.get(key(1));
-    // A refunded order is not revenue, and its shipping and refund are still costs.
+    // A refunded order is not revenue, and its delivery and refund are still costs.
     expect(row?.revenue).toBe(0n);
     expect(row?.deliveredCount).toBe(0);
     expect(row?.refunds).toBe(300_000n);
-    expect(row?.grossProfit).toBe(-340_000n);
+    expect(row?.grossProfit).toBe(0n);
+    expect(row?.netProfit).toBe(-340_000n);
   });
 
   it('counts failed and cancelled orders without booking revenue', async () => {
@@ -207,8 +262,8 @@ describe('rebuildDailyStats', () => {
   it('sums several deliveries on the same day', async () => {
     const { prisma, written } = fakePrisma({
       orders: [
-        order({ createdAt: day(1), deliveredAt: day(1), status: 'DELIVERED', total: 100_000n, cogsTotal: 40_000n }),
-        order({ createdAt: day(1), deliveredAt: day(1), status: 'DELIVERED', total: 250_000n, cogsTotal: 90_000n }),
+        order({ createdAt: day(1), deliveredAt: day(1), status: 'DELIVERED', total: 100_000n, itemsSubtotal: 100_000n, cogsTotal: 40_000n }),
+        order({ createdAt: day(1), deliveredAt: day(1), status: 'DELIVERED', total: 250_000n, itemsSubtotal: 250_000n, cogsTotal: 90_000n }),
       ],
     });
     await rebuildDailyStats(prisma, { days: 2 });

@@ -70,6 +70,26 @@ export async function registerSchedules(): Promise<void> {
     { repeat: { pattern: '0 9 * * *', tz: 'Africa/Algiers' }, jobId: 'low-stock-alerts' },
   );
 
+  // Monthly, on the 1st: a series owes its occurrence for the month that just began.
+  await queues.scheduling.add(
+    'recurring-expenses',
+    {},
+    { repeat: { pattern: '10 1 1 * *', tz: 'Africa/Algiers' }, jobId: 'recurring-expenses' },
+  );
+
+  // 01:00, after the day is closed and before anyone reads a segment.
+  await queues.scheduling.add(
+    'segments',
+    {},
+    { repeat: { pattern: '0 1 * * *', tz: 'Africa/Algiers' }, jobId: 'segments' },
+  );
+
+  await queues.scheduling.add(
+    'loyalty-expiry',
+    {},
+    { repeat: { pattern: '20 1 * * *', tz: 'Africa/Algiers' }, jobId: 'loyalty-expiry' },
+  );
+
   await queues.maintenance.add(
     'backup',
     {},

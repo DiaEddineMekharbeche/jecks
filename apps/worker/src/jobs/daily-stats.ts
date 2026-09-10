@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@jecks/db';
+import { computePnl } from '@jecks/shared';
 
 /**
  * Rebuilds `daily_stats` for a window of days — PRD Section 10.7 and F-AD-70.
@@ -32,10 +33,13 @@ export async function rebuildDailyStats(
         deliveredAt: true,
         status: true,
         total: true,
+        itemsSubtotal: true,
         cogsTotal: true,
+        shippingTotal: true,
         shippingCost: true,
         discountTotal: true,
         refundedTotal: true,
+        payments: { select: { feeAmount: true } },
       },
     }),
     prisma.expense.groupBy({
@@ -72,8 +76,10 @@ export async function rebuildDailyStats(
     cancelledCount: number;
     revenue: bigint;
     cogs: bigint;
+    shippingRevenue: bigint;
     shippingCost: bigint;
     discounts: bigint;
+    paymentFees: bigint;
     refunds: bigint;
   }
 
@@ -84,8 +90,10 @@ export async function rebuildDailyStats(
     cancelledCount: 0,
     revenue: 0n,
     cogs: 0n,
+    shippingRevenue: 0n,
     shippingCost: 0n,
     discounts: 0n,
+    paymentFees: 0n,
     refunds: 0n,
   });
 
@@ -111,10 +119,14 @@ export async function rebuildDailyStats(
       const delivered = bucketFor(key(order.deliveredAt));
       if (order.status === 'DELIVERED') {
         delivered.deliveredCount += 1;
-        delivered.revenue += order.total;
+        // Goods only, already net of the discount: the P&L treats delivery as its own
+        // line rather than as revenue.
+        delivered.revenue += order.itemsSubtotal - order.discountTotal;
         delivered.cogs += order.cogsTotal;
+        delivered.shippingRevenue += order.shippingTotal;
       }
       delivered.shippingCost += order.shippingCost;
+      delivered.paymentFees += order.payments.reduce((sum, payment) => sum + payment.feeAmount, 0n);
       delivered.refunds += order.refundedTotal;
     }
   }
@@ -127,8 +139,19 @@ export async function rebuildDailyStats(
   for (const [day, bucket] of buckets) {
     const dayExpenses = expenseByDay.get(day) ?? 0n;
     const dayAds = adByDay.get(day) ?? 0n;
-    const grossProfit = bucket.revenue - bucket.cogs - bucket.shippingCost - bucket.refunds;
-    const netProfit = grossProfit - dayExpenses - dayAds;
+    // The same function the P&L report uses. Two implementations of "profit" is one
+    // more than a shop can afford.
+    const pnl = computePnl({
+      revenueMinor: bucket.revenue,
+      cogsMinor: bucket.cogs,
+      shippingRevenueMinor: bucket.shippingRevenue,
+      shippingCostMinor: bucket.shippingCost,
+      discountsMinor: bucket.discounts,
+      paymentFeesMinor: bucket.paymentFees,
+      refundsMinor: bucket.refunds,
+      expensesMinor: dayExpenses,
+      adSpendMinor: dayAds,
+    });
 
     const row = {
       ordersCount: bucket.ordersCount,
@@ -137,13 +160,15 @@ export async function rebuildDailyStats(
       cancelledCount: bucket.cancelledCount,
       revenue: bucket.revenue,
       cogs: bucket.cogs,
+      shippingRevenue: bucket.shippingRevenue,
       shippingCost: bucket.shippingCost,
       discounts: bucket.discounts,
+      paymentFees: bucket.paymentFees,
       refunds: bucket.refunds,
       expenses: dayExpenses,
       adSpend: dayAds,
-      grossProfit,
-      netProfit,
+      grossProfit: pnl.grossProfitMinor,
+      netProfit: pnl.netProfitMinor,
       newCustomers: newByDay.get(day) ?? 0,
       computedAt: new Date(),
     };

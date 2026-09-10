@@ -17,12 +17,15 @@ import { CatalogModule } from './modules/catalog/catalog.module.js';
 import { CatalogAdminModule } from './modules/catalog/admin/catalog-admin.module.js';
 import { ListModule } from './common/list/list.module.js';
 import { CouriersModule } from './modules/couriers/couriers.module.js';
+import { CustomersModule } from './modules/customers/customers.module.js';
 import { DashboardModule } from './modules/dashboard/dashboard.module.js';
 import { DeliveryModule } from './modules/delivery/delivery.module.js';
+import { FinanceModule } from './modules/finance/finance.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { InventoryModule } from './modules/inventory/inventory.module.js';
 import { SettingsModule } from './modules/settings/settings.module.js';
 import { ShippingModule } from './modules/shipping/shipping.module.js';
+import { MaintenanceModule } from './modules/maintenance/maintenance.module.js';
 import { MediaModule } from './modules/media/media.module.js';
 import { OrdersModule } from './modules/orders/orders.module.js';
 import { PaymentsModule } from './modules/payments/payments.module.js';
@@ -67,6 +70,9 @@ import { PrismaModule } from './prisma/prisma.module.js';
     ShippingModule,
     CouriersModule,
     DeliveryModule,
+    CustomersModule,
+    FinanceModule,
+    MaintenanceModule,
     WebhooksModule,
     DashboardModule,
     MediaModule,

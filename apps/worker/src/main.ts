@@ -5,6 +5,7 @@ import { Worker, type Job } from 'bullmq';
 import pino from 'pino';
 import { runBackup } from './jobs/backup.js';
 import { pollCourierTracking } from './jobs/courier-sync.js';
+import { runMaintenanceTask, type MaintenanceTask } from './jobs/maintenance-tasks.js';
 import { dispatchNotification } from './notifications/dispatcher.js';
 import { readSecret } from './lib/secrets.js';
 import { rebuildDailyStats } from './jobs/daily-stats.js';
@@ -83,6 +84,13 @@ async function main(): Promise<void> {
         return applyPriceSchedules(prisma);
       case 'detect-abandoned-carts':
         return detectAbandonedCarts(prisma);
+      case 'recurring-expenses':
+      case 'segments':
+      case 'loyalty-expiry':
+        return runMaintenanceTask(job.name as MaintenanceTask, {
+          apiUrl: process.env.API_PUBLIC_URL ?? 'http://localhost:4000/api/v1',
+          token: process.env.INTERNAL_API_TOKEN,
+        });
       case 'low-stock-alerts': {
         const alerts = await collectLowStockAlerts(prisma);
         for (const alert of alerts) {

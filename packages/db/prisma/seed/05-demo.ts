@@ -851,8 +851,10 @@ async function seedFinance(prisma: PrismaClient, ownerId: string, rng: () => num
   let adRows = 0;
   for (let dayOffset = 74; dayOffset >= 0; dayOffset -= 1) {
     const spentOn = startOfDayUtc(daysAgo(dayOffset));
-    for (const platform of ['meta', 'tiktok'] as const) {
-      const base = platform === 'meta' ? 1800 : 900;
+    // The platform names have to match the UTM sources the orders carry, or the ROAS
+    // report divides spend by revenue it never attributes.
+    for (const platform of ['facebook', 'instagram', 'tiktok'] as const) {
+      const base = platform === 'facebook' ? 1800 : platform === 'instagram' ? 1200 : 900;
       const amount = dzd(base + Math.round(rng() * base * 0.6));
       await prisma.adSpend.upsert({
         where: { platform_campaign_spentOn: { platform, campaign: 'always-on', spentOn } },

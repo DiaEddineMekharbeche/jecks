@@ -7,7 +7,7 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],
-      include: ['src/money/**', 'src/phone/**'],
+      include: ['src/money/**', 'src/phone/**', 'src/finance/**'],
       thresholds: { lines: 90, functions: 90, branches: 85, statements: 90 },
     },
   },

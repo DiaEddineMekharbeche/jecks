@@ -4,6 +4,7 @@ import { OrderStatus, StockMovementReason, type OrderTransitionInput } from '@je
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { LocationsService } from '../inventory/locations.service.js';
 import { StockLedgerService } from '../inventory/stock-ledger.service.js';
+import { LoyaltyService } from '../customers/loyalty.service.js';
 import { PromotionsService } from '../promotions/promotions.service.js';
 import { QueueService } from '../queue/queue.service.js';
 import { RealtimeService } from '../realtime/realtime.service.js';
@@ -41,6 +42,7 @@ export class OrderTransitionService {
     private readonly settings: SettingsService,
     private readonly queue: QueueService,
     private readonly realtime: RealtimeService,
+    private readonly loyalty: LoyaltyService,
   ) {}
 
   async transition(
@@ -126,6 +128,21 @@ export class OrderTransitionService {
         await refreshCustomerRollups(tx, order.customerId);
       }
     });
+
+    // Loyalty follows the parcel, not the checkout: points are earned at the door and
+    // taken back if it comes home again. Outside the transaction because it is its own
+    // ledger, and a points failure must not roll back a delivery.
+    if (order.customerId) {
+      if (input.to === OrderStatus.DELIVERED) {
+        await this.loyalty.awardForOrder(order.id).catch((error: Error) => {
+          this.logger.warn(`Could not award points for ${order.number}: ${error.message}`);
+        });
+      } else if (input.to === OrderStatus.RETURNED || input.to === OrderStatus.REFUNDED) {
+        await this.loyalty.reverseForOrder(order.id).catch((error: Error) => {
+          this.logger.warn(`Could not reverse points for ${order.number}: ${error.message}`);
+        });
+      }
+    }
 
     this.announce(order, input.to, effects.notification);
 

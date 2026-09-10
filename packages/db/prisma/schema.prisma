@@ -249,6 +249,7 @@ model User {
   orderEvents     OrderEvent[]
   stockMovements  StockMovement[]
   expenses        Expense[]
+  reportExports   ReportExport[]
   notifications   Notification[]
   invitationsSent StaffInvitation[] @relation("InvitedBy")
   savedViews      SavedView[]
@@ -2124,6 +2125,33 @@ model AdSpend {
 }
 
 /// Double-entry-lite journal: one row per money movement, signed by direction.
+/// A report a user asked for that was too big to stream inline (F-AD-81).
+model ReportExport {
+  id            String    @id @default(uuid(7)) @db.Uuid
+  /// The report key, e.g. "sales.by_product".
+  report        String    @db.VarChar(64)
+  format        String    @default("csv") @db.VarChar(8)
+  /// The filters it was run with, so it can be re-run or explained.
+  params        Json
+  /// "pending" | "running" | "ready" | "failed"
+  status        String    @default("pending") @db.VarChar(16)
+  rowCount      Int       @default(0)
+  storageKey    String?   @db.VarChar(400)
+  error         String?   @db.Text
+  requestedById String?   @db.Uuid
+  startedAt     DateTime?
+  finishedAt    DateTime?
+  /// Cleaned up by the maintenance job; a stale export is a stale answer.
+  expiresAt     DateTime?
+  createdAt     DateTime  @default(now())
+
+  requestedBy User? @relation(fields: [requestedById], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([requestedById, createdAt])
+  @@map("report_exports")
+}
+
 model LedgerEntry {
   id            String   @id @default(uuid(7)) @db.Uuid
   /// "sale" | "cod_collection" | "refund" | "expense" | "settlement" | "adjustment"
@@ -2149,24 +2177,29 @@ model LedgerEntry {
 
 /// Pre-aggregated dashboard rows — PRD Section 10.7, rebuilt nightly by the worker.
 model DailyStat {
-  day            DateTime @id @db.Date
-  ordersCount    Int      @default(0)
-  deliveredCount Int      @default(0)
-  failedCount    Int      @default(0)
-  cancelledCount Int      @default(0)
-  revenue        BigInt   @default(0)
-  cogs           BigInt   @default(0)
-  shippingCost   BigInt   @default(0)
-  discounts      BigInt   @default(0)
-  refunds        BigInt   @default(0)
-  expenses       BigInt   @default(0)
-  adSpend        BigInt   @default(0)
-  grossProfit    BigInt   @default(0)
-  netProfit      BigInt   @default(0)
-  newCustomers   Int      @default(0)
-  sessions       Int      @default(0)
-  currency       String   @default("DZD") @db.Char(3)
-  computedAt     DateTime @default(now())
+  day             DateTime @id @db.Date
+  ordersCount     Int      @default(0)
+  deliveredCount  Int      @default(0)
+  failedCount     Int      @default(0)
+  cancelledCount  Int      @default(0)
+  revenue         BigInt   @default(0)
+  cogs            BigInt   @default(0)
+  shippingCost    BigInt   @default(0)
+  discounts       BigInt   @default(0)
+  refunds         BigInt   @default(0)
+  /// Gateway and courier COD fees, kept off the expenses line so the cost of taking
+  /// money is visible on its own (F-AD-70).
+  paymentFees     BigInt   @default(0)
+  /// Delivery fees charged to customers, the counterpart of `shippingCost`.
+  shippingRevenue BigInt   @default(0)
+  expenses        BigInt   @default(0)
+  adSpend         BigInt   @default(0)
+  grossProfit     BigInt   @default(0)
+  netProfit       BigInt   @default(0)
+  newCustomers    Int      @default(0)
+  sessions        Int      @default(0)
+  currency        String   @default("DZD") @db.Char(3)
+  computedAt      DateTime @default(now())
 
   @@map("daily_stats")
 }

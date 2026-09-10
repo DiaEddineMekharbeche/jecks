@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { CartModule } from '../cart/cart.module.js';
+import { CustomersModule } from '../customers/customers.module.js';
 import { InventoryModule } from '../inventory/inventory.module.js';
 import { ShippingModule } from '../shipping/shipping.module.js';
 import { CheckoutController } from './checkout.controller.js';
@@ -19,7 +20,7 @@ import { OrdersListService } from './orders-list.service.js';
  * state machine, not two.
  */
 @Module({
-  imports: [CartModule, InventoryModule, ShippingModule],
+  imports: [CartModule, CustomersModule, InventoryModule, ShippingModule],
   controllers: [OrdersController, OrdersAdminController, CheckoutController],
   providers: [
     OrdersListService,
