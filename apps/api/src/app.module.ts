@@ -25,6 +25,7 @@ import { QueueModule } from './modules/queue/queue.module.js';
 import { GlobalSearchModule } from './modules/search/global-search.module.js';
 import { RealtimeModule } from './modules/realtime/realtime.module.js';
 import { StorageModule } from './modules/storage/storage.module.js';
+import { SystemModule } from './modules/system/system.module.js';
 import { ViewsModule } from './modules/views/views.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 
@@ -51,6 +52,7 @@ import { PrismaModule } from './prisma/prisma.module.js';
     CatalogModule,
     CatalogAdminModule,
     InventoryModule,
+    SystemModule,
     ShippingModule,
     DashboardModule,
     MediaModule,

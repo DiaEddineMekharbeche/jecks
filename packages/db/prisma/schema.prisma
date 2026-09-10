@@ -373,6 +373,7 @@ model StaffInvitation {
   invitedBy User @relation("InvitedBy", fields: [invitedById], references: [id])
 
   @@index([email])
+  @@index([createdAt(sort: Desc)])
   @@map("staff_invitations")
 }
 
@@ -2458,6 +2459,7 @@ model AuditLog {
 
   @@index([entityType, entityId, createdAt])
   @@index([actorId, createdAt])
+  @@index([createdAt(sort: Desc)])
   @@map("audit_logs")
 }
 
@@ -2523,6 +2525,9 @@ model Job {
   startedAt   DateTime?
   finishedAt  DateTime?
   error       String?   @db.Text
+  /// What the job produced — a storage key and size for a backup, a row count for an
+  /// export. Read by the screens that report on jobs they triggered.
+  result      Json?
   createdAt   DateTime  @default(now())
 
   @@index([queue, status, runAt])

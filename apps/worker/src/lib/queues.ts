@@ -12,6 +12,7 @@ export const QUEUE_NAMES = {
   reports: 'reports',
   couriers: 'couriers',
   scheduling: 'scheduling',
+  maintenance: 'maintenance',
 } as const;
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];
@@ -36,6 +37,7 @@ export const queues = {
   reports: new Queue(QUEUE_NAMES.reports, { connection, defaultJobOptions }),
   couriers: new Queue(QUEUE_NAMES.couriers, { connection, defaultJobOptions }),
   scheduling: new Queue(QUEUE_NAMES.scheduling, { connection, defaultJobOptions }),
+  maintenance: new Queue(QUEUE_NAMES.maintenance, { connection, defaultJobOptions }),
 } as const;
 
 /**
@@ -66,6 +68,13 @@ export async function registerSchedules(): Promise<void> {
     'low-stock-alerts',
     {},
     { repeat: { pattern: '0 9 * * *', tz: 'Africa/Algiers' }, jobId: 'low-stock-alerts' },
+  );
+
+  await queues.maintenance.add(
+    'backup',
+    {},
+    // 02:30 Africa/Algiers: after the daily stats rebuild, before anyone is working.
+    { repeat: { pattern: '30 2 * * *', tz: 'Africa/Algiers' }, jobId: 'nightly-backup' },
   );
 
   await queues.couriers.add(

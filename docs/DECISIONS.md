@@ -449,3 +449,74 @@ The alternative — a generated column or a raw query per bucket — buys accura
 total row count for a filter an operator uses to find a handful of problem rows, and puts
 the definition of "low" in two places. One definition, in `stockState()`, shared by the
 list and by the realtime low-stock event, is worth the imprecise count.
+
+## D45 — Settings are validated per scope, not per key (M1.4)
+
+`PATCH /admin/settings/:scope` takes a partial payload and checks it against one Zod
+object per scope. A key that does not belong to the scope is refused rather than stored.
+
+Per-key validation cannot express a rule that spans two settings, and silently accepting
+an unknown key produces a row nothing ever reads — the kind of thing that is discovered
+six months later when someone wonders why their change had no effect. A scope is also
+the unit a screen section saves, which makes one audit row describe one intention.
+
+## D46 — A saved secret is never sent back, and the mask means "unchanged" (M1.4)
+
+Credentials (SMS gateway, Telegram bot, payment keys) are encrypted with
+`CREDENTIALS_KEY` using AES-256-GCM and returned to the admin as `••••••••`.
+
+Sending that mask back in a PATCH is defined to mean "leave this one alone". Without
+that rule a settings form has to choose between re-sending the real secret to the
+browser — where a screen recording or an extension can read it — and refusing to save
+any other field on the same form. The mask makes the round-trip safe.
+
+The authentication tag is what turns a tampered ciphertext into a thrown error rather
+than into garbage that an HTTP client then sends to a third party. A decryption that
+fails because the key was rotated returns null, so the integration reports "not
+configured" instead of taking a request down.
+
+## D47 — Nobody's password is chosen for them (M1.4)
+
+There is no "create user with password" route. An owner invites an address; the store
+keeps only a SHA-256 hash of a random token, valid 72 hours and single-use; the invitee
+follows the link and sets their own password.
+
+The alternative — a temporary password typed by the owner — is in practice sent over
+WhatsApp and never changed, which is how a small team's admin access leaks. Re-inviting
+the same address deletes the pending invitation first, so there is never a second live
+link the recipient might not be the one to use.
+
+## D48 — The last owner cannot be removed (M1.4)
+
+Deactivating, deleting, or stripping the owner role from the only active owner is
+refused with `LAST_OWNER`. Self-deactivation is refused separately.
+
+A shop with no owner has nobody holding `users.write`, so nobody can create one: the
+state is unrecoverable from inside the product. The check counts *other* active owners
+rather than owners including the subject, which is the difference between a guard that
+works and one that always passes.
+
+## D49 — Backups run in the worker, in custom format, pruned by naming convention (M1.4)
+
+`POST /admin/backups` writes a `Job` row and enqueues; it never runs `pg_dump` in the
+request, because a dump of a real catalogue outlives any sensible HTTP timeout.
+
+The dump is written to a temporary file and only then uploaded. Streaming straight to
+storage would let a truncated dump be stored looking healthy, which is worse than a
+failed backup: it looks fine in the list until the day someone needs it.
+
+Retention deletes only files matching `jecks-<timestamp>.dump`. Anything else under the
+prefix is left alone, so the retention job can never become a way to delete something a
+person put there deliberately.
+
+The connection string is split into `PGHOST`/`PGUSER`/`PGPASSWORD` rather than passed on
+the command line, keeping the database password out of the process list.
+
+## D50 — The permission matrix saves on tick (M1.4)
+
+Each checkbox issues `PATCH /admin/roles/:id/permissions` with the role's full new set.
+
+A matrix behind a Save button gets half-edited and abandoned, and the operator cannot
+tell afterwards which state the server holds. Replacing the whole set rather than
+diffing keeps the write idempotent; a role has tens of permissions, not thousands, so
+the extra rows written are not worth a diff that can be wrong.

@@ -3,6 +3,7 @@ import type { Permission } from '@jecks/shared';
 import { Construction } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { AuditPage } from '@/features/audit/AuditPage';
 import { LoginPage } from '@/features/auth/LoginPage';
 import { useSession } from '@/features/auth/session';
 import { CatalogLayout } from '@/features/catalog/CatalogLayout';
@@ -30,6 +31,13 @@ import { StockCountsPage } from '@/features/inventory/StockCountsPage';
 import { StockOverviewPage } from '@/features/inventory/StockOverviewPage';
 import { SuppliersPage } from '@/features/inventory/SuppliersPage';
 import { MediaLibraryPage } from '@/features/media/MediaLibraryPage';
+import { AcceptInvitationPage } from '@/features/settings/AcceptInvitationPage';
+import { BackupsPage } from '@/features/settings/BackupsPage';
+import { NotificationTemplatesPage } from '@/features/settings/NotificationTemplatesPage';
+import { RolesPage } from '@/features/settings/RolesPage';
+import { SettingsLayout } from '@/features/settings/SettingsLayout';
+import { SettingsScopePage } from '@/features/settings/SettingsScopePage';
+import { UsersPage } from '@/features/settings/UsersPage';
 import { OrdersListPage } from '@/features/orders/OrdersListPage';
 import { AppShell } from './AppShell';
 import { NAVIGATION } from './navigation';
@@ -53,6 +61,9 @@ export function AppRoutes() {
 
   return (
     <Routes>
+      {/* Reachable with no session: the invitee has no account until they land here. */}
+      <Route path="/invitation" element={<AcceptInvitationPage />} />
+
       <Route
         path="/login"
         element={status === 'authenticated' ? <Navigate to="/" replace /> : <LoginPage />}
@@ -147,6 +158,49 @@ export function AppRoutes() {
               </Protected>
             }
           />
+        </Route>
+
+        {/* The journal — PRD F-AD-93. Read-only; the interceptor is what writes it. */}
+        <Route
+          path="/audit"
+          element={
+            <Protected permission="audit.read">
+              <AuditPage />
+            </Protected>
+          }
+        />
+
+        {/* Settings — PRD F-AD-91 and F-AD-92. Team and roles carry their own
+            permission, so a manager sees the shop settings but not the accounts. */}
+        <Route
+          path="/settings"
+          element={
+            <Protected permission="settings.read">
+              <SettingsLayout />
+            </Protected>
+          }
+        >
+          <Route index element={<Navigate to="/settings/store" replace />} />
+          <Route path="templates" element={<NotificationTemplatesPage />} />
+          <Route path="backups" element={<BackupsPage />} />
+          <Route
+            path="users"
+            element={
+              <Protected permission="users.read">
+                <UsersPage />
+              </Protected>
+            }
+          />
+          <Route
+            path="roles"
+            element={
+              <Protected permission="users.read">
+                <RolesPage />
+              </Protected>
+            }
+          />
+          {/* Everything else is a generated scope form. */}
+          <Route path=":scope" element={<SettingsScopePage />} />
         </Route>
 
         {/* Modules whose screens arrive in later milestones still route, so the nav

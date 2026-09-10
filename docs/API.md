@@ -356,6 +356,52 @@ blamed for sales made while it was running. Applying compares the counted figure
 
 ---
 
+## Admin — settings, users, roles, journal and backups
+
+| Method | Path | Permission | Notes |
+|---|---|---|---|
+| GET | `/admin/settings` | `settings.read` | Every scope at once, secrets masked |
+| GET | `/admin/settings/:scope` | `settings.read` | One scope |
+| PATCH | `/admin/settings/:scope` | `settings.write` | Partial: only the keys that changed |
+| GET POST | `/admin/settings/templates` | `settings.read` / `settings.write` | Notification templates, upserted on (event, channel) |
+| GET | `/admin/settings/templates/:id/preview` | `settings.read` | Renders with sample values |
+| POST | `/admin/settings/templates/:id/test` | `settings.write` | Queues one real send |
+| GET | `/admin/users` | `users.read` | Staff with roles and live session counts |
+| PATCH | `/admin/users/:id` | `users.write` | Rename, re-role, deactivate |
+| POST | `/admin/users/:id/sessions/revoke` | `users.write` | Signs them out everywhere |
+| POST | `/admin/users/:id/two-factor/reset` | `users.write` | Clears the second factor and the sessions |
+| GET POST | `/admin/users/invitations` | `users.read` / `users.write` | Create returns the one-time link |
+| POST | `/auth/invitations/accept` | public | The invitee sets their own password |
+| GET | `/admin/roles` | `users.read` | Roles with permissions and headcount |
+| GET | `/admin/roles/permissions` | `users.read` | The catalogue the matrix draws |
+| PATCH | `/admin/roles/:id/permissions` | `users.write` | Replaces the grants of one role |
+| GET | `/admin/audit` | `audit.read` | Read-only; exports |
+| GET | `/admin/audit/:entityType/:entityId` | `audit.read` | History of one record |
+| GET POST | `/admin/backups` | `settings.read` / `settings.write` | Queues a dump; the list polls while it runs |
+
+**Scopes, not keys.** Settings are validated per scope with a Zod schema in
+`@jecks/shared`. A key that does not belong to the scope is refused rather than stored,
+so a typo in a script fails loudly instead of creating a setting nothing reads.
+
+**Secrets.** `notifications.sms_credentials`, `notifications.telegram_token` and the
+Chargily keys are encrypted with `CREDENTIALS_KEY` (AES-256-GCM) and come back as a
+mask. Sending the mask back means "leave it alone", so a settings form round-trips
+without the browser ever holding the real value.
+
+**No password is chosen for anyone.** An invitation stores only a hash of its token,
+expires after 72 hours, and is single-use. Re-inviting the same address replaces the
+pending invitation rather than leaving two live links.
+
+**The last owner cannot be removed.** Deactivating, deleting or un-owning the only
+active owner is refused: a shop with no owner has nobody who can grant the permission
+needed to make one.
+
+**Backups** are taken by the worker, never in the request. `POST /admin/backups` creates
+a `Job` row and enqueues it; the dump is `pg_dump --format=custom`, stored under
+`backups/`, pruned after 14 days, and the nightly run fires at 02:30 Africa/Algiers.
+
+---
+
 ## Health
 
 | Method | Path | Notes |
@@ -369,9 +415,6 @@ blamed for sales made while it was running. Applying compares the counted figure
 
 The modules below are specified in the PRD and scheduled by milestone. They are listed
 here so integrators can see the shape of the finished API, not because they exist.
-
-**M1.4 — settings, users, audit.** `/admin/settings` (write), `/admin/users`,
-`/admin/roles`, `/admin/audit`, `/admin/backups`.
 
 **M3 — checkout and orders.** `POST /cart`, `PATCH /cart/items`, `POST /cart/promo`,
 `POST /orders`, `GET /orders/track`, order writes on `/admin/orders` with `/:id/transition`,

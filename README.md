@@ -83,8 +83,26 @@ generated SQL. CI fails if the schema and the migrations disagree.
 ## Status
 
 **M0 (Foundation)**, **M1.0 (admin framework)**, **M1.1 (media pipeline)**,
-**M1.2 (catalog admin)** and **M1.3 (inventory and purchasing)** are complete. See
+**M1.2 (catalog admin)**, **M1.3 (inventory and purchasing)** and **M1.4 (settings,
+users, roles, journal, backups)** are complete. See
 [`docs/PRD-COMPLETION.md`](docs/PRD-COMPLETION.md) for the milestone plan.
+
+M1.4 finished the administration of the shop itself:
+
+- **Settings** in fifteen sections, validated per scope rather than per key. Credentials
+  are encrypted at rest and come back masked, so a form round-trips without the browser
+  ever holding the real value.
+- **Notification templates** as a grid of events by channels, edited in three languages,
+  with a click-to-insert variable list, a preview and a real test send.
+- **The team**: nobody is given a password. An invitation is a single-use link valid 72
+  hours on which the colleague sets their own. Deactivating cuts every session at once,
+  and the last owner account cannot be removed.
+- **A permission matrix** where ticking a box saves immediately, so the answer to "can
+  the order agent see the profit figures" is one screen away.
+- **The journal**, written by a global interceptor rather than by each module, with a
+  before-and-after diff per field.
+- **Backups** taken by the worker as a custom-format pg_dump, nightly at 02:30 and on
+  demand, pruned after fourteen days.
 
 M1.3 made stock real:
 
@@ -158,5 +176,5 @@ Earlier, M0 delivered:
 - Admin: sign-in, permission-gated navigation, dashboard reading pre-aggregated stats
 - Worker: daily statistics, scheduled prices, abandoned carts, low-stock alerts
 
-Not built yet: settings, users and audit screens (M1.4), cart and checkout, order management, delivery operations, finance reporting and
+Not built yet: cart and checkout, order management, delivery operations, finance reporting and
 marketing tools (M2 to M6 in PRD Section 13). **Do not point a live domain at this yet.**

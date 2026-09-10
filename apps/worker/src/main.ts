@@ -3,6 +3,7 @@ import './lib/env.js';
 import { PrismaClient } from '@jecks/db';
 import { Worker, type Job } from 'bullmq';
 import pino from 'pino';
+import { runBackup } from './jobs/backup.js';
 import { rebuildDailyStats } from './jobs/daily-stats.js';
 import { processMedia } from './jobs/media-process.js';
 import {
@@ -102,6 +103,18 @@ async function main(): Promise<void> {
     // Sharp releases the event loop but each rendition still costs CPU; three at a
     // time keeps a bulk gallery upload from starving the other queues.
     3,
+  );
+
+  register(
+    QUEUE_NAMES.maintenance,
+    async (job) => {
+      if (job.name !== 'backup') throw new Error(`Unknown maintenance job: ${job.name}`);
+      const { jobId } = job.data as { jobId?: string };
+      return runBackup(prisma, storage, { jobId, retentionDays: Number(process.env.BACKUP_RETENTION_DAYS ?? 14) });
+    },
+    // One dump at a time: two concurrent pg_dump runs on a single VPS is how a backup
+    // takes the site down with it.
+    1,
   );
 
   register(QUEUE_NAMES.couriers, async (job) => {

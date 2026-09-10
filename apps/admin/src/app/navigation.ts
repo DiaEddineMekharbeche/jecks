@@ -45,6 +45,6 @@ export const NAVIGATION: NavItem[] = [
   { key: "finance", label: 'Finances', to: '/finance', icon: Wallet, permission: 'finance.read', status: 'planned', milestone: 'M5' },
   { key: "reports", label: 'Rapports', to: '/reports', icon: BarChart3, permission: 'reports.read', status: 'planned', milestone: 'M5' },
   { key: "content", label: 'Contenu', to: '/content', icon: FileText, permission: 'content.read', status: 'planned', milestone: 'M6' },
-  { key: "audit", label: 'Journal', to: '/audit', icon: ClipboardList, permission: 'audit.read', status: 'planned', milestone: 'M1.4' },
-  { key: "settings", label: 'Réglages', to: '/settings', icon: Settings, permission: 'settings.read', status: 'planned', milestone: 'M1.4' },
+  { key: "audit", label: 'Journal', to: '/audit', icon: ClipboardList, permission: 'audit.read', status: 'ready' },
+  { key: "settings", label: 'Réglages', to: '/settings', icon: Settings, permission: 'settings.read', status: 'ready' },
 ];

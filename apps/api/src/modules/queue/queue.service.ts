@@ -18,6 +18,7 @@ export const QUEUES = {
   reports: 'reports',
   couriers: 'couriers',
   scheduling: 'scheduling',
+  maintenance: 'maintenance',
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];
