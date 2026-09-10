@@ -219,40 +219,40 @@ enum SettlementStatus {
 // ---------------------------------------------------------------------------
 
 model User {
-  id                String    @id @default(uuid(7)) @db.Uuid
-  type              UserType  @default(STAFF)
-  name              String    @db.VarChar(120)
-  email             String?   @unique @db.VarChar(255)
-  phone             String?   @unique @db.VarChar(20)
-  passwordHash      String?   @db.VarChar(255)
-  avatarMediaId     String?   @db.Uuid
-  locale            String    @default("fr") @db.VarChar(5)
-  active            Boolean   @default(true)
-  twoFactorSecret   String?   @db.VarChar(255)
-  twoFactorEnabled  Boolean   @default(false)
-  lastLoginAt       DateTime?
-  failedLoginCount  Int       @default(0)
-  lockedUntil       DateTime?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-  deletedAt         DateTime?
+  id               String    @id @default(uuid(7)) @db.Uuid
+  type             UserType  @default(STAFF)
+  name             String    @db.VarChar(120)
+  email            String?   @unique @db.VarChar(255)
+  phone            String?   @unique @db.VarChar(20)
+  passwordHash     String?   @db.VarChar(255)
+  avatarMediaId    String?   @db.Uuid
+  locale           String    @default("fr") @db.VarChar(5)
+  active           Boolean   @default(true)
+  twoFactorSecret  String?   @db.VarChar(255)
+  twoFactorEnabled Boolean   @default(false)
+  lastLoginAt      DateTime?
+  failedLoginCount Int       @default(0)
+  lockedUntil      DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  deletedAt        DateTime?
 
-  roles            UserRole[]
-  sessions         Session[]
-  apiKeys          ApiKey[]
-  driverProfile    Driver?
-  customerProfile  Customer?
-  auditLogs        AuditLog[]
-  orderNotes       OrderNote[]
-  callLogs         CallLog[]
-  agentOrders      Order[]           @relation("OrderAgent")
-  orderEvents      OrderEvent[]
-  stockMovements   StockMovement[]
-  expenses         Expense[]
-  notifications    Notification[]
-  invitationsSent  StaffInvitation[] @relation("InvitedBy")
-  savedViews       SavedView[]
-  avatar           Media?            @relation("UserAvatar", fields: [avatarMediaId], references: [id])
+  roles           UserRole[]
+  sessions        Session[]
+  apiKeys         ApiKey[]
+  driverProfile   Driver?
+  customerProfile Customer?
+  auditLogs       AuditLog[]
+  orderNotes      OrderNote[]
+  callLogs        CallLog[]
+  agentOrders     Order[]           @relation("OrderAgent")
+  orderEvents     OrderEvent[]
+  stockMovements  StockMovement[]
+  expenses        Expense[]
+  notifications   Notification[]
+  invitationsSent StaffInvitation[] @relation("InvitedBy")
+  savedViews      SavedView[]
+  avatar          Media?            @relation("UserAvatar", fields: [avatarMediaId], references: [id])
 
   @@index([type, active])
   @@map("users")
@@ -342,16 +342,16 @@ model OtpCode {
 }
 
 model ApiKey {
-  id          String    @id @default(uuid(7)) @db.Uuid
-  userId      String?   @db.Uuid
-  name        String    @db.VarChar(120)
-  keyHash     String    @unique @db.VarChar(255)
-  prefix      String    @db.VarChar(12)
-  scopes      String[]
-  lastUsedAt  DateTime?
-  expiresAt   DateTime?
-  revokedAt   DateTime?
-  createdAt   DateTime  @default(now())
+  id         String    @id @default(uuid(7)) @db.Uuid
+  userId     String?   @db.Uuid
+  name       String    @db.VarChar(120)
+  keyHash    String    @unique @db.VarChar(255)
+  prefix     String    @db.VarChar(12)
+  scopes     String[]
+  lastUsedAt DateTime?
+  expiresAt  DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
@@ -382,13 +382,13 @@ model StaffInvitation {
 // ---------------------------------------------------------------------------
 
 model CustomerGroup {
-  id             String   @id @default(uuid(7)) @db.Uuid
-  name           Json
-  slug           String   @unique @db.VarChar(48)
+  id              String   @id @default(uuid(7)) @db.Uuid
+  name            Json
+  slug            String   @unique @db.VarChar(48)
   /// Percentage taken off list price for this group (F-AD-41). 0 = no group pricing.
-  discountPercent Decimal @default(0) @db.Decimal(5, 2)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  discountPercent Decimal  @default(0) @db.Decimal(5, 2)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   customers  Customer[]
   promotions PromotionCustomerGroup[]
@@ -397,29 +397,29 @@ model CustomerGroup {
 }
 
 model Customer {
-  id           String   @id @default(uuid(7)) @db.Uuid
+  id               String          @id @default(uuid(7)) @db.Uuid
   /// E.164, the primary identifier of PRD Section 3.
-  phone        String   @unique @db.VarChar(20)
-  altPhone     String?  @db.VarChar(20)
-  fullName     String   @db.VarChar(120)
-  email        String?  @db.VarChar(255)
-  userId       String?  @unique @db.Uuid
-  groupId      String?  @db.Uuid
-  locale       String   @default("fr") @db.VarChar(5)
-  loyaltyPoints Int     @default(0)
-  blacklisted  Boolean  @default(false)
-  blacklistReason String? @db.VarChar(255)
-  acceptsMarketing Boolean @default(false)
-  segment      CustomerSegment @default(NEW)
+  phone            String          @unique @db.VarChar(20)
+  altPhone         String?         @db.VarChar(20)
+  fullName         String          @db.VarChar(120)
+  email            String?         @db.VarChar(255)
+  userId           String?         @unique @db.Uuid
+  groupId          String?         @db.Uuid
+  locale           String          @default("fr") @db.VarChar(5)
+  loyaltyPoints    Int             @default(0)
+  blacklisted      Boolean         @default(false)
+  blacklistReason  String?         @db.VarChar(255)
+  acceptsMarketing Boolean         @default(false)
+  segment          CustomerSegment @default(NEW)
 
   // Cached rollups so customer lists and the risk score do not aggregate on read.
-  ordersCount       Int      @default(0)
-  deliveredCount    Int      @default(0)
-  failedCount       Int      @default(0)
-  cancelledCount    Int      @default(0)
-  lifetimeValue     BigInt   @default(0)
-  lastOrderAt       DateTime?
-  firstOrderAt      DateTime?
+  ordersCount    Int       @default(0)
+  deliveredCount Int       @default(0)
+  failedCount    Int       @default(0)
+  cancelledCount Int       @default(0)
+  lifetimeValue  BigInt    @default(0)
+  lastOrderAt    DateTime?
+  firstOrderAt   DateTime?
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -445,21 +445,21 @@ model Customer {
 }
 
 model CustomerAddress {
-  id           String       @id @default(uuid(7)) @db.Uuid
-  customerId   String       @db.Uuid
-  label        String?      @db.VarChar(48)
-  fullName     String       @db.VarChar(120)
-  phone        String       @db.VarChar(20)
+  id            String       @id @default(uuid(7)) @db.Uuid
+  customerId    String       @db.Uuid
+  label         String?      @db.VarChar(48)
+  fullName      String       @db.VarChar(120)
+  phone         String       @db.VarChar(20)
   /// Second number, which is what turns a failed delivery into a successful one.
-  altPhone     String?      @db.VarChar(20)
-  wilayaCode   Int
-  communeId    String       @db.Uuid
-  address      String?      @db.VarChar(400)
-  deliveryType DeliveryType @default(HOME)
-  pickupPointId String?     @db.Uuid
-  isDefault    Boolean      @default(false)
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  altPhone      String?      @db.VarChar(20)
+  wilayaCode    Int
+  communeId     String       @db.Uuid
+  address       String?      @db.VarChar(400)
+  deliveryType  DeliveryType @default(HOME)
+  pickupPointId String?      @db.Uuid
+  isDefault     Boolean      @default(false)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 
   customer    Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
   wilaya      Wilaya       @relation(fields: [wilayaCode], references: [code])
@@ -536,9 +536,9 @@ model Category {
   updatedAt      DateTime  @updatedAt
   deletedAt      DateTime?
 
-  parent     Category?              @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
-  children   Category[]             @relation("CategoryTree")
-  media      Media?                 @relation("CategoryMedia", fields: [mediaId], references: [id], onDelete: SetNull)
+  parent     Category?           @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children   Category[]          @relation("CategoryTree")
+  media      Media?              @relation("CategoryMedia", fields: [mediaId], references: [id], onDelete: SetNull)
   products   Product[]
   sizeGuides SizeGuide[]
   promotions PromotionCategory[]
@@ -569,11 +569,11 @@ model Collection {
   updatedAt      DateTime  @updatedAt
   deletedAt      DateTime?
 
-  media      Media?                @relation("CollectionMedia", fields: [mediaId], references: [id], onDelete: SetNull)
-  hero       Media?                @relation("CollectionHero", fields: [heroMediaId], references: [id], onDelete: SetNull)
-  rules      CollectionRule[]
-  products   CollectionProduct[]
-  promotions PromotionCollection[]
+  media        Media?                @relation("CollectionMedia", fields: [mediaId], references: [id], onDelete: SetNull)
+  hero         Media?                @relation("CollectionHero", fields: [heroMediaId], references: [id], onDelete: SetNull)
+  rules        CollectionRule[]
+  products     CollectionProduct[]
+  promotions   PromotionCollection[]
   homeSections HomeSection[]
 
   @@index([searchText(ops: raw("gin_trgm_ops"))], type: Gin)
@@ -675,14 +675,14 @@ model Product {
   shippingClass     String?       @db.VarChar(64)
 
   // Denormalized so collection grids and sorts never touch the variants table.
-  minPrice        BigInt   @default(0)
-  maxPrice        BigInt   @default(0)
-  maxCompareAt    BigInt?
-  totalStock      Int      @default(0)
-  ratingAverage   Decimal  @default(0) @db.Decimal(3, 2)
-  ratingCount     Int      @default(0)
-  salesCount      Int      @default(0)
-  viewsCount      Int      @default(0)
+  minPrice      BigInt  @default(0)
+  maxPrice      BigInt  @default(0)
+  maxCompareAt  BigInt?
+  totalStock    Int     @default(0)
+  ratingAverage Decimal @default(0) @db.Decimal(3, 2)
+  ratingCount   Int     @default(0)
+  salesCount    Int     @default(0)
+  viewsCount    Int     @default(0)
 
   /// Weighted tsvector and a flattened, accent-folded copy of the name. Both are
   /// maintained by the trigger in migration 20260909170000; declaring them here is
@@ -821,47 +821,47 @@ model MediaFolder {
 }
 
 model Media {
-  id          String    @id @default(uuid(7)) @db.Uuid
-  kind        MediaKind @default(IMAGE)
-  folderId    String?   @db.Uuid
+  id                String    @id @default(uuid(7)) @db.Uuid
+  kind              MediaKind @default(IMAGE)
+  folderId          String?   @db.Uuid
   /// Storage key, resolved to a URL by the active StorageProvider.
-  storageKey  String    @db.VarChar(400)
-  fileName    String    @db.VarChar(255)
-  mimeType    String    @db.VarChar(120)
-  sizeBytes   Int       @default(0)
-  width       Int?
-  height      Int?
-  durationMs  Int?
+  storageKey        String    @db.VarChar(400)
+  fileName          String    @db.VarChar(255)
+  mimeType          String    @db.VarChar(120)
+  sizeBytes         Int       @default(0)
+  width             Int?
+  height            Int?
+  durationMs        Int?
   /// Generated responsive renditions: [{ width, key, format }].
-  renditions  Json?
+  renditions        Json?
   /// Poster frame for videos and GLB models (PRD Section 6.3).
-  posterKey   String?   @db.VarChar(400)
-  blurhash    String?   @db.VarChar(64)
-  alt         Json?
-  checksum    String?   @db.VarChar(64)
+  posterKey         String?   @db.VarChar(400)
+  blurhash          String?   @db.VarChar(64)
+  alt               Json?
+  checksum          String?   @db.VarChar(64)
   /// Set once the worker has produced the renditions; null means still processing.
-  processedAt DateTime?
+  processedAt       DateTime?
   /// Why processing failed, shown in the media library so a bad file is visible.
-  processingError String? @db.VarChar(500)
+  processingError   String?   @db.VarChar(500)
   /// Bytes saved by Draco compression, for the 3D upload feedback.
   originalSizeBytes Int?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  deletedAt   DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  deletedAt         DateTime?
 
-  folder            MediaFolder?         @relation(fields: [folderId], references: [id], onDelete: SetNull)
-  productMedia      ProductMedia[]
-  variantMedia      VariantMedia[]
-  reviewMedia       ReviewMedia[]
-  optionSwatches    ProductOptionValue[] @relation("OptionSwatch")
-  brandLogos        Brand[]              @relation("BrandLogo")
-  categoryMedia     Category[]           @relation("CategoryMedia")
-  collectionMedia   Collection[]         @relation("CollectionMedia")
-  collectionHeroes  Collection[]         @relation("CollectionHero")
-  bannerMedia       Banner[]
-  homeSectionMedia  HomeSection[]
-  userAvatars       User[]               @relation("UserAvatar")
-  pageHeroes        Page[]
+  folder           MediaFolder?         @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  productMedia     ProductMedia[]
+  variantMedia     VariantMedia[]
+  reviewMedia      ReviewMedia[]
+  optionSwatches   ProductOptionValue[] @relation("OptionSwatch")
+  brandLogos       Brand[]              @relation("BrandLogo")
+  categoryMedia    Category[]           @relation("CategoryMedia")
+  collectionMedia  Collection[]         @relation("CollectionMedia")
+  collectionHeroes Collection[]         @relation("CollectionHero")
+  bannerMedia      Banner[]
+  homeSectionMedia HomeSection[]
+  userAvatars      User[]               @relation("UserAvatar")
+  pageHeroes       Page[]
 
   @@index([kind, createdAt])
   @@index([folderId, createdAt])
@@ -897,15 +897,15 @@ model VariantMedia {
 }
 
 model Attribute {
-  id        String   @id @default(uuid(7)) @db.Uuid
-  key       String   @unique @db.VarChar(64)
-  name      Json
+  id         String   @id @default(uuid(7)) @db.Uuid
+  key        String   @unique @db.VarChar(64)
+  name       Json
   /// "text" | "number" | "select" — controls the admin editor widget.
-  kind      String   @default("text") @db.VarChar(24)
-  options   Json?
-  filterable Boolean @default(true)
-  position  Int      @default(0)
-  createdAt DateTime @default(now())
+  kind       String   @default("text") @db.VarChar(24)
+  options    Json?
+  filterable Boolean  @default(true)
+  position   Int      @default(0)
+  createdAt  DateTime @default(now())
 
   products ProductAttribute[]
 
@@ -925,11 +925,11 @@ model ProductAttribute {
 }
 
 model RelatedProduct {
-  productId        String   @db.Uuid
-  relatedProductId String   @db.Uuid
+  productId        String @db.Uuid
+  relatedProductId String @db.Uuid
   /// "related" | "complete_the_look" | "upsell"
-  kind             String   @default("related") @db.VarChar(24)
-  position         Int      @default(0)
+  kind             String @default("related") @db.VarChar(24)
+  position         Int    @default(0)
 
   product        Product @relation("RelatedSource", fields: [productId], references: [id], onDelete: Cascade)
   relatedProduct Product @relation("RelatedTarget", fields: [relatedProductId], references: [id], onDelete: Cascade)
@@ -939,18 +939,18 @@ model RelatedProduct {
 }
 
 model Bundle {
-  id            String    @id @default(uuid(7)) @db.Uuid
-  name          Json
-  slug          String    @unique @db.VarChar(96)
-  description   Json?
+  id              String    @id @default(uuid(7)) @db.Uuid
+  name            Json
+  slug            String    @unique @db.VarChar(96)
+  description     Json?
   /// Either a fixed bundle price or a percentage off the component total.
-  bundlePrice   BigInt?
-  discountPercent Decimal? @db.Decimal(5, 2)
-  active        Boolean   @default(true)
-  startsAt      DateTime?
-  endsAt        DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  bundlePrice     BigInt?
+  discountPercent Decimal?  @db.Decimal(5, 2)
+  active          Boolean   @default(true)
+  startsAt        DateTime?
+  endsAt          DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   items BundleItem[]
 
@@ -1092,20 +1092,20 @@ model InventoryLevel {
 }
 
 model StockMovement {
-  id         String              @id @default(uuid(7)) @db.Uuid
-  variantId  String              @db.Uuid
-  locationId String              @db.Uuid
+  id            String              @id @default(uuid(7)) @db.Uuid
+  variantId     String              @db.Uuid
+  locationId    String              @db.Uuid
   /// Signed: negative for a sale, positive for a receipt or restock.
-  quantity   Int
-  reason     StockMovementReason
+  quantity      Int
+  reason        StockMovementReason
   /// Free-form pointer to whatever caused the movement (order id, PO id…).
-  referenceType String?          @db.VarChar(40)
-  referenceId   String?          @db.Uuid
-  note       String?             @db.VarChar(400)
-  actorId    String?             @db.Uuid
+  referenceType String?             @db.VarChar(40)
+  referenceId   String?             @db.Uuid
+  note          String?             @db.VarChar(400)
+  actorId       String?             @db.Uuid
   /// Stock level after applying this movement — makes the ledger auditable.
-  balanceAfter Int
-  createdAt  DateTime            @default(now())
+  balanceAfter  Int
+  createdAt     DateTime            @default(now())
 
   variant  Variant  @relation(fields: [variantId], references: [id], onDelete: Cascade)
   location Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
@@ -1161,13 +1161,13 @@ model PurchaseOrder {
 }
 
 model PurchaseOrderItem {
-  id              String @id @default(uuid(7)) @db.Uuid
-  purchaseOrderId String @db.Uuid
-  variantId       String @db.Uuid
-  quantity        Int
-  receivedQuantity Int   @default(0)
-  unitCost        BigInt
-  createdAt       DateTime @default(now())
+  id               String   @id @default(uuid(7)) @db.Uuid
+  purchaseOrderId  String   @db.Uuid
+  variantId        String   @db.Uuid
+  quantity         Int
+  receivedQuantity Int      @default(0)
+  unitCost         BigInt
+  createdAt        DateTime @default(now())
 
   purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
   variant       Variant       @relation(fields: [variantId], references: [id])
@@ -1192,14 +1192,14 @@ model StockCount {
 }
 
 model StockCountItem {
-  id             String @id @default(uuid(7)) @db.Uuid
-  stockCountId   String @db.Uuid
-  variantId      String @db.Uuid
+  id               String   @id @default(uuid(7)) @db.Uuid
+  stockCountId     String   @db.Uuid
+  variantId        String   @db.Uuid
   expectedQuantity Int
   countedQuantity  Int?
   /// countedQuantity - expectedQuantity, stored so the variance report is a plain read.
   variance         Int?
-  createdAt      DateTime @default(now())
+  createdAt        DateTime @default(now())
 
   stockCount StockCount @relation(fields: [stockCountId], references: [id], onDelete: Cascade)
   variant    Variant    @relation(fields: [variantId], references: [id])
@@ -1229,10 +1229,10 @@ model Promotion {
   /// [{ minSubtotal, percentOff }] for TIERED, ordered ascending.
   tiers       Json?
 
-  minSubtotal      BigInt?
-  minQuantity      Int?
-  firstOrderOnly   Boolean  @default(false)
-  wilayaCodes      Int[]
+  minSubtotal    BigInt?
+  minQuantity    Int?
+  firstOrderOnly Boolean @default(false)
+  wilayaCodes    Int[]
 
   usageLimitTotal       Int?
   usageLimitPerCustomer Int?
@@ -1376,22 +1376,22 @@ model PriceSchedule {
 // ---------------------------------------------------------------------------
 
 model Cart {
-  id          String    @id @default(uuid(7)) @db.Uuid
+  id               String        @id @default(uuid(7)) @db.Uuid
   /// Opaque token held by the guest browser (F-ST-41).
-  token       String    @unique @db.VarChar(128)
-  customerId  String?   @db.Uuid
-  currency    String    @default("DZD") @db.Char(3)
-  promoCode   String?   @db.VarChar(48)
-  wilayaCode  Int?
-  deliveryType DeliveryType?
-  note        String?   @db.VarChar(500)
-  convertedOrderId String? @db.Uuid
-  expiresAt   DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  token            String        @unique @db.VarChar(128)
+  customerId       String?       @db.Uuid
+  currency         String        @default("DZD") @db.Char(3)
+  promoCode        String?       @db.VarChar(48)
+  wilayaCode       Int?
+  deliveryType     DeliveryType?
+  note             String?       @db.VarChar(500)
+  convertedOrderId String?       @db.Uuid
+  expiresAt        DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
 
-  customer Customer?  @relation(fields: [customerId], references: [id], onDelete: SetNull)
-  items    CartItem[]
+  customer  Customer?      @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  items     CartItem[]
   abandoned AbandonedCart?
 
   @@index([customerId])
@@ -1432,56 +1432,56 @@ model Order {
   source        OrderSource   @default(WEB)
 
   // Customer snapshot: an order must stay readable if the customer record changes.
-  customerName  String  @db.VarChar(120)
-  customerPhone String  @db.VarChar(20)
+  customerName     String  @db.VarChar(120)
+  customerPhone    String  @db.VarChar(20)
   customerAltPhone String? @db.VarChar(20)
-  customerEmail String? @db.VarChar(255)
+  customerEmail    String? @db.VarChar(255)
 
   // Shipping snapshot.
-  wilayaCode    Int
-  wilayaName    String       @db.VarChar(120)
-  communeId     String?      @db.Uuid
-  communeName   String?      @db.VarChar(160)
-  deliveryType  DeliveryType @default(HOME)
-  address       String?      @db.VarChar(400)
-  pickupPointId String?      @db.Uuid
-  pickupPointName String?    @db.VarChar(200)
+  wilayaCode      Int
+  wilayaName      String       @db.VarChar(120)
+  communeId       String?      @db.Uuid
+  communeName     String?      @db.VarChar(160)
+  deliveryType    DeliveryType @default(HOME)
+  address         String?      @db.VarChar(400)
+  pickupPointId   String?      @db.Uuid
+  pickupPointName String?      @db.VarChar(200)
 
   // Totals, all in minor units of `currency`.
-  currency       String @default("DZD") @db.Char(3)
-  itemsSubtotal  BigInt @default(0)
-  discountTotal  BigInt @default(0)
-  shippingTotal  BigInt @default(0)
-  shippingCost   BigInt @default(0)
+  currency        String @default("DZD") @db.Char(3)
+  itemsSubtotal   BigInt @default(0)
+  discountTotal   BigInt @default(0)
+  shippingTotal   BigInt @default(0)
+  shippingCost    BigInt @default(0)
   loyaltyDiscount BigInt @default(0)
-  taxTotal       BigInt @default(0)
-  total          BigInt @default(0)
+  taxTotal        BigInt @default(0)
+  total           BigInt @default(0)
   /// Sum of order_items.unitCost * quantity, frozen at confirmation (F-AD-70).
-  cogsTotal      BigInt @default(0)
-  paidTotal      BigInt @default(0)
-  refundedTotal  BigInt @default(0)
+  cogsTotal       BigInt @default(0)
+  paidTotal       BigInt @default(0)
+  refundedTotal   BigInt @default(0)
 
-  weightGrams Int    @default(0)
-  itemCount   Int    @default(0)
+  weightGrams Int @default(0)
+  itemCount   Int @default(0)
 
-  note         String? @db.VarChar(500)
-  internalNote String? @db.Text
-  tags         String[]
+  note          String?  @db.VarChar(500)
+  internalNote  String?  @db.Text
+  tags          String[]
   /// 0-100 COD fraud heuristic (F-AD-31): failed history, duplicates, blacklist.
-  riskScore    Int     @default(0)
+  riskScore     Int      @default(0)
   /// Why the score is what it is, so an agent reads reasons rather than a number.
-  riskFlags    Json?
+  riskFlags     Json?
   /// Whether this order currently holds a reservation, and whether its units have
   /// physically left the shelf. The state machine reads both; without them a cancel
   /// cannot tell a release from a restock.
-  stockReserved Boolean @default(false)
-  stockDeducted Boolean @default(false)
+  stockReserved Boolean  @default(false)
+  stockDeducted Boolean  @default(false)
 
-  utmSource   String? @db.VarChar(120)
-  utmMedium   String? @db.VarChar(120)
-  utmCampaign String? @db.VarChar(120)
-  utmContent  String? @db.VarChar(120)
-  utmTerm     String? @db.VarChar(120)
+  utmSource      String? @db.VarChar(120)
+  utmMedium      String? @db.VarChar(120)
+  utmCampaign    String? @db.VarChar(120)
+  utmContent     String? @db.VarChar(120)
+  utmTerm        String? @db.VarChar(120)
   /// Deduplicates retried POST /orders (PRD Section 10.3).
   idempotencyKey String? @unique @db.VarChar(128)
   ip             String? @db.VarChar(64)
@@ -1496,11 +1496,11 @@ model Order {
   updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?
 
-  customer            Customer?            @relation(fields: [customerId], references: [id], onDelete: SetNull)
-  agent               User?                @relation("OrderAgent", fields: [agentId], references: [id], onDelete: SetNull)
-  wilaya              Wilaya               @relation(fields: [wilayaCode], references: [code])
-  commune             Commune?             @relation(fields: [communeId], references: [id], onDelete: SetNull)
-  pickupPoint         PickupPoint?         @relation(fields: [pickupPointId], references: [id], onDelete: SetNull)
+  customer            Customer?               @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  agent               User?                   @relation("OrderAgent", fields: [agentId], references: [id], onDelete: SetNull)
+  wilaya              Wilaya                  @relation(fields: [wilayaCode], references: [code])
+  commune             Commune?                @relation(fields: [communeId], references: [id], onDelete: SetNull)
+  pickupPoint         PickupPoint?            @relation(fields: [pickupPointId], references: [id], onDelete: SetNull)
   items               OrderItem[]
   events              OrderEvent[]
   notes               OrderNote[]
@@ -1540,13 +1540,13 @@ model OrderItem {
   sku         String  @db.VarChar(64)
   mediaKey    String? @db.VarChar(400)
 
-  quantity      Int
-  unitPrice     BigInt
+  quantity       Int
+  unitPrice      BigInt
   /// Cost price frozen at purchase — never re-read from the variant (F-AD-70).
-  unitCost      BigInt @default(0)
-  unitCompareAt BigInt?
+  unitCost       BigInt  @default(0)
+  unitCompareAt  BigInt?
   /// Order-level discount allocated to this line, so per-product margin is exact.
-  discountAmount BigInt @default(0)
+  discountAmount BigInt  @default(0)
   lineTotal      BigInt
 
   refundedQuantity Int @default(0)
@@ -1565,17 +1565,17 @@ model OrderItem {
 }
 
 model OrderEvent {
-  id        String       @id @default(uuid(7)) @db.Uuid
-  orderId   String       @db.Uuid
-  actorId   String?      @db.Uuid
+  id         String       @id @default(uuid(7)) @db.Uuid
+  orderId    String       @db.Uuid
+  actorId    String?      @db.Uuid
   /// null on creation; otherwise the status the order left.
   fromStatus OrderStatus?
   toStatus   OrderStatus?
   /// "status" | "payment" | "edit" | "note" | "shipment" | "system"
-  kind      String       @default("status") @db.VarChar(24)
-  reason    String?      @db.VarChar(500)
-  metadata  Json?
-  createdAt DateTime     @default(now())
+  kind       String       @default("status") @db.VarChar(24)
+  reason     String?      @db.VarChar(500)
+  metadata   Json?
+  createdAt  DateTime     @default(now())
 
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
   actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
@@ -1616,16 +1616,16 @@ model CallLog {
 }
 
 model Return {
-  id        String    @id @default(uuid(7)) @db.Uuid
-  orderId   String    @db.Uuid
-  number    String    @unique @db.VarChar(32)
-  reason    String?   @db.VarChar(300)
-  status    String    @default("REQUESTED") @db.VarChar(24)
-  restock   Boolean   @default(true)
-  note      String?   @db.Text
+  id          String    @id @default(uuid(7)) @db.Uuid
+  orderId     String    @db.Uuid
+  number      String    @unique @db.VarChar(32)
+  reason      String?   @db.VarChar(300)
+  status      String    @default("REQUESTED") @db.VarChar(24)
+  restock     Boolean   @default(true)
+  note        String?   @db.Text
   processedAt DateTime?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   order   Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
   items   ReturnItem[]
@@ -1651,20 +1651,20 @@ model ReturnItem {
 }
 
 model Payment {
-  id        String        @id @default(uuid(7)) @db.Uuid
-  orderId   String        @db.Uuid
-  method    PaymentMethod
-  amount    BigInt
-  currency  String        @default("DZD") @db.Char(3)
+  id          String        @id @default(uuid(7)) @db.Uuid
+  orderId     String        @db.Uuid
+  method      PaymentMethod
+  amount      BigInt
+  currency    String        @default("DZD") @db.Char(3)
   /// "pending" | "captured" | "failed"
-  status    String        @default("captured") @db.VarChar(24)
-  provider  String?       @db.VarChar(48)
-  providerRef String?     @db.VarChar(128)
+  status      String        @default("captured") @db.VarChar(24)
+  provider    String?       @db.VarChar(48)
+  providerRef String?       @db.VarChar(128)
   /// Gateway or courier fee deducted from this payment (F-AD-70).
-  feeAmount BigInt        @default(0)
-  receivedAt DateTime     @default(now())
-  metadata  Json?
-  createdAt DateTime      @default(now())
+  feeAmount   BigInt        @default(0)
+  receivedAt  DateTime      @default(now())
+  metadata    Json?
+  createdAt   DateTime      @default(now())
 
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
@@ -1674,15 +1674,15 @@ model Payment {
 }
 
 model Refund {
-  id        String   @id @default(uuid(7)) @db.Uuid
-  orderId   String   @db.Uuid
-  returnId  String?  @db.Uuid
+  id        String        @id @default(uuid(7)) @db.Uuid
+  orderId   String        @db.Uuid
+  returnId  String?       @db.Uuid
   amount    BigInt
-  currency  String   @default("DZD") @db.Char(3)
-  reason    String?  @db.VarChar(300)
+  currency  String        @default("DZD") @db.Char(3)
+  reason    String?       @db.VarChar(300)
   method    PaymentMethod @default(COD)
-  actorId   String?  @db.Uuid
-  createdAt DateTime @default(now())
+  actorId   String?       @db.Uuid
+  createdAt DateTime      @default(now())
 
   order  Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   return Return? @relation(fields: [returnId], references: [id], onDelete: SetNull)
@@ -1716,6 +1716,9 @@ model Wilaya {
   code      Int      @id
   name      Json
   nameAscii String   @db.VarChar(120)
+  /// Centroid of the wilaya, used to order a delivery run and draw the map.
+  latitude  Decimal? @db.Decimal(9, 6)
+  longitude Decimal? @db.Decimal(9, 6)
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
 
@@ -1736,12 +1739,14 @@ model Commune {
   name       Json
   nameAscii  String   @db.VarChar(160)
   postalCode String?  @db.VarChar(10)
+  latitude   Decimal? @db.Decimal(9, 6)
+  longitude  Decimal? @db.Decimal(9, 6)
   active     Boolean  @default(true)
   createdAt  DateTime @default(now())
 
-  wilaya    Wilaya            @relation(fields: [wilayaCode], references: [code], onDelete: Cascade)
-  orders    Order[]
-  addresses CustomerAddress[]
+  wilaya       Wilaya            @relation(fields: [wilayaCode], references: [code], onDelete: Cascade)
+  orders       Order[]
+  addresses    CustomerAddress[]
   pickupPoints PickupPoint[]
 
   @@unique([wilayaCode, nameAscii])
@@ -1750,13 +1755,13 @@ model Commune {
 }
 
 model ShippingZone {
-  id        String   @id @default(uuid(7)) @db.Uuid
-  name      Json
+  id          String   @id @default(uuid(7)) @db.Uuid
+  name        Json
   /// Wilaya codes grouped into a pricing band (North, Highlands, South…).
   wilayaCodes Int[]
-  position  Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  position    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   rates ShippingRate[]
 
@@ -1764,25 +1769,25 @@ model ShippingZone {
 }
 
 model ShippingRate {
-  id           String       @id @default(uuid(7)) @db.Uuid
-  zoneId       String?      @db.Uuid
+  id                    String       @id @default(uuid(7)) @db.Uuid
+  zoneId                String?      @db.Uuid
   /// A rate is either wilaya-specific or zone-wide; the specific one wins.
-  wilayaCode   Int?
-  courierId    String?      @db.Uuid
-  deliveryType DeliveryType @default(HOME)
-  price        BigInt
+  wilayaCode            Int?
+  courierId             String?      @db.Uuid
+  deliveryType          DeliveryType @default(HOME)
+  price                 BigInt
   /// What the courier or driver charges us — the shipping cost line of the P&L.
-  cost         BigInt       @default(0)
-  currency     String       @default("DZD") @db.Char(3)
+  cost                  BigInt       @default(0)
+  currency              String       @default("DZD") @db.Char(3)
   /// Weight allowance in grams before `extraPerKg` applies.
-  freeWeightGrams Int       @default(1000)
-  extraPerKg   BigInt       @default(0)
+  freeWeightGrams       Int          @default(1000)
+  extraPerKg            BigInt       @default(0)
   freeShippingThreshold BigInt?
-  etaMinDays   Int          @default(1)
-  etaMaxDays   Int          @default(4)
-  active       Boolean      @default(true)
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  etaMinDays            Int          @default(1)
+  etaMaxDays            Int          @default(4)
+  active                Boolean      @default(true)
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
 
   zone    ShippingZone? @relation(fields: [zoneId], references: [id], onDelete: Cascade)
   wilaya  Wilaya?       @relation(fields: [wilayaCode], references: [code], onDelete: Cascade)
@@ -1794,25 +1799,26 @@ model ShippingRate {
 }
 
 model Courier {
-  id        String   @id @default(uuid(7)) @db.Uuid
-  name      String   @db.VarChar(120)
-  slug      String   @unique @db.VarChar(48)
+  id             String   @id @default(uuid(7)) @db.Uuid
+  name           String   @db.VarChar(120)
+  slug           String   @unique @db.VarChar(48)
   /// Adapter key resolved by the CourierProvider registry: "manual" | "yalidine"…
-  provider  String   @default("manual") @db.VarChar(48)
-  phone     String?  @db.VarChar(20)
-  email     String?  @db.VarChar(255)
-  active    Boolean  @default(true)
+  provider       String   @default("manual") @db.VarChar(48)
+  phone          String?  @db.VarChar(20)
+  email          String?  @db.VarChar(255)
+  active         Boolean  @default(true)
   /// Percentage of the COD amount the courier keeps, on top of the shipping fee.
-  codFeePercent Decimal @default(0) @db.Decimal(5, 2)
-  settlementDays Int    @default(7)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  codFeePercent  Decimal  @default(0) @db.Decimal(5, 2)
+  settlementDays Int      @default(7)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  credentials  CourierCredential[]
-  shipments    Shipment[]
-  rates        ShippingRate[]
-  settlements  CourierSettlement[]
-  pickupPoints PickupPoint[]
+  credentials    CourierCredential[]
+  shipments      Shipment[]
+  rates          ShippingRate[]
+  settlements    CourierSettlement[]
+  pickupPoints   PickupPoint[]
+  codCollections CodCollection[]
 
   @@map("couriers")
 }
@@ -1833,19 +1839,19 @@ model CourierCredential {
 }
 
 model PickupPoint {
-  id         String   @id @default(uuid(7)) @db.Uuid
-  courierId  String?  @db.Uuid
-  wilayaCode Int
-  communeId  String?  @db.Uuid
-  name       String   @db.VarChar(200)
-  address    String   @db.VarChar(400)
-  phone      String?  @db.VarChar(20)
-  latitude   Decimal? @db.Decimal(9, 6)
-  longitude  Decimal? @db.Decimal(9, 6)
+  id           String   @id @default(uuid(7)) @db.Uuid
+  courierId    String?  @db.Uuid
+  wilayaCode   Int
+  communeId    String?  @db.Uuid
+  name         String   @db.VarChar(200)
+  address      String   @db.VarChar(400)
+  phone        String?  @db.VarChar(20)
+  latitude     Decimal? @db.Decimal(9, 6)
+  longitude    Decimal? @db.Decimal(9, 6)
   openingHours Json?
-  active     Boolean  @default(true)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   courier   Courier?          @relation(fields: [courierId], references: [id], onDelete: SetNull)
   wilaya    Wilaya            @relation(fields: [wilayaCode], references: [code])
@@ -1894,20 +1900,20 @@ model Driver {
 }
 
 model DeliveryRun {
-  id        String            @id @default(uuid(7)) @db.Uuid
-  code      String            @unique @db.VarChar(32)
-  date      DateTime          @db.Date
-  driverId  String            @db.Uuid
-  vehicleId String?           @db.Uuid
-  status    DeliveryRunStatus @default(PLANNED)
-  note      String?           @db.VarChar(500)
-  startedAt DateTime?
-  endedAt   DateTime?
+  id            String            @id @default(uuid(7)) @db.Uuid
+  code          String            @unique @db.VarChar(32)
+  date          DateTime          @db.Date
+  driverId      String            @db.Uuid
+  vehicleId     String?           @db.Uuid
+  status        DeliveryRunStatus @default(PLANNED)
+  note          String?           @db.VarChar(500)
+  startedAt     DateTime?
+  endedAt       DateTime?
   /// Cash the driver is expected to hand in for this run (F-AD-64).
-  expectedCash  BigInt @default(0)
-  collectedCash BigInt @default(0)
-  createdAt DateTime          @default(now())
-  updatedAt DateTime          @updatedAt
+  expectedCash  BigInt            @default(0)
+  collectedCash BigInt            @default(0)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
 
   driver  Driver            @relation(fields: [driverId], references: [id])
   vehicle Vehicle?          @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
@@ -1918,19 +1924,19 @@ model DeliveryRun {
 }
 
 model DeliveryRunStop {
-  id        String   @id @default(uuid(7)) @db.Uuid
-  runId     String   @db.Uuid
-  orderId   String   @db.Uuid
-  position  Int      @default(0)
-  status    String   @default("PENDING") @db.VarChar(24)
+  id            String                 @id @default(uuid(7)) @db.Uuid
+  runId         String                 @db.Uuid
+  orderId       String                 @db.Uuid
+  position      Int                    @default(0)
+  status        String                 @default("PENDING") @db.VarChar(24)
   failureReason DeliveryFailureReason?
-  cashCollected BigInt  @default(0)
-  note      String?  @db.VarChar(400)
-  proofMediaId String? @db.Uuid
-  arrivedAt DateTime?
-  completedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  cashCollected BigInt                 @default(0)
+  note          String?                @db.VarChar(400)
+  proofMediaId  String?                @db.Uuid
+  arrivedAt     DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
 
   run   DeliveryRun @relation(fields: [runId], references: [id], onDelete: Cascade)
   order Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
@@ -1941,23 +1947,25 @@ model DeliveryRunStop {
 }
 
 model Shipment {
-  id        String         @id @default(uuid(7)) @db.Uuid
-  orderId   String         @db.Uuid
-  courierId String?        @db.Uuid
-  driverId  String?        @db.Uuid
-  status    ShipmentStatus @default(CREATED)
-  trackingNumber String?   @db.VarChar(64)
-  trackingUrl    String?   @db.VarChar(400)
-  labelKey       String?   @db.VarChar(400)
-  attempts  Int            @default(0)
+  id             String                 @id @default(uuid(7)) @db.Uuid
+  orderId        String                 @db.Uuid
+  courierId      String?                @db.Uuid
+  driverId       String?                @db.Uuid
+  status         ShipmentStatus         @default(CREATED)
+  trackingNumber String?                @db.VarChar(64)
+  trackingUrl    String?                @db.VarChar(400)
+  labelKey       String?                @db.VarChar(400)
+  /// Cash the courier must collect at the door; 0 for a prepaid order.
+  codAmount      BigInt                 @default(0)
+  attempts       Int                    @default(0)
   /// What we pay for this shipment; rolls into Order.shippingCost.
-  cost      BigInt         @default(0)
-  currency  String         @default("DZD") @db.Char(3)
-  failureReason DeliveryFailureReason?
-  shippedAt   DateTime?
-  deliveredAt DateTime?
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
+  cost           BigInt                 @default(0)
+  currency       String                 @default("DZD") @db.Char(3)
+  failureReason  DeliveryFailureReason?
+  shippedAt      DateTime?
+  deliveredAt    DateTime?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
 
   order   Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
   courier Courier?        @relation(fields: [courierId], references: [id], onDelete: SetNull)
@@ -1987,46 +1995,48 @@ model ShipmentEvent {
 }
 
 model CodCollection {
-  id        String   @id @default(uuid(7)) @db.Uuid
-  orderId   String   @db.Uuid
-  driverId  String?  @db.Uuid
-  courierId String?  @db.Uuid
-  amount    BigInt
-  currency  String   @default("DZD") @db.Char(3)
-  collectedAt DateTime @default(now())
+  id           String    @id @default(uuid(7)) @db.Uuid
+  orderId      String    @db.Uuid
+  driverId     String?   @db.Uuid
+  courierId    String?   @db.Uuid
+  amount       BigInt
+  currency     String    @default("DZD") @db.Char(3)
+  collectedAt  DateTime  @default(now())
   /// Set once the cash is counted in at the office or settled by the courier.
   reconciledAt DateTime?
-  note      String?  @db.VarChar(400)
-  createdAt DateTime @default(now())
+  note         String?   @db.VarChar(400)
+  createdAt    DateTime  @default(now())
 
-  order  Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  driver Driver? @relation(fields: [driverId], references: [id], onDelete: SetNull)
+  order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  driver  Driver?  @relation(fields: [driverId], references: [id], onDelete: SetNull)
+  courier Courier? @relation(fields: [courierId], references: [id], onDelete: SetNull)
 
   @@index([driverId, collectedAt])
+  @@index([courierId, collectedAt])
   @@index([reconciledAt])
   @@map("cod_collections")
 }
 
 model CourierSettlement {
-  id        String           @id @default(uuid(7)) @db.Uuid
-  courierId String           @db.Uuid
-  reference String           @unique @db.VarChar(48)
-  periodFrom DateTime        @db.Date
-  periodTo   DateTime        @db.Date
-  status    SettlementStatus @default(OPEN)
+  id          String           @id @default(uuid(7)) @db.Uuid
+  courierId   String           @db.Uuid
+  reference   String           @unique @db.VarChar(48)
+  periodFrom  DateTime         @db.Date
+  periodTo    DateTime         @db.Date
+  status      SettlementStatus @default(OPEN)
   /// COD collected by the courier on our behalf.
-  grossAmount BigInt         @default(0)
+  grossAmount BigInt           @default(0)
   /// Shipping and COD fees the courier deducts.
-  feesAmount  BigInt         @default(0)
-  netAmount   BigInt         @default(0)
+  feesAmount  BigInt           @default(0)
+  netAmount   BigInt           @default(0)
   /// netAmount minus what actually landed — chased in the admin (F-AD-64).
-  paidAmount  BigInt         @default(0)
-  difference  BigInt         @default(0)
-  currency   String          @default("DZD") @db.Char(3)
-  paidAt     DateTime?
-  note       String?         @db.Text
-  createdAt  DateTime        @default(now())
-  updatedAt  DateTime        @updatedAt
+  paidAmount  BigInt           @default(0)
+  difference  BigInt           @default(0)
+  currency    String           @default("DZD") @db.Char(3)
+  paidAt      DateTime?
+  note        String?          @db.Text
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 
   courier Courier                 @relation(fields: [courierId], references: [id])
   lines   CourierSettlementLine[]
@@ -2036,12 +2046,12 @@ model CourierSettlement {
 }
 
 model CourierSettlementLine {
-  id           String @id @default(uuid(7)) @db.Uuid
-  settlementId String @db.Uuid
-  orderId      String @db.Uuid
-  codAmount    BigInt @default(0)
-  feeAmount    BigInt @default(0)
-  netAmount    BigInt @default(0)
+  id           String  @id @default(uuid(7)) @db.Uuid
+  settlementId String  @db.Uuid
+  orderId      String  @db.Uuid
+  codAmount    BigInt  @default(0)
+  feeAmount    BigInt  @default(0)
+  netAmount    BigInt  @default(0)
   note         String? @db.VarChar(300)
 
   settlement CourierSettlement @relation(fields: [settlementId], references: [id], onDelete: Cascade)
@@ -2068,22 +2078,22 @@ model ExpenseCategory {
 }
 
 model Expense {
-  id          String    @id @default(uuid(7)) @db.Uuid
-  categoryId  String?   @db.Uuid
-  label       String    @db.VarChar(200)
-  amount      BigInt
-  currency    String    @default("DZD") @db.Char(3)
-  incurredAt  DateTime  @db.Date
+  id               String    @id @default(uuid(7)) @db.Uuid
+  categoryId       String?   @db.Uuid
+  label            String    @db.VarChar(200)
+  amount           BigInt
+  currency         String    @default("DZD") @db.Char(3)
+  incurredAt       DateTime  @db.Date
   /// null for one-off; otherwise "monthly" | "weekly" | "yearly".
-  recurrence  String?   @db.VarChar(16)
+  recurrence       String?   @db.VarChar(16)
   recurrenceEndsAt DateTime? @db.Date
-  parentId    String?   @db.Uuid
-  attachmentKey String? @db.VarChar(400)
-  note        String?   @db.Text
-  createdById String?   @db.Uuid
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  deletedAt   DateTime?
+  parentId         String?   @db.Uuid
+  attachmentKey    String?   @db.VarChar(400)
+  note             String?   @db.Text
+  createdById      String?   @db.Uuid
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  deletedAt        DateTime?
 
   category  ExpenseCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   createdBy User?            @relation(fields: [createdById], references: [id], onDelete: SetNull)
@@ -2096,17 +2106,17 @@ model Expense {
 }
 
 model AdSpend {
-  id        String   @id @default(uuid(7)) @db.Uuid
-  platform  String   @db.VarChar(48)
-  campaign  String?  @db.VarChar(160)
-  spentOn   DateTime @db.Date
-  amount    BigInt
-  currency  String   @default("DZD") @db.Char(3)
+  id          String   @id @default(uuid(7)) @db.Uuid
+  platform    String   @db.VarChar(48)
+  campaign    String?  @db.VarChar(160)
+  spentOn     DateTime @db.Date
+  amount      BigInt
+  currency    String   @default("DZD") @db.Char(3)
   impressions Int?
-  clicks    Int?
-  note      String?  @db.VarChar(400)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  clicks      Int?
+  note        String?  @db.VarChar(400)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@unique([platform, campaign, spentOn])
   @@index([spentOn])
@@ -2115,20 +2125,20 @@ model AdSpend {
 
 /// Double-entry-lite journal: one row per money movement, signed by direction.
 model LedgerEntry {
-  id        String   @id @default(uuid(7)) @db.Uuid
+  id            String   @id @default(uuid(7)) @db.Uuid
   /// "sale" | "cod_collection" | "refund" | "expense" | "settlement" | "adjustment"
-  kind      String   @db.VarChar(32)
+  kind          String   @db.VarChar(32)
   /// "cash" | "bank" | "courier" | "customer"
-  account   String   @db.VarChar(32)
+  account       String   @db.VarChar(32)
   /// Positive = money in, negative = money out.
-  amount    BigInt
-  currency  String   @default("DZD") @db.Char(3)
-  orderId   String?  @db.Uuid
-  referenceType String? @db.VarChar(40)
-  referenceId   String? @db.Uuid
-  occurredAt DateTime @default(now())
-  note      String?  @db.VarChar(400)
-  createdAt DateTime @default(now())
+  amount        BigInt
+  currency      String   @default("DZD") @db.Char(3)
+  orderId       String?  @db.Uuid
+  referenceType String?  @db.VarChar(40)
+  referenceId   String?  @db.Uuid
+  occurredAt    DateTime @default(now())
+  note          String?  @db.VarChar(400)
+  createdAt     DateTime @default(now())
 
   order Order? @relation(fields: [orderId], references: [id], onDelete: SetNull)
 
@@ -2201,14 +2211,14 @@ model Menu {
 }
 
 model MenuItem {
-  id       String  @id @default(uuid(7)) @db.Uuid
-  menuId   String  @db.Uuid
-  parentId String? @db.Uuid
-  label    Json
-  url      String  @db.VarChar(400)
+  id           String  @id @default(uuid(7)) @db.Uuid
+  menuId       String  @db.Uuid
+  parentId     String? @db.Uuid
+  label        Json
+  url          String  @db.VarChar(400)
   /// Renders a mega-menu column with an image when set (F-ST-02).
-  imageKey String? @db.VarChar(400)
-  position Int     @default(0)
+  imageKey     String? @db.VarChar(400)
+  position     Int     @default(0)
   openInNewTab Boolean @default(false)
 
   menu     Menu       @relation(fields: [menuId], references: [id], onDelete: Cascade)
@@ -2290,25 +2300,25 @@ model HomeSection {
 }
 
 model Redirect {
-  id        String   @id @default(uuid(7)) @db.Uuid
-  fromPath  String   @unique @db.VarChar(400)
-  toPath    String   @db.VarChar(400)
-  statusCode Int     @default(301)
-  hits      Int      @default(0)
-  createdAt DateTime @default(now())
+  id         String   @id @default(uuid(7)) @db.Uuid
+  fromPath   String   @unique @db.VarChar(400)
+  toPath     String   @db.VarChar(400)
+  statusCode Int      @default(301)
+  hits       Int      @default(0)
+  createdAt  DateTime @default(now())
 
   @@map("redirects")
 }
 
 model NewsletterSubscriber {
-  id           String    @id @default(uuid(7)) @db.Uuid
-  email        String?   @unique @db.VarChar(255)
-  phone        String?   @unique @db.VarChar(20)
-  locale       String    @default("fr") @db.VarChar(5)
-  source       String?   @db.VarChar(48)
-  confirmedAt  DateTime?
+  id             String    @id @default(uuid(7)) @db.Uuid
+  email          String?   @unique @db.VarChar(255)
+  phone          String?   @unique @db.VarChar(20)
+  locale         String    @default("fr") @db.VarChar(5)
+  source         String?   @db.VarChar(48)
+  confirmedAt    DateTime?
   unsubscribedAt DateTime?
-  createdAt    DateTime  @default(now())
+  createdAt      DateTime  @default(now())
 
   @@map("newsletter_subscribers")
 }
@@ -2333,17 +2343,17 @@ model ContactMessage {
 // ---------------------------------------------------------------------------
 
 model Affiliate {
-  id          String   @id @default(uuid(7)) @db.Uuid
-  name        String   @db.VarChar(160)
-  handle      String   @unique @db.VarChar(64)
-  phone       String?  @db.VarChar(20)
-  email       String?  @db.VarChar(255)
-  promotionId String?  @db.Uuid
+  id                String   @id @default(uuid(7)) @db.Uuid
+  name              String   @db.VarChar(160)
+  handle            String   @unique @db.VarChar(64)
+  phone             String?  @db.VarChar(20)
+  email             String?  @db.VarChar(255)
+  promotionId       String?  @db.Uuid
   /// Commission on attributed revenue, paid manually in v1.
-  commissionPercent Decimal @default(0) @db.Decimal(5, 2)
-  active      Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  commissionPercent Decimal  @default(0) @db.Decimal(5, 2)
+  active            Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   promotion Promotion? @relation(fields: [promotionId], references: [id], onDelete: SetNull)
 
@@ -2351,16 +2361,16 @@ model Affiliate {
 }
 
 model LoyaltyTransaction {
-  id         String   @id @default(uuid(7)) @db.Uuid
-  customerId String   @db.Uuid
-  orderId    String?  @db.Uuid
+  id           String   @id @default(uuid(7)) @db.Uuid
+  customerId   String   @db.Uuid
+  orderId      String?  @db.Uuid
   /// Positive to earn, negative to redeem or adjust down.
-  points     Int
+  points       Int
   /// "earn" | "redeem" | "adjust" | "expire"
-  kind       String   @db.VarChar(16)
-  note       String?  @db.VarChar(300)
+  kind         String   @db.VarChar(16)
+  note         String?  @db.VarChar(300)
   balanceAfter Int
-  createdAt  DateTime @default(now())
+  createdAt    DateTime @default(now())
 
   customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
   order    Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
@@ -2371,21 +2381,21 @@ model LoyaltyTransaction {
 
 /// PRD F-ST-46 / F-AD-25: a cart with a phone number that never became an order.
 model AbandonedCart {
-  id          String    @id @default(uuid(7)) @db.Uuid
-  cartId      String    @unique @db.Uuid
-  customerId  String?   @db.Uuid
-  phone       String?   @db.VarChar(20)
-  fullName    String?   @db.VarChar(120)
-  wilayaCode  Int?
-  itemCount   Int       @default(0)
-  subtotal    BigInt    @default(0)
-  currency    String    @default("DZD") @db.Char(3)
+  id               String    @id @default(uuid(7)) @db.Uuid
+  cartId           String    @unique @db.Uuid
+  customerId       String?   @db.Uuid
+  phone            String?   @db.VarChar(20)
+  fullName         String?   @db.VarChar(120)
+  wilayaCode       Int?
+  itemCount        Int       @default(0)
+  subtotal         BigInt    @default(0)
+  currency         String    @default("DZD") @db.Char(3)
   /// One-time code generated for the recovery message.
-  recoveryCode String?  @db.VarChar(48)
-  contactedAt DateTime?
-  recoveredOrderId String? @db.Uuid
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  recoveryCode     String?   @db.VarChar(48)
+  contactedAt      DateTime?
+  recoveredOrderId String?   @db.Uuid
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   cart     Cart      @relation(fields: [cartId], references: [id], onDelete: Cascade)
   customer Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
@@ -2479,27 +2489,27 @@ model AuditLog {
 
 /// Server-side storefront events — PRD F-AD-82, no PII beyond a customer id.
 model AnalyticsEvent {
-  id         String   @id @default(uuid(7)) @db.Uuid
+  id          String   @id @default(uuid(7)) @db.Uuid
   /// "page_view" | "product_view" | "add_to_cart" | "checkout_start" | "purchase"
-  name       String   @db.VarChar(48)
-  sessionId  String   @db.VarChar(64)
-  customerId String?  @db.Uuid
-  productId  String?  @db.Uuid
-  variantId  String?  @db.Uuid
-  orderId    String?  @db.Uuid
-  path       String?  @db.VarChar(400)
-  referrer   String?  @db.VarChar(400)
-  utmSource  String?  @db.VarChar(120)
-  utmMedium  String?  @db.VarChar(120)
-  utmCampaign String? @db.VarChar(120)
+  name        String   @db.VarChar(48)
+  sessionId   String   @db.VarChar(64)
+  customerId  String?  @db.Uuid
+  productId   String?  @db.Uuid
+  variantId   String?  @db.Uuid
+  orderId     String?  @db.Uuid
+  path        String?  @db.VarChar(400)
+  referrer    String?  @db.VarChar(400)
+  utmSource   String?  @db.VarChar(120)
+  utmMedium   String?  @db.VarChar(120)
+  utmCampaign String?  @db.VarChar(120)
   /// Search terms land here so the zero-result report is a group-by.
-  query      String?  @db.VarChar(200)
+  query       String?  @db.VarChar(200)
   resultCount Int?
-  value      BigInt?
-  device     String?  @db.VarChar(24)
-  wilayaCode Int?
-  metadata   Json?
-  occurredAt DateTime @default(now())
+  value       BigInt?
+  device      String?  @db.VarChar(24)
+  wilayaCode  Int?
+  metadata    Json?
+  occurredAt  DateTime @default(now())
 
   @@index([name, occurredAt])
   @@index([sessionId, occurredAt])
@@ -2509,18 +2519,18 @@ model AnalyticsEvent {
 
 /// Raw inbound webhook bodies, kept for replay and for proving what a courier sent.
 model WebhookInbound {
-  id          String    @id @default(uuid(7)) @db.Uuid
-  provider    String    @db.VarChar(48)
+  id             String    @id @default(uuid(7)) @db.Uuid
+  provider       String    @db.VarChar(48)
   /// "courier" | "payment"
-  kind        String    @db.VarChar(24)
-  signature   String?   @db.VarChar(400)
-  headers     Json?
-  payload     Json
-  processedAt DateTime?
-  error       String?   @db.VarChar(500)
+  kind           String    @db.VarChar(24)
+  signature      String?   @db.VarChar(400)
+  headers        Json?
+  payload        Json
+  processedAt    DateTime?
+  error          String?   @db.VarChar(500)
   /// Deduplicates redelivered webhooks (PRD Section 10.3).
-  idempotencyKey String? @unique @db.VarChar(128)
-  createdAt   DateTime  @default(now())
+  idempotencyKey String?   @unique @db.VarChar(128)
+  createdAt      DateTime  @default(now())
 
   @@index([provider, processedAt])
   @@map("webhooks_inbound")

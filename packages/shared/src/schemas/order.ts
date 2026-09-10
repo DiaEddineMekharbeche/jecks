@@ -106,40 +106,11 @@ export const orderListQuerySchema = z.object({
   sortDir: z.enum(['asc', 'desc']).default('desc'),
 });
 
-/** Own-fleet dispatch — PRD F-AD-62. */
-export const deliveryRunSchema = z.object({
-  date: z.coerce.date(),
-  driverId: idSchema,
-  vehicleId: idSchema.optional(),
-  orderIds: z.array(idSchema).min(1, 'Assign at least one order'),
-  note: z.string().trim().max(500).optional(),
-});
-
-export const driverStopUpdateSchema = z
-  .object({
-    outcome: z.enum(['DELIVERED', 'FAILED']),
-    cashCollected: positiveMoneySchema.optional(),
-    failureReason: z.nativeEnum(DeliveryFailureReason).optional(),
-    note: z.string().trim().max(500).optional(),
-    proofMediaId: idSchema.optional(),
-  })
-  .superRefine((value, ctx) => {
-    if (value.outcome === 'FAILED' && !value.failureReason) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['failureReason'],
-        message: 'Say why the delivery failed',
-      });
-    }
-  });
-
 export type OrderTransitionInput = z.infer<typeof orderTransitionSchema>;
 export type CallLogInput = z.infer<typeof callLogSchema>;
 export type ManualOrderInput = z.infer<typeof manualOrderSchema>;
 export type ReturnRequestInput = z.infer<typeof returnRequestSchema>;
 export type OrderListQuery = z.infer<typeof orderListQuerySchema>;
-export type DeliveryRunInput = z.infer<typeof deliveryRunSchema>;
-export type DriverStopUpdate = z.infer<typeof driverStopUpdateSchema>;
 
 /**
  * Why an order scored the way it did — PRD F-AD-31.

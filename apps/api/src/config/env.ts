@@ -41,6 +41,13 @@ const envSchema = z.object({
   SMTP_PORT: z.coerce.number().int().default(1025),
   MAIL_FROM: z.string().default("Jeck's <no-reply@jecks.dz>"),
   SMS_DRIVER: z.enum(['log', 'twilio', 'local']).default('log'),
+
+  /**
+   * Shared secret the worker presents on internal routes. Unset disables them, which
+   * is the right default: a deployment that forgot it loses courier polling rather
+   * than opening an unauthenticated endpoint.
+   */
+  INTERNAL_API_TOKEN: z.string().min(16).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

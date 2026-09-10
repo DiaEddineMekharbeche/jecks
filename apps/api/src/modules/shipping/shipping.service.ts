@@ -1,6 +1,8 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import type { DeliveryType } from '@jecks/db';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { applyRate, selectRate } from '../delivery/domain/rates.js';
+import { toRateCandidate } from '../delivery/zones.service.js';
 
 export interface ShippingQuote {
   wilayaCode: number;
@@ -52,11 +54,13 @@ export class ShippingService {
   }
 
   /**
-   * Cheapest active rate for a wilaya and delivery type — PRD F-AD-60.
+   * The rate that applies to a wilaya and delivery type — PRD F-AD-60.
    *
-   * A wilaya-specific rate always wins over a zone rate. Weight beyond the allowance
-   * is billed per started kilo, and the free-shipping threshold is applied last so a
-   * heavy-parcel surcharge cannot survive a qualifying subtotal.
+   * A wilaya-specific rate wins over the zone that contains it, weight over the
+   * allowance is billed per started kilo, and the free-shipping threshold is applied
+   * last. The choosing and the arithmetic are pure and live in `domain/rates`; this
+   * method's only job is finding the candidate rows, including the ones that reach the
+   * wilaya through its zone.
    */
   async quote(input: {
     wilayaCode: number;
@@ -66,39 +70,40 @@ export class ShippingService {
   }): Promise<ShippingQuote> {
     const { wilayaCode, deliveryType, weightGrams = 0, subtotal = 0n } = input;
 
-    const rates = await this.prisma.shippingRate.findMany({
-      where: { wilayaCode, deliveryType, active: true },
-      include: { courier: { select: { id: true, name: true, active: true } } },
-      orderBy: { price: 'asc' },
+    const zone = await this.prisma.shippingZone.findFirst({
+      where: { wilayaCodes: { has: wilayaCode } },
+      select: { id: true },
     });
 
-    const usable = rates.filter((rate) => !rate.courier || rate.courier.active);
-    const rate = usable[0];
-    if (!rate) {
+    const rows = await this.prisma.shippingRate.findMany({
+      where: {
+        deliveryType,
+        OR: [{ wilayaCode }, ...(zone ? [{ zoneId: zone.id }] : [])],
+      },
+      include: { courier: { select: { id: true, name: true, active: true } } },
+    });
+
+    const chosen = selectRate(rows.map(toRateCandidate));
+    if (!chosen) {
       throw new BadRequestException({
         code: 'NO_SHIPPING_RATE',
         message: 'We do not deliver to that wilaya yet',
       });
     }
 
-    const overweightGrams = Math.max(weightGrams - rate.freeWeightGrams, 0);
-    const extraKilos = Math.ceil(overweightGrams / 1000);
-    let price = rate.price + rate.extraPerKg * BigInt(extraKilos);
-
-    const threshold = rate.freeShippingThreshold;
-    const freeShippingApplied = threshold != null && subtotal >= threshold;
-    if (freeShippingApplied) price = 0n;
+    const applied = applyRate(chosen, { weightGrams, subtotalMinor: subtotal });
+    const row = rows.find((rate) => rate.id === chosen.id)!;
 
     return {
       wilayaCode,
       deliveryType,
-      courierId: rate.courier?.id ?? null,
-      courierName: rate.courier?.name ?? null,
-      price,
-      cost: rate.cost,
-      freeShippingApplied,
-      etaMinDays: rate.etaMinDays,
-      etaMaxDays: rate.etaMaxDays,
+      courierId: row.courier?.id ?? null,
+      courierName: row.courier?.name ?? null,
+      price: applied.priceMinor,
+      cost: applied.costMinor,
+      freeShippingApplied: applied.freeShippingApplied,
+      etaMinDays: chosen.etaMinDays,
+      etaMaxDays: chosen.etaMaxDays,
     };
   }
 }

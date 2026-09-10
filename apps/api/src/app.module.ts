@@ -16,7 +16,9 @@ import { CartModule } from './modules/cart/cart.module.js';
 import { CatalogModule } from './modules/catalog/catalog.module.js';
 import { CatalogAdminModule } from './modules/catalog/admin/catalog-admin.module.js';
 import { ListModule } from './common/list/list.module.js';
+import { CouriersModule } from './modules/couriers/couriers.module.js';
 import { DashboardModule } from './modules/dashboard/dashboard.module.js';
+import { DeliveryModule } from './modules/delivery/delivery.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { InventoryModule } from './modules/inventory/inventory.module.js';
 import { SettingsModule } from './modules/settings/settings.module.js';
@@ -32,6 +34,7 @@ import { StorageModule } from './modules/storage/storage.module.js';
 import { StorefrontModule } from './modules/storefront/storefront.module.js';
 import { SystemModule } from './modules/system/system.module.js';
 import { ViewsModule } from './modules/views/views.module.js';
+import { WebhooksModule } from './modules/webhooks/webhooks.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 
 @Module({
@@ -62,6 +65,9 @@ import { PrismaModule } from './prisma/prisma.module.js';
     InventoryModule,
     SystemModule,
     ShippingModule,
+    CouriersModule,
+    DeliveryModule,
+    WebhooksModule,
     DashboardModule,
     MediaModule,
     OrdersModule,

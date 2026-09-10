@@ -16,8 +16,15 @@ export async function seedGeo(prisma: PrismaClient): Promise<void> {
         code: wilaya.code,
         name: tr(wilaya.fr, wilaya.ar, wilaya.fr),
         nameAscii: ascii(wilaya.fr),
+        latitude: wilaya.lat,
+        longitude: wilaya.lng,
       },
-      update: { name: tr(wilaya.fr, wilaya.ar, wilaya.fr), nameAscii: ascii(wilaya.fr) },
+      update: {
+        name: tr(wilaya.fr, wilaya.ar, wilaya.fr),
+        nameAscii: ascii(wilaya.fr),
+        latitude: wilaya.lat,
+        longitude: wilaya.lng,
+      },
     });
   }
   log('wilayas', WILAYAS.length);

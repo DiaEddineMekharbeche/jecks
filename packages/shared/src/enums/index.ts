@@ -76,6 +76,22 @@ export const DeliveryFailureReason = {
 export type DeliveryFailureReason =
   (typeof DeliveryFailureReason)[keyof typeof DeliveryFailureReason];
 
+export const DeliveryRunStatus = {
+  PLANNED: 'PLANNED',
+  IN_PROGRESS: 'IN_PROGRESS',
+  COMPLETED: 'COMPLETED',
+  CANCELLED: 'CANCELLED',
+} as const;
+export type DeliveryRunStatus = (typeof DeliveryRunStatus)[keyof typeof DeliveryRunStatus];
+
+export const SettlementStatus = {
+  OPEN: 'OPEN',
+  SENT: 'SENT',
+  PAID: 'PAID',
+  DISPUTED: 'DISPUTED',
+} as const;
+export type SettlementStatus = (typeof SettlementStatus)[keyof typeof SettlementStatus];
+
 export const CallOutcome = {
   CONFIRMED: 'CONFIRMED',
   NO_ANSWER: 'NO_ANSWER',

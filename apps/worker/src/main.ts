@@ -4,6 +4,7 @@ import { PrismaClient } from '@jecks/db';
 import { Worker, type Job } from 'bullmq';
 import pino from 'pino';
 import { runBackup } from './jobs/backup.js';
+import { pollCourierTracking } from './jobs/courier-sync.js';
 import { dispatchNotification } from './notifications/dispatcher.js';
 import { readSecret } from './lib/secrets.js';
 import { rebuildDailyStats } from './jobs/daily-stats.js';
@@ -142,11 +143,18 @@ async function main(): Promise<void> {
     1,
   );
 
-  register(QUEUE_NAMES.couriers, async (job) => {
-    // Tracking polling needs a live courier adapter, which arrives in M4 (F-AD-61).
-    logger.info({ job: job.name }, 'courier sync queued, adapters pending M4');
-    return { polled: 0 };
-  }, 2);
+  register(
+    QUEUE_NAMES.couriers,
+    async (job) => {
+      if (job.name !== 'poll-tracking') throw new Error(`Unknown courier job: ${job.name}`);
+      return pollCourierTracking({
+        apiUrl: process.env.API_PUBLIC_URL ?? 'http://localhost:4000/api/v1',
+        token: process.env.INTERNAL_API_TOKEN,
+        limit: Number(process.env.COURIER_SYNC_LIMIT ?? 200),
+      });
+    },
+    2,
+  );
 
   await registerSchedules();
 

@@ -10,7 +10,10 @@ import { AppModule } from './app.module.js';
 import type { Env } from './config/env.js';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule, { bufferLogs: false });
+  // `rawBody` keeps the original bytes on the request. Every webhook signature is an
+  // HMAC over exactly what was sent, and a body that has been through JSON.parse and
+  // back is a different string that would never verify.
+  const app = await NestFactory.create(AppModule, { bufferLogs: false, rawBody: true });
   const config: ConfigService<Env, true> = app.get(ConfigService);
 
   app.setGlobalPrefix('api/v1');
