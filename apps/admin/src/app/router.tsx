@@ -40,6 +40,9 @@ import { SettingsScopePage } from '@/features/settings/SettingsScopePage';
 import { UsersPage } from '@/features/settings/UsersPage';
 import { OrderDetailPage } from '@/features/orders/OrderDetailPage';
 import { OrdersListPage } from '@/features/orders/OrdersListPage';
+import { PromotionEditorPage } from '@/features/promotions/PromotionEditorPage';
+import { PromotionsListPage } from '@/features/promotions/PromotionsListPage';
+import { SimulatorPage } from '@/features/promotions/SimulatorPage';
 import { AppShell } from './AppShell';
 import { NAVIGATION } from './navigation';
 
@@ -100,6 +103,35 @@ export function AppRoutes() {
           element={
             <Protected permission="orders.read">
               <OrderDetailPage />
+            </Protected>
+          }
+        />
+
+        {/* Promotions — PRD F-AD-20/21. The simulator is declared before `:id` so
+            "simulator" is never read as a promotion id. */}
+        <Route
+          path="/promotions"
+          element={
+            <Protected permission="promotions.read">
+              <PromotionsListPage />
+            </Protected>
+          }
+        />
+
+        <Route
+          path="/promotions/simulator"
+          element={
+            <Protected permission="promotions.read">
+              <SimulatorPage />
+            </Protected>
+          }
+        />
+
+        <Route
+          path="/promotions/:id"
+          element={
+            <Protected permission="promotions.read">
+              <PromotionEditorPage />
             </Protected>
           }
         />

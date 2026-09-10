@@ -696,3 +696,30 @@ the fallback whenever another provider is missing or misconfigured.
 A shopper whose chosen gateway stopped working between loading the page and pressing the
 button should end up with a cash-on-delivery order, not an error. In Algeria that is not
 a degraded outcome; it is what the overwhelming majority of orders are anyway.
+
+## D68 — The promotion simulator calls the engine, it does not imitate it (M3.1)
+
+`POST /admin/promotions/simulate` assembles a cart from variant ids and runs
+`applyPromotions`, the same pure function checkout runs. The admin screen renders the
+answer and computes nothing itself.
+
+A simulator with its own arithmetic drifts from the checkout within a release or two,
+and the first person to notice is a customer being charged something the owner was
+shown would not happen. The endpoint is marked `@NoAudit` because it writes nothing.
+
+## D69 — A promotion's state is derived from the clock, not stored (M3.1)
+
+`draft`, `scheduled`, `active`, `expired` and `exhausted` are computed from the dates,
+the active switch and the usage against the limit, on every read.
+
+A stored status needs a job to keep it true, and the day that job fails a finished sale
+keeps selling. Deriving it costs one comparison and cannot go stale.
+
+## D70 — Seeded discounts are granted by real promotions (M3.1)
+
+The demo orders no longer carry an invented discount. A quarter of them apply a seeded
+code, larger carts reach the automatic tier, and free shipping comes from the promotion
+that offers it. Each grant writes a `PromoUsage` row.
+
+The promotions list exists to answer "what has this cost us", and a discount with no
+promotion behind it makes that column read zero on a shop full of discounted orders.

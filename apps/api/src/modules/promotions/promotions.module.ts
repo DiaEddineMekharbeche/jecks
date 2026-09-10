@@ -1,4 +1,6 @@
 import { Global, Module } from '@nestjs/common';
+import { PromotionsAdminService } from './promotions-admin.service.js';
+import { PromotionsController } from './promotions.controller.js';
 import { PromotionsService } from './promotions.service.js';
 
 /**
@@ -10,7 +12,8 @@ import { PromotionsService } from './promotions.service.js';
  */
 @Global()
 @Module({
-  providers: [PromotionsService],
+  controllers: [PromotionsController],
+  providers: [PromotionsService, PromotionsAdminService],
   exports: [PromotionsService],
 })
 export class PromotionsModule {}

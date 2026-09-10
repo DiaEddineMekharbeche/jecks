@@ -80,6 +80,21 @@ export async function seedDemo(prisma: PrismaClient, ownerId: string): Promise<v
   const rates = await prisma.shippingRate.findMany({
     select: { wilayaCode: true, deliveryType: true, price: true, cost: true, courierId: true },
   });
+  // The promotions that were just seeded. Discounts below are granted by one of these
+  // and recorded as a usage, so the promotion screens read real attribution rather than
+  // an unexplained number sitting in `discountTotal`.
+  const livePromotions = await prisma.promotion.findMany({
+    where: { active: true, deletedAt: null },
+    select: { id: true, code: true, type: true, percentOff: true, tiers: true, minSubtotal: true },
+  });
+  const codedPromotions = livePromotions.filter(
+    (promotion) => promotion.code !== null && promotion.type === 'PERCENTAGE',
+  );
+  const tieredPromotion = livePromotions.find((promotion) => promotion.type === 'TIERED');
+  const freeShippingPromotion = livePromotions.find(
+    (promotion) => promotion.type === 'FREE_SHIPPING',
+  );
+
   const couriers = await prisma.courier.findMany({ select: { id: true, slug: true } });
   const yalidine = couriers.find((c) => c.slug === 'yalidine');
   const ownFleet = couriers.find((c) => c.slug === 'own-fleet');
@@ -170,10 +185,33 @@ export async function seedDemo(prisma: PrismaClient, ownerId: string): Promise<v
         return { variant, quantity, lineTotal };
       });
 
-      // 1 order in 4 carries a discount, either a promo code or a flash sale.
-      const discountTotal = rng() < 0.25 ? (itemsSubtotal * BigInt(intBetween(rng, 10, 30))) / 100n : 0n;
-      const freeShipping = itemsSubtotal - discountTotal >= 600000n;
+      // 1 order in 4 carries a code; larger carts also reach the automatic tier. Each
+      // grant names the promotion that made it, and becomes a usage row further down.
+      const grants: Array<{ promotionId: string; amount: bigint }> = [];
+
+      if (codedPromotions.length > 0 && rng() < 0.25) {
+        const promotion = pick(rng, codedPromotions);
+        const percent = Number(promotion.percentOff ?? 0);
+        const amount = (itemsSubtotal * BigInt(Math.round(percent))) / 100n;
+        if (amount > 0n) grants.push({ promotionId: promotion.id, amount });
+      } else if (tieredPromotion) {
+        const tiers = (tieredPromotion.tiers as Array<{ minSubtotal: string; percentOff: number }> | null) ?? [];
+        const reached = tiers
+          .filter((tier) => itemsSubtotal >= BigInt(tier.minSubtotal))
+          .sort((a, b) => b.percentOff - a.percentOff)[0];
+        if (reached) {
+          const amount = (itemsSubtotal * BigInt(reached.percentOff)) / 100n;
+          if (amount > 0n) grants.push({ promotionId: tieredPromotion.id, amount });
+        }
+      }
+
+      const discountTotal = grants.reduce((sum, grant) => sum + grant.amount, 0n);
+      const freeShippingThreshold = freeShippingPromotion?.minSubtotal ?? 600000n;
+      const freeShipping = itemsSubtotal - discountTotal >= freeShippingThreshold;
       const shippingTotal = freeShipping ? 0n : (rate?.price ?? 50000n);
+      if (freeShipping && freeShippingPromotion) {
+        grants.push({ promotionId: freeShippingPromotion.id, amount: rate?.price ?? 50000n });
+      }
       const shippingCost = SHIPPED_LIKE.includes(status) ? (rate?.cost ?? 35000n) : 0n;
       const total = itemsSubtotal - discountTotal + shippingTotal;
 
@@ -244,6 +282,22 @@ export async function seedDemo(prisma: PrismaClient, ownerId: string): Promise<v
         },
       });
       orderCount += 1;
+
+      for (const grant of grants) {
+        await prisma.promoUsage.create({
+          data: {
+            promotionId: grant.promotionId,
+            orderId: order.id,
+            customerId,
+            amount: grant.amount,
+            createdAt,
+          },
+        });
+        await prisma.promotion.update({
+          where: { id: grant.promotionId },
+          data: { usageCount: { increment: 1 } },
+        });
+      }
 
       // Call log for anything that got past PENDING (F-AD-31).
       if (status !== 'PENDING') {
@@ -386,6 +440,8 @@ async function clearDemoData(prisma: PrismaClient): Promise<void> {
     prisma.deliveryRunStop.deleteMany({}),
     prisma.deliveryRun.deleteMany({}),
     prisma.review.deleteMany({}),
+    prisma.promoUsage.deleteMany({}),
+    prisma.promotion.updateMany({ data: { usageCount: 0 } }),
     prisma.abandonedCart.deleteMany({}),
     prisma.cart.deleteMany({}),
     prisma.order.deleteMany({}),

@@ -90,6 +90,10 @@ orders, notifications)** are complete. See
 
 M3 closed the loop from basket to doorstep:
 
+- **Promotion management** with a condition builder that only shows the fields the
+  chosen type uses, bulk unique codes with the ambiguous characters removed, and a
+  simulator that runs the real engine on a hand-built cart. The list adds up what each
+  promotion has actually given away, which is the only place that number exists.
 - **Guest checkout** on one page, idempotent, re-pricing the cart from scratch and
   re-quoting the shipping before it asks for anything. Order lines snapshot the price
   and the cost, so an order stays readable and its margin exact after the catalogue

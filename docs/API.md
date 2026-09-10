@@ -397,6 +397,40 @@ index, so a queue retry can never send the same SMS twice.
 
 ---
 
+## Promotions
+
+| Method | Path | Auth | Notes |
+|---|---|---|---|
+| GET | `/admin/promotions` | `promotions.read` | List and export, with what each one gave away |
+| GET | `/admin/promotions/counts` | `promotions.read` | Row counts per state, for the tabs |
+| GET | `/admin/promotions/:id` | `promotions.read` | Conditions, targets and limits |
+| GET | `/admin/promotions/:id/performance` | `promotions.read` | Uses, discount, revenue and margin, delivered orders only |
+| GET | `/admin/promotions/:id/codes` | `promotions.read` | The unique codes generated for it |
+| POST | `/admin/promotions` | `promotions.write` | Create |
+| PATCH | `/admin/promotions/:id` | `promotions.write` | Update |
+| POST | `/admin/promotions/:id/activate` | `promotions.write` | Switch on or off without editing |
+| POST | `/admin/promotions/:id/codes/generate` | `promotions.write` | Bulk unique codes |
+| DELETE | `/admin/promotions/:id` | `promotions.write` | Archives; the usage history stays |
+| POST | `/admin/promotions/simulate` | `promotions.read` | Runs the live engine on a hand-built cart |
+
+**The simulator is not a second implementation.** It builds a cart in memory and calls
+the same `applyPromotions` the checkout calls, so what an owner sees is what a shopper
+would be charged. It is exempt from the audit interceptor: it changes nothing, and
+logging experiments would bury the writes that matter.
+
+**State is derived, never stored.** A promotion is `draft`, `scheduled`, `active`,
+`expired` or `exhausted` according to its dates, its switch and its usage against its
+limit. There is no status column to fall out of step with the clock.
+
+**Generated codes avoid `0`, `O`, `1` and `I`.** They are read off a screen and typed by
+hand, and those four characters are where that goes wrong.
+
+**Performance counts delivered orders only.** A promotion that pulled in fifty orders of
+which forty were refused at the door did not work, and averaging the placed ones would
+say it did.
+
+---
+
 ## Storefront — reviews, wishlist, engagement and account
 
 | Method | Path | Auth | Notes |

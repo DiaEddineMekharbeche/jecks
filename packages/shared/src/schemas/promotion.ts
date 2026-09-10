@@ -105,6 +105,19 @@ export const bulkCodeSchema = z.object({
   usageLimitPerCode: z.coerce.number().int().min(1).default(1),
 });
 
+/** Runs the live engine against a hand-built cart — PRD F-AD-21. */
+export const promotionSimulateSchema = z.object({
+  variantIds: z
+    .array(z.object({ variantId: idSchema, quantity: z.coerce.number().int().min(1).max(99) }))
+    .max(50),
+  codes: z.array(z.string().trim().max(48)).max(5).default([]),
+  wilayaCode: z.coerce.number().int().min(1).max(58).nullable().optional(),
+  customerId: idSchema.nullable().optional(),
+  shippingMinor: z.string().regex(/^d+$/).default('0'),
+});
+
+export type PromotionSimulateInput = z.infer<typeof promotionSimulateSchema>;
+
 /** Reasons a code is refused, surfaced verbatim to the shopper — PRD F-ST-43. */
 export const PROMO_REJECTIONS = {
   NOT_FOUND: 'This code does not exist',
@@ -123,6 +136,7 @@ export const PROMO_REJECTIONS = {
 
 export type PromoRejectionCode = keyof typeof PROMO_REJECTIONS;
 export type PromotionInput = z.infer<typeof promotionInputSchema>;
+export type BulkCodeInput = z.infer<typeof bulkCodeSchema>;
 export type PromotionCondition = z.infer<typeof promotionConditionSchema>;
 export type BuyXGetY = z.infer<typeof buyXGetYSchema>;
 export type PromotionTier = z.infer<typeof tierSchema>;
