@@ -40,7 +40,7 @@ export const NAVIGATION: NavItem[] = [
   { key: "catalog", label: 'Catalogue', to: '/catalog/products', icon: Package, permission: 'catalog.read', status: 'ready' },
   { key: "inventory", label: 'Stock', to: '/inventory', icon: Boxes, permission: 'inventory.read', status: 'ready' },
   { key: "customers", label: 'Clients', to: '/customers', icon: Users, permission: 'customers.read', status: 'planned', milestone: 'M5' },
-  { key: "delivery", label: 'Livraison', to: '/delivery', icon: Truck, permission: 'delivery.read', status: 'planned', milestone: 'M4' },
+  { key: "delivery", label: 'Livraison', to: '/delivery', icon: Truck, permission: 'delivery.read', status: 'ready' },
   { key: "promotions", label: 'Promotions', to: '/promotions', icon: Megaphone, permission: 'promotions.read', status: 'ready' },
   { key: "finance", label: 'Finances', to: '/finance', icon: Wallet, permission: 'finance.read', status: 'planned', milestone: 'M5' },
   { key: "reports", label: 'Rapports', to: '/reports', icon: BarChart3, permission: 'reports.read', status: 'planned', milestone: 'M5' },

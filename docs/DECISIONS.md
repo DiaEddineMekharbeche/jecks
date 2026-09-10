@@ -723,3 +723,68 @@ that offers it. Each grant writes a `PromoUsage` row.
 
 The promotions list exists to answer "what has this cost us", and a discount with no
 promotion behind it makes that column read zero on a shop full of discounted orders.
+
+## D71 — The manual courier is the default, and it is real (M4)
+
+`ManualCourier` creates a shipment with no tracking number, reports nothing rather than
+guessing progress, and takes its updates from a pasted spreadsheet. It is what an
+unconfigured shop uses.
+
+Most Algerian shops drop parcels at a counter, get a handwritten receipt and type the
+numbers back in that evening. Treating that as the fallback rather than as an absence
+means the same code path serves them and a shop with an API key.
+
+## D72 — The API integrates with couriers; the worker owns the clock (M4)
+
+`courier.sync` in the worker calls one internal endpoint, and `CourierSyncService` in
+the API does the polling. The endpoint is guarded by `INTERNAL_API_TOKEN`, and when that
+is unset it refuses everything.
+
+The adapters and the encrypted credentials live beside the database. Moving them into
+the worker would mean two copies of every status mapping and two places to rotate a key;
+calling the API over HTTP costs one request every twenty minutes.
+
+## D73 — Labels and manifests are written by hand, not by a library (M4)
+
+`PdfDocument` is three hundred lines that emit PDF 1.4 with the base-14 fonts and draw a
+real Code 128 barcode with its checksum. The Code 128 table is transcribed from the
+specification because there is no formula behind it.
+
+The platform needs text, lines, boxes and a barcode on two page sizes. Every library
+that does that also does forms, encryption, images and font subsetting, and can break at
+install time. This is the same call D66 made about speaking ESMTP directly.
+
+## D74 — A route is ordered by nearest neighbour and then untangled (M4)
+
+`optimiseRoute` takes the greedy nearest-neighbour order and improves it with 2-opt until
+no reversal helps. Both are pure functions over coordinates, covered to 100 %.
+
+An exact travelling-salesman answer is not worth its cost for twenty stops, and greedy
+alone regularly ends with one long leg back across the city. Stops with no coordinates
+keep their given order and are appended rather than dropped: a stop we cannot place is
+still a parcel somebody ordered.
+
+Commune centroids are not in the bundled dataset, so a stop falls back to its wilaya
+centroid. That is a poor address and a perfectly good ordering hint: it puts Tamanrasset
+after Blida, which is the decision the route actually needs.
+
+## D75 — Webhooks verify before they parse, in one module (M4)
+
+Nest is started with `rawBody: true`, and every webhook computes its HMAC over the bytes
+as they arrived. A body that has been through `JSON.parse` and back is a different
+string, so signing the re-serialised form would make verification pass or fail on
+whitespace rather than on authenticity.
+
+They live in one module because the rule is the same for all of them, and because the
+courier callbacks made the payment callback M3 documented but never routed impossible to
+overlook any longer.
+
+## D76 — Cash keeps three numbers apart (M4)
+
+Expected, collected and reconciled are stored and displayed separately rather than
+collapsed into a balance.
+
+They answer different questions. Collected under expected is a conversation with a
+driver about a delivery. Reconciled under collected is just cash that has not reached
+the office yet. A single figure would hide the first inside the second, which is exactly
+the loss a cash-on-delivery shop cannot afford to miss.

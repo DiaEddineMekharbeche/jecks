@@ -20,6 +20,17 @@ import {
   SizeGuidesPage,
   TagsPage,
 } from '@/features/catalog/TaxonomyPages';
+import { CashPage } from '@/features/delivery/CashPage';
+import { CouriersPage } from '@/features/delivery/CouriersPage';
+import { DeliveryAnalyticsPage } from '@/features/delivery/DeliveryAnalyticsPage';
+import { DeliveryLayout } from '@/features/delivery/DeliveryLayout';
+import { DriverPage } from '@/features/delivery/DriverPage';
+import { FleetPage } from '@/features/delivery/FleetPage';
+import { RatesPage } from '@/features/delivery/RatesPage';
+import { RunDetailPage } from '@/features/delivery/RunDetailPage';
+import { RunsPage } from '@/features/delivery/RunsPage';
+import { SettlementsPage } from '@/features/delivery/SettlementsPage';
+import { ShipmentsPage } from '@/features/delivery/ShipmentsPage';
 import { DashboardPage } from '@/features/dashboard/DashboardPage';
 import { InventoryLayout } from '@/features/inventory/InventoryLayout';
 import { LocationsPage } from '@/features/inventory/LocationsPage';
@@ -71,6 +82,15 @@ export function AppRoutes() {
       <Route
         path="/login"
         element={status === 'authenticated' ? <Navigate to="/" replace /> : <LoginPage />}
+      />
+
+      <Route
+        path="/driver"
+        element={
+          <Protected permission="delivery.own_runs">
+            <DriverPage />
+          </Protected>
+        }
       />
 
       <Route
@@ -159,6 +179,41 @@ export function AppRoutes() {
           <Route path="reviews" element={<ReviewsPage />} />
           <Route path="merchandising" element={<MerchandisingPage />} />
           <Route path="media" element={<MediaLibraryPage />} />
+        </Route>
+
+        {/* Delivery — PRD F-AD-60 to F-AD-65. Cash and settlements are gated again
+            inside the layout, so a dispatcher never sees the drawer. */}
+        <Route
+          path="/delivery"
+          element={
+            <Protected permission="delivery.read">
+              <DeliveryLayout />
+            </Protected>
+          }
+        >
+          <Route index element={<ShipmentsPage />} />
+          <Route path="runs" element={<RunsPage />} />
+          <Route path="runs/:id" element={<RunDetailPage />} />
+          <Route path="couriers" element={<CouriersPage />} />
+          <Route path="rates" element={<RatesPage />} />
+          <Route path="fleet" element={<FleetPage />} />
+          <Route
+            path="cash"
+            element={
+              <Protected permission="delivery.settle">
+                <CashPage />
+              </Protected>
+            }
+          />
+          <Route
+            path="settlements"
+            element={
+              <Protected permission="delivery.settle">
+                <SettlementsPage />
+              </Protected>
+            }
+          />
+          <Route path="analytics" element={<DeliveryAnalyticsPage />} />
         </Route>
 
         {/* Stock — PRD F-AD-50 to F-AD-53. Purchasing sits behind its own permission

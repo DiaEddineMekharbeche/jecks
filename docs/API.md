@@ -561,6 +561,79 @@ a `Job` row and enqueues it; the dump is `pg_dump --format=custom`, stored under
 
 ---
 
+## Delivery, the fleet and cash
+
+| Method | Path | Auth | Notes |
+|---|---|---|---|
+| GET POST PATCH DELETE | `/admin/shipping/zones[/:id]` | `delivery.read` / `write` | A wilaya belongs to one zone at most |
+| GET | `/admin/shipping/rates` | `delivery.read` | Optionally for one zone or courier |
+| GET | `/admin/shipping/rates/matrix` | `delivery.read` | Every wilaya with its home and stop-desk cell |
+| POST | `/admin/shipping/rates/bulk` | `delivery.write` | Up to 500 cells in one transaction |
+| POST PATCH DELETE | `/admin/shipping/rates[/:id]` | `delivery.write` | The last rate serving a wilaya cannot be deleted |
+| GET | `/admin/couriers` | `delivery.read` | Readiness and the cash each one holds |
+| GET | `/admin/couriers/providers` | `delivery.read` | Credential fields per adapter, for the form |
+| POST PATCH DELETE | `/admin/couriers[/:id]` | `delivery.write` | Deleting one that has carried parcels deactivates it |
+| POST | `/admin/couriers/:id/credentials` | `delivery.write` | Encrypted at rest; never returned |
+| POST | `/admin/couriers/:id/test` | `delivery.write` | Checks authentication without creating a parcel |
+| GET | `/admin/shipments` | `delivery.read` | List, filter and export |
+| GET | `/admin/shipments/:id` | `delivery.read` | With the courier's own event trail |
+| POST | `/admin/shipments` | `delivery.dispatch` | A batch; failures are reported per order |
+| POST | `/admin/shipments/labels` | `delivery.read` | Streams a printable PDF |
+| POST | `/admin/shipments/import-tracking` | `delivery.dispatch` | The spreadsheet a manual courier sends back |
+| PATCH | `/admin/shipments/:id` | `delivery.write` | Correct a tracking number or a cost |
+| POST | `/admin/shipments/:id/cancel` | `delivery.dispatch` | Refused once delivered |
+| GET POST PATCH DELETE | `/admin/vehicles[/:id]` | `delivery.read` / `write` | |
+| GET POST PATCH DELETE | `/admin/drivers[/:id]` | `delivery.read` / `write` | Creates the staff account when there is none |
+| GET | `/admin/delivery-runs` | `delivery.read` | By day, driver or status |
+| GET | `/admin/delivery-runs/assignable` | `delivery.dispatch` | Orders not yet on any run |
+| GET | `/admin/delivery-runs/:id/manifest` | `delivery.read` | The sheet the driver signs |
+| POST PATCH | `/admin/delivery-runs[/:id]` | `delivery.dispatch` | Date, driver, vehicle |
+| POST | `/admin/delivery-runs/:id/orders` | `delivery.dispatch` | Load orders onto the run |
+| POST | `/admin/delivery-runs/:id/reorder` | `delivery.dispatch` | Apply a hand-dragged order |
+| POST | `/admin/delivery-runs/:id/optimise` | `delivery.dispatch` | Nearest neighbour, then 2-opt |
+| POST | `/admin/delivery-runs/:id/{start,complete,cancel}` | `delivery.dispatch` | |
+| PATCH | `/admin/delivery-runs/:id/stops/:stopId` | `delivery.dispatch` | What happened at a door |
+| GET | `/driver/run` | `delivery.own_runs` | The signed-in driver's own round |
+| PATCH | `/driver/runs/:id/stops/:stopId` | `delivery.own_runs` | Delivered, failed or rescheduled |
+| GET | `/admin/cash/daily` | `delivery.read` | Expected against collected, per holder |
+| POST | `/admin/cash/reconcile` | `delivery.settle` | Count cash in, one collection at a time |
+| GET POST | `/admin/settlements[/:id]` | `delivery.read` / `settle` | Build from delivered, unsettled parcels |
+| POST | `/admin/settlements/:id/pay` | `delivery.settle` | A shortfall stays visible as a difference |
+| GET | `/admin/delivery/analytics` | `delivery.read` | Success rate and transit time, split every way |
+| POST | `/webhooks/couriers/:provider` | signature | Verified against the raw body before it is read |
+| POST | `/internal/couriers/sync` | internal token | What the worker calls on the clock |
+
+**Five couriers, one interface.** `manual` is the default and a real implementation: a
+shop that hands parcels over at a counter and types the numbers back in runs the same
+code path as one with an API key. Yalidine, ZR Express, Maystro and EMS each translate
+their own vocabulary; nothing above the adapter knows what a "Yalidine parcel" is.
+
+Three details break these integrations more than anything else, so all three are tested
+against a stubbed HTTP client: every Algerian carrier bills in **whole dinars** while
+the platform stores centimes, Yalidine addresses by wilaya **name** where ZR uses the
+**code**, and their status vocabularies share no words.
+
+**A driver sees their own run and nobody else's.** Every `/driver` route resolves the
+driver from the session rather than taking an id, so changing a number in a URL returns
+403. That is acceptance criterion 6, enforced by the API rather than by hiding a link.
+
+**Cash has three numbers, kept apart.** *Expected* is what the delivered orders say was
+due, *collected* is what the driver or courier reported, and *reconciled* is what has
+been counted in at the office. A gap between the first two is a conversation with a
+driver; a gap between the last two is cash that simply has not come back yet.
+
+**Settlements never count a parcel twice.** A shipment already on another settlement is
+skipped, which makes regenerating an overlapping period safe after a late delivery
+lands. Fees are the delivery charge plus the courier's COD commission, rounded half-up
+because that is what their own statement does.
+
+**Only Maystro pushes.** The other adapters are polled by the `courier.sync` job every
+twenty minutes. The worker owns the clock and the API owns the integration: the worker
+calls one internal endpoint rather than carrying a second copy of every status mapping
+and every credential.
+
+---
+
 ## Health
 
 | Method | Path | Notes |
@@ -574,9 +647,6 @@ a `Job` row and enqueues it; the dump is `pg_dump --format=custom`, stored under
 
 The modules below are specified in the PRD and scheduled by milestone. They are listed
 here so integrators can see the shape of the finished API, not because they exist.
-
-**M4 — delivery.** `/admin/shipping/{zones,rates,couriers,shipments,vehicles,drivers,runs,settlements}`,
-`POST /webhooks/couriers/:provider`.
 
 **M5 — finance and reporting.** `/admin/finance/{expenses,payments,pnl}`,
 `/admin/reports/*`, `/admin/customers`.

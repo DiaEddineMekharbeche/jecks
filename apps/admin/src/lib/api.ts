@@ -160,3 +160,58 @@ export function applyQuery(url: URL, query: QueryParams | undefined): void {
     }
   }
 }
+
+/**
+ * Fetches a file and hands it to the browser as a download.
+ *
+ * A plain link cannot do this: the bearer token lives in memory rather than in a
+ * cookie, so the request has to go through fetch and the result has to be turned back
+ * into something the browser will save.
+ *
+ * The filename comes from the server's `Content-Disposition` when it sends one, because
+ * the server is what knows the run code or the order number.
+ */
+export async function download(path: string, options: RequestOptions = {}): Promise<void> {
+  const { body, query, headers, ...rest } = options;
+
+  const url = new URL(`${BASE}${path}`, window.location.origin);
+  applyQuery(url, query);
+
+  const response = await fetch(url.toString(), {
+    ...rest,
+    credentials: 'include',
+    headers: {
+      ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      ...headers,
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as { error?: ApiError } | null;
+    const error = payload?.error;
+    throw new ApiRequestError(
+      response.status,
+      error?.code ?? 'DOWNLOAD_FAILED',
+      error?.message ?? 'Le téléchargement a échoué',
+      error?.details,
+    );
+  }
+
+  const blob = await response.blob();
+  const href = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = href;
+  anchor.download = filenameFrom(response.headers.get('content-disposition')) ?? 'document.pdf';
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(href);
+}
+
+function filenameFrom(header: string | null): string | null {
+  if (!header) return null;
+  const match = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(header);
+  return match ? decodeURIComponent(match[1]!) : null;
+}

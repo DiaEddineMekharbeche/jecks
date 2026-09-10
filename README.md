@@ -84,9 +84,26 @@ generated SQL. CI fails if the schema and the migrations disagree.
 
 **M0 (Foundation)**, **M1.0 (admin framework)**, **M1.1 (media pipeline)**,
 **M1.2 (catalog admin)**, **M1.3 (inventory and purchasing)**, **M1.4 (settings,
-users, roles, journal, backups)**, **M2 (storefront completion)** and **M3 (checkout,
-orders, notifications)** are complete. See
+users, roles, journal, backups)**, **M2 (storefront completion)**, **M3 (checkout,
+orders, notifications)** and **M4 (delivery, fleet and cash)** are complete. See
 [`docs/PRD-COMPLETION.md`](docs/PRD-COMPLETION.md) for the milestone plan.
+
+M4 took the parcel out of the warehouse:
+
+- **Five couriers behind one interface**, each tested against a stubbed HTTP client on
+  what actually breaks: whole dinars against centimes, wilaya name against wilaya code,
+  and status vocabularies that share no words. The manual courier is the default and a
+  real implementation, not a placeholder.
+- **A rate matrix** over 58 wilayas and two delivery types, edited in bulk. A cell
+  inherited from a zone shows as such; typing in it creates the exception.
+- **Delivery runs** ordered by distance, printed as a manifest the driver signs, and
+  closed stop by stop. A driver's phone sees their own round and nobody else's.
+- **A cash drawer** that keeps expected, collected and reconciled apart, and courier
+  settlements that never count a parcel twice.
+- **Labels and manifests** rendered by a small PDF writer with a real Code 128 barcode,
+  rather than by a dependency.
+- **Webhooks** that verify against the raw body before reading a field, which also
+  routed the payment callback M3 had documented.
 
 M3 closed the loop from basket to doorstep:
 

@@ -23,7 +23,11 @@ export function LoginPage() {
     try {
       await signIn(email, password, needsTotp ? totp : undefined);
       // Send the user back where they were headed before the guard intercepted them.
-      const from = (location.state as { from?: string } | null)?.from ?? '/';
+      // A driver has no dashboard to go back to, so an unspecified destination sends
+      // them to their round rather than to a permission error.
+      const can = useSession.getState().can;
+      const home = can('delivery.own_runs') && !can('reports.read') ? '/driver' : '/';
+      const from = (location.state as { from?: string } | null)?.from ?? home;
       navigate(from, { replace: true });
     } catch (cause) {
       if (cause instanceof ApiRequestError && cause.code === 'TOTP_REQUIRED') {

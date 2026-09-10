@@ -328,6 +328,9 @@ export async function seedDemo(prisma: PrismaClient, ownerId: string): Promise<v
             trackingUrl: `https://tracking.example.dz/YAL${String(100000 + orderCount)}`,
             attempts: status === 'FAILED' ? 2 : 1,
             cost: shippingCost,
+            // What the courier has to bring back. Every demo order is cash on
+            // delivery, so it is the whole total.
+            codAmount: total,
             failureReason: status === 'FAILED' ? pick(rng, ['NO_ANSWER', 'REFUSED', 'WRONG_ADDRESS'] as const) : null,
             shippedAt: new Date(createdAt.getTime() + 86_400_000),
             deliveredAt: DELIVERED_LIKE.includes(status) ? new Date(createdAt.getTime() + 2 * 86_400_000) : null,
@@ -641,7 +644,7 @@ async function seedDeliveryRuns(prisma: PrismaClient, rng: () => number): Promis
           data: {
             runId: run.id,
             orderId: order.id,
-            position,
+            position: position + 1,
             status: dayOffset === 0 ? 'PENDING' : order.status === 'DELIVERED' ? 'DELIVERED' : 'FAILED',
             cashCollected: order.status === 'DELIVERED' && dayOffset > 0 ? order.total : 0n,
             failureReason: order.status === 'FAILED' ? 'NO_ANSWER' : null,

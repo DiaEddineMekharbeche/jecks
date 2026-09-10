@@ -68,7 +68,7 @@ export async function seedGeo(prisma: PrismaClient): Promise<void> {
   const couriers = [
     { slug: 'own-fleet', name: 'Flotte Jeck’s', provider: 'manual', codFeePercent: 0, settlementDays: 1 },
     { slug: 'yalidine', name: 'Yalidine', provider: 'yalidine', codFeePercent: 1, settlementDays: 7 },
-    { slug: 'zr-express', name: 'ZR Express', provider: 'zr_express', codFeePercent: 1, settlementDays: 7 },
+    { slug: 'zr-express', name: 'ZR Express', provider: 'zrexpress', codFeePercent: 1, settlementDays: 7 },
     { slug: 'maystro', name: 'Maystro Delivery', provider: 'maystro', codFeePercent: 1.5, settlementDays: 10 },
     { slug: 'ems', name: 'EMS Champion Post', provider: 'ems', codFeePercent: 0.5, settlementDays: 15 },
   ];
