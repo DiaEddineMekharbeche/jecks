@@ -62,32 +62,11 @@ export const checkoutSchema = z
     }
   });
 
-export const addToCartSchema = z.object({
-  variantId: idSchema,
-  quantity: z.coerce.number().int().min(1).max(50).default(1),
-  bundleId: idSchema.optional(),
-});
-
-export const updateCartItemSchema = z.object({
-  itemId: idSchema,
-  quantity: z.coerce.number().int().min(0).max(50),
-});
-
-export const applyPromoSchema = z.object({
-  code: z.string().trim().min(2).max(48),
-});
-
 export const shippingQuoteSchema = z.object({
   wilayaCode: z.coerce.number().int().min(1).max(58),
   deliveryType: z.nativeEnum(DeliveryType).default(DeliveryType.HOME),
   weightGrams: z.coerce.number().int().min(0).default(0),
   subtotal: z.coerce.number().int().min(0).optional(),
-});
-
-/** Public tracking without an account — PRD F-ST-52. */
-export const trackOrderSchema = z.object({
-  number: z.string().trim().min(4).max(32),
-  phone: dzPhoneSchema,
 });
 
 export const abandonedCartPingSchema = z.object({
@@ -98,6 +77,4 @@ export const abandonedCartPingSchema = z.object({
 });
 
 export type CheckoutInput = z.infer<typeof checkoutSchema>;
-export type AddToCartInput = z.infer<typeof addToCartSchema>;
 export type ShippingQuoteInput = z.infer<typeof shippingQuoteSchema>;
-export type TrackOrderInput = z.infer<typeof trackOrderSchema>;

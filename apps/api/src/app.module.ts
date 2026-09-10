@@ -11,6 +11,7 @@ import { CorrelationInterceptor } from './common/interceptors/correlation.interc
 import { EnvelopeInterceptor } from './common/interceptors/envelope.interceptor.js';
 import { validateEnv } from './config/env.js';
 import { AuthModule } from './modules/auth/auth.module.js';
+import { CartModule } from './modules/cart/cart.module.js';
 import { CatalogModule } from './modules/catalog/catalog.module.js';
 import { CatalogAdminModule } from './modules/catalog/admin/catalog-admin.module.js';
 import { ListModule } from './common/list/list.module.js';
@@ -21,10 +22,12 @@ import { SettingsModule } from './modules/settings/settings.module.js';
 import { ShippingModule } from './modules/shipping/shipping.module.js';
 import { MediaModule } from './modules/media/media.module.js';
 import { OrdersModule } from './modules/orders/orders.module.js';
+import { PromotionsModule } from './modules/promotions/promotions.module.js';
 import { QueueModule } from './modules/queue/queue.module.js';
 import { GlobalSearchModule } from './modules/search/global-search.module.js';
 import { RealtimeModule } from './modules/realtime/realtime.module.js';
 import { StorageModule } from './modules/storage/storage.module.js';
+import { StorefrontModule } from './modules/storefront/storefront.module.js';
 import { SystemModule } from './modules/system/system.module.js';
 import { ViewsModule } from './modules/views/views.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
@@ -51,6 +54,9 @@ import { PrismaModule } from './prisma/prisma.module.js';
     AuthModule,
     CatalogModule,
     CatalogAdminModule,
+    PromotionsModule,
+    CartModule,
+    StorefrontModule,
     InventoryModule,
     SystemModule,
     ShippingModule,

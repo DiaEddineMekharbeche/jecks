@@ -450,6 +450,8 @@ model CustomerAddress {
   label        String?      @db.VarChar(48)
   fullName     String       @db.VarChar(120)
   phone        String       @db.VarChar(20)
+  /// Second number, which is what turns a failed delivery into a successful one.
+  altPhone     String?      @db.VarChar(20)
   wilayaCode   Int
   communeId    String       @db.Uuid
   address      String?      @db.VarChar(400)

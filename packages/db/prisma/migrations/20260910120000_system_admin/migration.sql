@@ -11,3 +11,7 @@ CREATE INDEX IF NOT EXISTS "audit_logs_createdAt_idx" ON "audit_logs" ("createdA
 -- A staff invitation is looked up by its token hash on accept, which is already unique,
 -- and listed by recency in the users screen.
 CREATE INDEX IF NOT EXISTS "staff_invitations_createdAt_idx" ON "staff_invitations" ("createdAt" DESC);
+
+-- A saved address carries a second phone for the same reason an order does: a courier
+-- who cannot reach the first number is how a COD parcel comes back.
+ALTER TABLE "customer_addresses" ADD COLUMN IF NOT EXISTS "altPhone" VARCHAR(20);
