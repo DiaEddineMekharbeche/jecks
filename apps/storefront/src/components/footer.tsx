@@ -26,8 +26,30 @@ export function Footer({
         <div className="lg:col-span-2">
           <p className="font-display text-3xl tracking-[0.2em] text-brass">JECK&apos;S</p>
           <p className="mt-3 max-w-prose text-sm text-muted">{dictionary.footer.newsletterHint}</p>
-          <NewsletterForm dictionary={dictionary} />
+          <NewsletterForm dictionary={dictionary} locale={locale} />
         </div>
+
+        {/* Always present, whatever the owner put in the footer menu: tracking an order
+            without an account is the single most-asked question an agent answers. */}
+        <nav aria-label={dictionary.account.title}>
+          <p className="eyebrow mb-3">{dictionary.account.title}</p>
+          <ul className="flex flex-col gap-2">
+            {[
+              { to: `/${locale}/track`, label: dictionary.track.title },
+              { to: `/${locale}/account/orders`, label: dictionary.account.orders },
+              { to: `/${locale}/contact`, label: dictionary.contact.title },
+            ].map((link) => (
+              <li key={link.to}>
+                <Link
+                  href={link.to}
+                  className="text-sm text-muted transition-colors hover:text-ink"
+                >
+                  {link.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
 
         {groups.map((group) => (
           <nav key={group.id} aria-label={t(group.label, locale)}>

@@ -4,6 +4,12 @@ import Link from 'next/link';
 import { Suspense } from 'react';
 import { Countdown } from '@/components/countdown';
 import { HeroSection } from '@/components/hero-section';
+import {
+  Lookbook,
+  NewsletterSection,
+  PromoBannerSection,
+  Testimonials,
+} from '@/components/home-sections';
 import { ProductRail } from '@/components/product-rail';
 import { apiGet } from '@/lib/api';
 import { getDictionary } from '@/lib/dictionary';
@@ -74,10 +80,21 @@ function Section({ section, locale, dictionary, first }: SectionProps) {
     case 'brand_story':
       return <BrandStory section={section} locale={locale} />;
 
+    case 'promo_banner':
+      return <PromoBannerSection section={section} locale={locale} />;
+
+    case 'lookbook':
+      return <Lookbook section={section} locale={locale} />;
+
     case 'testimonials':
+      return (
+        <Suspense fallback={null}>
+          <Testimonials section={section} locale={locale} />
+        </Suspense>
+      );
+
     case 'newsletter':
-      // Reviews land with M6; the newsletter lives in the footer already.
-      return null;
+      return <NewsletterSection section={section} locale={locale} dictionary={dictionary} />;
 
     default:
       return null;

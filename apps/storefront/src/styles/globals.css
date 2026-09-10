@@ -46,6 +46,11 @@
     }
   }
 
+  /* Form control shared by the account, review, contact and checkout forms. */
+  .input-line {
+    @apply w-full rounded-xs border border-line bg-base px-3 py-2.5 text-sm text-ink outline-none transition-colors placeholder:text-muted focus:border-brass;
+  }
+
   .skip-link {
     @apply sr-only;
   }

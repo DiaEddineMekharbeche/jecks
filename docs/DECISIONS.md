@@ -520,3 +520,88 @@ A matrix behind a Save button gets half-edited and abandoned, and the operator c
 tell afterwards which state the server holds. Replacing the whole set rather than
 diffing keeps the write idempotent; a role has tens of permissions, not thousands, so
 the extra rows written are not worth a diff that can be wrong.
+
+## D51 — The promo engine is pure, and the database side is a separate service (M3.1)
+
+`applyPromotions(context, rules)` takes everything it needs as arguments: the cart
+lines, the customer's usage counts, the wilaya, the codes typed and the current time.
+It reads nothing and writes nothing.
+
+That is what makes sixty table-driven cases the whole truth about the discount surface.
+The alternative — an engine that queries as it decides — can only be tested against a
+database, which means it is tested rarely and argued about often.
+
+Three invariants inside it are worth stating because everything else follows from them:
+
+- Percentages apply to a **line total**, never to a unit price that is then multiplied.
+  The second form loses a centime per unit and the cart stops adding up.
+- Every grant is clamped against what the line still has left. Two stacked promotions
+  cannot take a line below zero, so a cart can never become a refund.
+- Priority decides, and the first non-stackable rule closes the door. Everything after
+  it is rejected with `NOT_STACKABLE` rather than silently ignored.
+
+## D52 — Discounts are allocated per line, always (M3.1)
+
+Even an order-level fixed amount is spread across the covered lines in proportion to
+their value, with the rounding remainder given to the largest line so the allocation
+sums back exactly.
+
+A discount parked on the order as a whole cannot be unwound when one line is returned.
+Per-line allocation is what lets a return give back exactly the share that belonged to
+the returned item, and what makes per-product margin exact in the P&L.
+
+## D53 — The cart revalidates on every read (M2)
+
+`GET /cart` re-checks prices, stock and promotion validity before answering, trims or
+drops lines that no longer stand, and reports what it changed in `notices`.
+
+A cart that quietly holds a sold-out line produces a checkout that fails at the last
+step, which is where a shopper abandons. Correcting it in the drawer, with a sentence
+saying why, costs one honest moment instead.
+
+The price snapshot on the line is deliberately *not* overwritten: the shopper is told
+the price moved and charged the current one at checkout, which is the honest order of
+events rather than a silent substitution.
+
+## D54 — The cart token is httpOnly, and the cart id never leaves the server (M2)
+
+The browser holds an opaque 32-byte token in an httpOnly cookie. Nothing on the page can
+read it, so a script injected into the storefront cannot lift a cart, and a guessed
+cart id is not a way into someone else's basket.
+
+## D55 — The storefront's access token is a cookie; the admin's stays in memory (M2)
+
+`/auth/otp/verify` sets `jk_access` alongside the refresh cookie. A Next.js Server
+Component render has no JavaScript context to hold a token in, and a token held in
+browser JavaScript is one cross-site scripting bug away from being stolen.
+
+The admin is a single-page app that *can* hold a token in memory, so it continues to use
+the Authorization header and ignores the cookie. One guard reads both.
+
+## D56 — Consent gates the third-party pixels, not the shop's own analytics (M2)
+
+Google, Meta and TikTok tags are not on the page until the shopper accepts. The banner
+is the switch, not a notice above trackers that are already running.
+
+First-party analytics continue either way: they carry no identifier beyond a random
+per-tab string, they never leave the shop's own database, and they are what the owner's
+funnel and zero-result reports read. Declining costs the shopper nothing and costs the
+owner no insight into their own shop.
+
+## D57 — The service worker never caches HTML or the API (M2)
+
+Static build output is cached forever (its name changes when its content does) and
+images are cached with a sixty-entry cap. Documents go to the network and fall back to
+an offline page only when the network is genuinely unreachable.
+
+A cached price, a cached stock badge or a cached cart is a wrong answer delivered with
+total confidence. On a shop, slow beats wrong.
+
+## D58 — Account deletion scrubs rather than cascades (M2)
+
+Deleting an account clears the contact details, deletes the addresses and wishlist,
+revokes every session, and rewrites the phone so the unique index frees up and the same
+number can shop again as a new customer.
+
+The orders stay. They are accounting records the shop is required to keep, and a cascade
+would take the shop's own books with them.

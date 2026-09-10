@@ -32,6 +32,15 @@ import { zod } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthService, type IssuedSession } from './auth.service.js';
 
 const REFRESH_COOKIE = 'jk_refresh';
+/**
+ * The storefront's access token also travels as an httpOnly cookie.
+ *
+ * A Next.js Server Component render has no JavaScript context to hold a token in, and
+ * an access token kept in browser JavaScript is one XSS away from being stolen. The
+ * guard already reads this cookie; the admin, which is a single-page app that can hold
+ * a token in memory, ignores it and keeps using the Authorization header.
+ */
+const ACCESS_COOKIE = 'jk_access';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -113,6 +122,7 @@ export class AuthController {
   ): Promise<void> {
     await this.auth.logout(user.sessionId);
     response.clearCookie(REFRESH_COOKIE, this.cookieOptions());
+    response.clearCookie(ACCESS_COOKIE, this.cookieOptions());
   }
 
   @Post('logout-all')
@@ -124,6 +134,7 @@ export class AuthController {
   ): Promise<void> {
     await this.auth.logoutEverywhere(user.id);
     response.clearCookie(REFRESH_COOKIE, this.cookieOptions());
+    response.clearCookie(ACCESS_COOKIE, this.cookieOptions());
   }
 
   @Get('me')
@@ -157,6 +168,10 @@ export class AuthController {
     response.cookie(REFRESH_COOKIE, issued.refreshToken, {
       ...this.cookieOptions(),
       maxAge: 30 * 86_400_000,
+    });
+    response.cookie(ACCESS_COOKIE, issued.tokens.accessToken, {
+      ...this.cookieOptions(),
+      maxAge: issued.tokens.expiresIn * 1000,
     });
     return { data: { ...issued.tokens, user: issued.user } };
   }

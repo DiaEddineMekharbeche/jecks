@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ProductPurchase } from '@/components/product-purchase';
 import { ProductRail } from '@/components/product-rail';
+import { ProductReviews } from '@/components/product-reviews';
 import { apiGet, mediaUrl } from '@/lib/api';
 import { getDictionary } from '@/lib/dictionary';
 import type { ProductCard, ProductDetail } from '@/lib/types';
@@ -102,6 +103,8 @@ export default async function ProductPage({
           </section>
         ) : null}
       </div>
+
+      <ProductReviews productId={product.id} locale={locale} dictionary={dictionary} />
 
       {related.length > 0 ? (
         <ProductRail

@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation';
 import type { CSSProperties, ReactNode } from 'react';
 import { Footer } from '@/components/footer';
 import { Header } from '@/components/header';
+import { StorefrontProviders } from '@/components/storefront-providers';
 import { apiGet } from '@/lib/api';
 import { getDictionary, isSupportedLocale } from '@/lib/dictionary';
 import type { Bootstrap } from '@/lib/types';
@@ -134,6 +135,17 @@ export default async function LocaleLayout({
           dictionary={dictionary}
           items={footer?.items ?? []}
           storeName={String(bootstrap?.settings['store.name'] ?? "Jeck's")}
+        />
+
+        <StorefrontProviders
+          locale={locale}
+          dictionary={dictionary}
+          pixels={{
+            ga4: String(bootstrap?.settings['integrations.ga4_id'] ?? '') || undefined,
+            meta: String(bootstrap?.settings['integrations.meta_pixel_id'] ?? '') || undefined,
+            tiktok: String(bootstrap?.settings['integrations.tiktok_pixel_id'] ?? '') || undefined,
+            banner: bootstrap?.settings['integrations.cookie_banner'] !== false,
+          }}
         />
 
         <OrganizationJsonLd locale={locale} />

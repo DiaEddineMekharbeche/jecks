@@ -1,10 +1,10 @@
 'use client';
 
 import { discountPercent, format, money, t, type Locale } from '@jecks/shared';
-import { Badge, Button, cn } from '@jecks/ui';
-import { Heart, Share2 } from 'lucide-react';
+import { Badge, cn } from '@jecks/ui';
 import { useMemo, useState } from 'react';
 import { DeliveryEstimator } from './delivery-estimator';
+import { ProductActions } from './product-actions';
 import { ProductGallery } from './product-gallery';
 import type { Dictionary } from '@/lib/dictionary';
 import { fill } from '@/lib/dictionary';
@@ -194,21 +194,14 @@ export function ProductPurchase({
           ) : null}
         </div>
 
-        <div className="flex flex-col gap-2">
-          {/* Cart and checkout arrive in M3; the button states are already correct. */}
-          <Button size="lg" editorial disabled={!inStock} title={inStock ? undefined : dictionary.product.outOfStock}>
-            {inStock ? dictionary.product.addToCart : dictionary.product.notifyMe}
-          </Button>
-          <div className="flex gap-2">
-            <Button variant="outline" size="md" className="flex-1">
-              <Heart className="h-4 w-4" />
-              {dictionary.nav.wishlist}
-            </Button>
-            <Button variant="outline" size="icon" aria-label="Partager">
-              <Share2 className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
+        <ProductActions
+          productId={product.id}
+          variantId={selectedVariant?.id ?? null}
+          inStock={inStock}
+          priceMinor={price.amount.toString()}
+          dictionary={dictionary}
+          locale={locale}
+        />
 
         <DeliveryEstimator
           dictionary={dictionary}

@@ -6,6 +6,7 @@ import { seedCatalog } from './03-catalog.js';
 import { seedContent } from './04-content.js';
 import { seedDemo } from './05-demo.js';
 import { seedPurchasing } from './06-purchasing.js';
+import { seedEngagement } from './07-engagement.js';
 import { placeholderStorageRoot } from './placeholder-media.js';
 
 /**
@@ -42,6 +43,9 @@ async function main(): Promise<void> {
   if (withDemo) {
     process.stdout.write('\nDemo trading data\n');
     await seedDemo(prisma, ownerId);
+
+    process.stdout.write('\nShopper engagement\n');
+    await seedEngagement(prisma);
   } else {
     process.stdout.write('\nDemo data skipped (SEED_DEMO_DATA=false)\n');
   }

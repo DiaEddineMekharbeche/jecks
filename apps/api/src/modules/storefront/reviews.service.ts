@@ -74,6 +74,23 @@ export class ReviewsPublicService {
   }
 
   /**
+   * The best approved reviews across the whole shop, for the home page's testimonials
+   * section — PRD F-AD-23.
+   *
+   * Verified purchases first, then the most helpful. A testimonial block that shows a
+   * three-star review is not doing its job, so only four and five stars qualify; the
+   * section renders nothing rather than reaching for a weaker one.
+   */
+  async featured(limit = 6): Promise<PublicReview[]> {
+    const rows = await this.prisma.review.findMany({
+      where: { status: ReviewStatus.APPROVED, rating: { gte: 4 } },
+      orderBy: [{ verified: 'desc' }, { helpfulCount: 'desc' }, { createdAt: 'desc' }],
+      take: Math.min(Math.max(limit, 1), 12),
+    });
+    return rows.map(toPublic);
+  }
+
+  /**
    * Accepts a review. Never returns it published: the response says it is awaiting
    * moderation, so nobody is surprised when it does not appear.
    */

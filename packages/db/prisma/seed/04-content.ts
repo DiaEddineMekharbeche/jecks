@@ -296,16 +296,34 @@ export async function seedContent(prisma: PrismaClient): Promise<void> {
       position: 5,
     },
     {
+      kind: 'lookbook',
+      title: tr('Le lookbook', 'اللوك بوك', 'The lookbook'),
+      subtitle: tr(
+        'Portées à Alger, Oran et Constantine.',
+        'مصورة في الجزائر ووهران وقسنطينة.',
+        'Worn in Algiers, Oran and Constantine.',
+      ),
+      config: {
+        columns: 3,
+        images: [
+          { caption: 'Alger centre', href: '/collections/nouveautes' },
+          { caption: 'Oran, front de mer', href: '/collections/heritage' },
+          { caption: 'Constantine', href: '/collections/meilleures-ventes' },
+        ],
+      },
+      position: 6,
+    },
+    {
       kind: 'testimonials',
       title: tr('Ce qu’en disent nos clients', 'ماذا يقول زبائننا', 'What customers say'),
       config: { limit: 6, minRating: 4 },
-      position: 6,
+      position: 7,
     },
     {
       kind: 'newsletter',
       title: tr('Les drops avant tout le monde', 'الإصدارات قبل الجميع', 'Drops before everyone else'),
       config: { incentive: '10%' },
-      position: 7,
+      position: 8,
     },
   ];
 

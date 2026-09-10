@@ -61,6 +61,13 @@ export class ReviewsController {
     );
   }
 
+  @Get('featured')
+  @Public()
+  @ApiOperation({ summary: 'The best approved reviews across the shop, for the home page' })
+  featured(@Query('limit') limit?: string) {
+    return this.reviews.featured(limit ? Number(limit) : 6);
+  }
+
   @Post()
   @Public()
   // A review takes minutes to write; five a minute from one address is a robot.

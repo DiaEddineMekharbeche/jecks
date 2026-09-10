@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import type { Dictionary } from '@/lib/dictionary';
+import { useCart } from '@/lib/cart-store';
 import type { Announcement, MenuNode } from '@/lib/types';
 
 /**
@@ -26,6 +27,8 @@ export function Header({
   announcements: Announcement[];
 }) {
   const pathname = usePathname();
+  const cartCount = useCart((state) => state.cart?.itemCount ?? 0);
+  const openCart = useCart((state) => state.setOpen);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
@@ -149,13 +152,19 @@ export function Header({
             >
               <User className="h-5 w-5" />
             </Link>
-            <Link
-              href={`/${locale}/cart`}
-              className="p-2 text-muted transition-colors hover:text-ink"
+            <button
+              type="button"
+              onClick={() => openCart(true)}
+              className="relative p-2 text-muted transition-colors hover:text-ink"
               aria-label={dictionary.nav.cart}
             >
               <ShoppingBag className="h-5 w-5" />
-            </Link>
+              {cartCount > 0 ? (
+                <span className="absolute -end-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-brass px-1 text-[10px] font-semibold tabular-nums text-base">
+                  {cartCount > 99 ? '99+' : cartCount}
+                </span>
+              ) : null}
+            </button>
           </div>
         </div>
       </header>

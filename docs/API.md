@@ -308,6 +308,78 @@ empty string clears it.
 
 ---
 
+## Cart
+
+Public. The cart is addressed by an httpOnly `jk_cart` cookie the browser cannot read;
+the cart id never travels. A signed-in shopper's identity comes from the optional bearer
+token, so one endpoint serves guests and members.
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/cart` | Creates one on first call; revalidates on every read |
+| POST | `/cart/items` | `{ variantId, quantity }`; tops up a line that already holds the variant |
+| PATCH | `/cart/items/:id` | `{ quantity }`; zero removes the line |
+| DELETE | `/cart/items/:id` | Remove a line |
+| DELETE | `/cart` | Empty the cart |
+| POST | `/cart/promo` | `{ code }`; a refusal returns the reason, and the code is not stored |
+| DELETE | `/cart/promo` | Remove the applied code |
+| PATCH | `/cart/delivery` | `{ wilayaCode, deliveryType }`; makes shipping quotable |
+| POST | `/cart/merge` | Folds the guest basket into the signed-in shopper's own |
+
+**Every read revalidates.** Prices, stock and promotion validity are checked before the
+cart is returned. A line whose product was unpublished is dropped, a line whose stock
+fell is trimmed, and a price that moved is flagged. The response carries `notices` and a
+per-line `adjusted` so the drawer can say what changed instead of silently differing
+from what the shopper last saw.
+
+**No client-side arithmetic.** `subtotalMinor`, `discountMinor`, `shippingMinor` and
+`totalMinor` all come from the server, computed by the promo engine and the shipping
+quote. A browser that adds up its own total is a browser that can be wrong about it.
+
+**Promotions.** The engine (`apps/api/src/modules/promotions/engine`) is pure and
+covers percentage, fixed amount, free shipping, tiered, buy-X-get-Y and bundle price.
+Discounts are always allocated per line, so returning one line gives back exactly the
+share of the discount that belonged to it. Refusals use the codes in `PROMO_REJECTIONS`
+and carry a sentence written for the shopper.
+
+---
+
+## Storefront — reviews, wishlist, engagement and account
+
+| Method | Path | Auth | Notes |
+|---|---|---|---|
+| GET | `/reviews/product/:productId` | public | Approved reviews plus the star distribution |
+| GET | `/reviews/featured` | public | Best approved reviews shop-wide, for the home page |
+| POST | `/reviews` | public | Submitted as `PENDING`; the verified badge is computed server-side |
+| POST | `/reviews/:id/helpful` | public | Increments the helpful counter |
+| GET POST DELETE | `/wishlist[/:id]` | customer | Adding twice is idempotent |
+| POST | `/stock-notifications` | public | Back-in-stock request, deduplicated per person and variant |
+| POST | `/marketing/newsletter` | public | Single opt-in; a repeat address is success, not an error |
+| POST | `/marketing/newsletter/unsubscribe` | public | By e-mail or phone |
+| POST | `/contact` | public | Lands as a `ContactMessage` and pings the admin over SSE |
+| POST | `/events` | public | Batched analytics, up to 50 events |
+| GET PATCH DELETE | `/account` | customer | Profile; delete scrubs contact details and keeps the orders |
+| GET POST PATCH DELETE | `/account/addresses[/:id]` | customer | The first saved address becomes the default |
+| GET | `/account/orders[/:number]` | customer | The shopper's own orders with their timeline |
+| GET | `/account/loyalty` | customer | The points ledger |
+| POST | `/orders/track` | public | `{ number, phone }` — both required |
+
+**Tracking needs the phone.** Order numbers are sequential so they can be read out over
+the telephone, which makes a number alone guessable. A wrong number and a wrong phone
+return the same message, so the endpoint cannot be used to test whether a phone number
+placed an order.
+
+**Analytics carry no identifier.** The session id is random per browser tab and is never
+joined to a person; a customer id is attached only when the shopper is already signed in.
+Client timestamps more than a day from now are replaced, because a client clock can be
+wrong or forged.
+
+**The storefront session is a cookie.** `/auth/otp/verify` sets `jk_access` (15 minutes)
+alongside the refresh cookie, so a Next.js server render can read the session and no
+access token is ever held in browser JavaScript.
+
+---
+
 ## Admin — inventory and purchasing
 
 All routes require a staff token. Reads take `inventory.read`, writes `inventory.write`;

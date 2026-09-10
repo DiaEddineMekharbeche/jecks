@@ -83,9 +83,30 @@ generated SQL. CI fails if the schema and the migrations disagree.
 ## Status
 
 **M0 (Foundation)**, **M1.0 (admin framework)**, **M1.1 (media pipeline)**,
-**M1.2 (catalog admin)**, **M1.3 (inventory and purchasing)** and **M1.4 (settings,
-users, roles, journal, backups)** are complete. See
+**M1.2 (catalog admin)**, **M1.3 (inventory and purchasing)**, **M1.4 (settings,
+users, roles, journal, backups)** and **M2 (storefront completion)** are complete,
+along with the promotion engine of M3.1. See
 [`docs/PRD-COMPLETION.md`](docs/PRD-COMPLETION.md) for the milestone plan.
+
+M2 turned the storefront from a catalogue into a shop:
+
+- **A cart** that revalidates prices, stock and promo validity on every read, trims or
+  drops what no longer stands, and says what it changed. The drawer computes nothing:
+  every figure comes from the server.
+- **A promotion engine** that is pure and covers percentage, fixed amount, free
+  shipping, tiered, buy-X-get-Y and bundle price, with scoping, limits, stacking and
+  refusal reasons written for the shopper.
+- **Reviews** on the product page with a server-computed verified badge, plus wishlist,
+  back-in-stock alerts, newsletter and a contact form.
+- **An account area** entered by phone and a six-digit code, with orders and their
+  timeline, addresses, wishlist, loyalty ledger, and a delete that scrubs the person
+  while keeping the orders.
+- **Public order tracking** by number and phone, which is how most COD shoppers ever
+  check on a parcel.
+- **A progressive web app**: installable, with a service worker that caches the build
+  and product imagery but never HTML or the API.
+- **Cookie consent that means something**: the third-party pixels are not on the page
+  until the shopper accepts.
 
 M1.4 finished the administration of the shop itself:
 
@@ -176,5 +197,5 @@ Earlier, M0 delivered:
 - Admin: sign-in, permission-gated navigation, dashboard reading pre-aggregated stats
 - Worker: daily statistics, scheduled prices, abandoned carts, low-stock alerts
 
-Not built yet: cart and checkout, order management, delivery operations, finance reporting and
+Not built yet: checkout, order management, delivery operations, finance reporting and
 marketing tools (M2 to M6 in PRD Section 13). **Do not point a live domain at this yet.**
