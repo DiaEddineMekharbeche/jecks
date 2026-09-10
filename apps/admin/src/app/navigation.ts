@@ -38,7 +38,7 @@ export const NAVIGATION: NavItem[] = [
   { key: "dashboard", label: 'Tableau de bord', to: '/', icon: LayoutDashboard, permission: 'reports.read', status: 'ready' },
   { key: "orders", label: 'Commandes', to: '/orders', icon: ShoppingCart, permission: 'orders.read', status: 'ready' },
   { key: "catalog", label: 'Catalogue', to: '/catalog/products', icon: Package, permission: 'catalog.read', status: 'ready' },
-  { key: "inventory", label: 'Stock', to: '/inventory', icon: Boxes, permission: 'inventory.read', status: 'planned', milestone: 'M1.3' },
+  { key: "inventory", label: 'Stock', to: '/inventory', icon: Boxes, permission: 'inventory.read', status: 'ready' },
   { key: "customers", label: 'Clients', to: '/customers', icon: Users, permission: 'customers.read', status: 'planned', milestone: 'M5' },
   { key: "delivery", label: 'Livraison', to: '/delivery', icon: Truck, permission: 'delivery.read', status: 'planned', milestone: 'M4' },
   { key: "promotions", label: 'Promotions', to: '/promotions', icon: Megaphone, permission: 'promotions.read', status: 'planned', milestone: 'M3' },

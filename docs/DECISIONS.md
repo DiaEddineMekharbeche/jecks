@@ -400,3 +400,52 @@ original instead.
 - Courier adapters beyond the manual/CSV one are scaffolds. Credentials shape is per provider
   and lands when API access is obtained (F-AD-61).
 - Meilisearch, WhatsApp Cloud API, Sentry — interfaces in place, adapters unimplemented.
+
+## D41 — Stock is a ledger, not a number (M1.3)
+
+`inventory_levels` is a cache; `stock_movements` is the record. Nothing outside
+`StockLedgerService` writes a level. Every change posts a signed movement carrying the
+balance that resulted from it, inside a transaction that takes `SELECT … FOR UPDATE` on
+the level row.
+
+The lock is what makes two agents confirming the same last unit resolve rather than both
+succeed. The balance column is what lets an operator answer "where did those four units
+go" a month later without replaying the whole table.
+
+Manual corrections are the one operation allowed to push stock negative, because a level
+that already went negative through an oversell can only be fixed by an operation that
+tolerates the state it is fixing.
+
+## D42 — Weighted average, one cost per variant (M1.3)
+
+`Variant.costPrice` is a single figure for the variant, not per location, and receiving
+re-averages it against every unit held anywhere. Per-location costing would be more
+precise and would make COGS depend on which warehouse happened to ship an order, which
+is a distinction the shop cannot act on.
+
+Order-level costs on a purchase order (freight, customs) are allocated across the
+received lines in proportion to merchandise value, with the rounding remainder given to
+the largest line so the allocations sum back exactly. Freight is charged once, on the
+first receipt: a second partial delivery does not re-charge shipping the shop paid once.
+
+## D43 — A stock count freezes its expectation but applies against live stock (M1.3)
+
+Opening a session snapshots `expectedQuantity` per line. That is what the variance report
+compares against, so a counter is not blamed for sales made while they were walking the
+aisle.
+
+Applying, however, computes the delta against the *current* level, not the frozen one.
+Those sales are real and must survive the count. Lines left uncounted are skipped rather
+than treated as zero — "we did not reach that shelf" and "that shelf is empty" are
+different statements.
+
+## D44 — Stock buckets are filtered after the page is read (M1.3)
+
+`low`, `out` and `negative` depend on the product's `lowStockThreshold` and on
+`onHand - reserved`, neither of which is a column that can be indexed usefully. The list
+endpoint therefore applies the bucket filter to the page it just read.
+
+The alternative — a generated column or a raw query per bucket — buys accuracy in the
+total row count for a filter an operator uses to find a handful of problem rows, and puts
+the definition of "low" in two places. One definition, in `stockState()`, shared by the
+list and by the realtime low-stock event, is worth the imprecise count.

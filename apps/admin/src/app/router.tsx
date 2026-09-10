@@ -20,6 +20,15 @@ import {
   TagsPage,
 } from '@/features/catalog/TaxonomyPages';
 import { DashboardPage } from '@/features/dashboard/DashboardPage';
+import { InventoryLayout } from '@/features/inventory/InventoryLayout';
+import { LocationsPage } from '@/features/inventory/LocationsPage';
+import { MovementsPage } from '@/features/inventory/MovementsPage';
+import { PurchaseOrderEditorPage } from '@/features/inventory/PurchaseOrderEditorPage';
+import { PurchaseOrdersPage } from '@/features/inventory/PurchaseOrdersPage';
+import { StockCountSessionPage } from '@/features/inventory/StockCountSessionPage';
+import { StockCountsPage } from '@/features/inventory/StockCountsPage';
+import { StockOverviewPage } from '@/features/inventory/StockOverviewPage';
+import { SuppliersPage } from '@/features/inventory/SuppliersPage';
 import { MediaLibraryPage } from '@/features/media/MediaLibraryPage';
 import { OrdersListPage } from '@/features/orders/OrdersListPage';
 import { AppShell } from './AppShell';
@@ -97,6 +106,47 @@ export function AppRoutes() {
           <Route path="reviews" element={<ReviewsPage />} />
           <Route path="merchandising" element={<MerchandisingPage />} />
           <Route path="media" element={<MediaLibraryPage />} />
+        </Route>
+
+        {/* Stock — PRD F-AD-50 to F-AD-53. Purchasing sits behind its own permission
+            so a warehouse hand can count stock without seeing supplier pricing. */}
+        <Route
+          path="/inventory"
+          element={
+            <Protected permission="inventory.read">
+              <InventoryLayout />
+            </Protected>
+          }
+        >
+          <Route index element={<StockOverviewPage />} />
+          <Route path="movements" element={<MovementsPage />} />
+          <Route path="counts" element={<StockCountsPage />} />
+          <Route path="counts/:id" element={<StockCountSessionPage />} />
+          <Route path="locations" element={<LocationsPage />} />
+          <Route
+            path="suppliers"
+            element={
+              <Protected permission="purchasing.read">
+                <SuppliersPage />
+              </Protected>
+            }
+          />
+          <Route
+            path="purchase-orders"
+            element={
+              <Protected permission="purchasing.read">
+                <PurchaseOrdersPage />
+              </Protected>
+            }
+          />
+          <Route
+            path="purchase-orders/:id"
+            element={
+              <Protected permission="purchasing.read">
+                <PurchaseOrderEditorPage />
+              </Protected>
+            }
+          />
         </Route>
 
         {/* Modules whose screens arrive in later milestones still route, so the nav

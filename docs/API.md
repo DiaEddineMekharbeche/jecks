@@ -308,6 +308,54 @@ empty string clears it.
 
 ---
 
+## Admin — inventory and purchasing
+
+All routes require a staff token. Reads take `inventory.read`, writes `inventory.write`;
+suppliers and purchase orders take `purchasing.read` / `purchasing.write`.
+
+| Method | Path | Permission | Notes |
+|---|---|---|---|
+| GET | `/admin/inventory` | `inventory.read` | Levels per variant × location; `format=csv\|xlsx` exports |
+| GET | `/admin/inventory/summary` | `inventory.read` | On-hand, reserved, low, out, valuation |
+| GET | `/admin/inventory/movements` | `inventory.read` | The stock ledger; same filters, same export |
+| POST | `/admin/inventory/adjust` | `inventory.write` | Signed delta or absolute target, with a reason |
+| POST | `/admin/inventory/bulk-adjust` | `inventory.write` | Up to 500 lines at one location, one transaction |
+| POST | `/admin/inventory/transfer` | `inventory.write` | Two movements between locations |
+| GET | `/admin/locations` | `inventory.read` | Every location with its unit count |
+| POST/PATCH/DELETE | `/admin/locations[/:id]` | `inventory.write` | Delete refuses while stock or history exists |
+| GET | `/admin/suppliers` | `purchasing.read` | Purchase totals per supplier; exports |
+| GET | `/admin/suppliers/options` | `purchasing.read` | Active suppliers, for pickers |
+| POST/PATCH/DELETE | `/admin/suppliers[/:id]` | `purchasing.write` | Delete is an archive |
+| GET | `/admin/purchase-orders` | `purchasing.read` | List and export; `/counts` for the tabs |
+| GET | `/admin/purchase-orders/:id` | `purchasing.read` | With lines and received quantities |
+| POST/PATCH | `/admin/purchase-orders[/:id]` | `purchasing.write` | Editable while `DRAFT` only |
+| POST | `/admin/purchase-orders/:id/place` | `purchasing.write` | `DRAFT` → `ORDERED`, counts units as incoming |
+| POST | `/admin/purchase-orders/:id/receive` | `purchasing.write` | Moves stock and re-averages cost |
+| POST | `/admin/purchase-orders/:id/cancel` | `purchasing.write` | Releases outstanding incoming units |
+| GET | `/admin/stock-counts[/:id]` | `inventory.read` | Sessions with variance totals; `/:id/export` |
+| POST | `/admin/stock-counts` | `inventory.write` | Opens a session, freezing expected quantities |
+| PATCH | `/admin/stock-counts/:id/entries` | `inventory.write` | Saves counted quantities in batches |
+| POST | `/admin/stock-counts/:id/apply` | `inventory.write` | Writes the variances as movements, closes it |
+| GET | `/admin/variants/search` | `catalog.read` | SKU, barcode or product name, with availability |
+
+**The ledger is the record.** No route writes `inventory_levels` directly. Every change
+posts a signed `StockMovement` carrying its resulting balance, inside a transaction that
+holds a row lock on the level, so two agents cannot both sell the last unit. Manual
+corrections are the one path allowed to leave stock negative, because that is how an
+operator fixes a level that already went negative.
+
+**Receiving and cost.** A receipt allocates the order's freight and other costs across
+the received lines in proportion to their value, then re-averages the variant's
+`costPrice` against every unit held anywhere. Freight is charged once, on the first
+receipt of an order. `GET /admin/purchase-orders/:id` reflects the new status:
+`PARTIALLY_RECEIVED` while anything is outstanding, `RECEIVED` when nothing is.
+
+**Counting.** A session freezes the expected quantity when it opens so a count is not
+blamed for sales made while it was running. Applying compares the counted figure against
+*live* stock and posts the difference; lines left uncounted are untouched.
+
+---
+
 ## Health
 
 | Method | Path | Notes |
@@ -321,9 +369,6 @@ empty string clears it.
 
 The modules below are specified in the PRD and scheduled by milestone. They are listed
 here so integrators can see the shape of the finished API, not because they exist.
-
-**M1.3 — inventory and purchasing.** `/admin/locations`, `/admin/inventory`,
-`/admin/suppliers`, `/admin/purchase-orders`, `/admin/stock-counts`.
 
 **M1.4 — settings, users, audit.** `/admin/settings` (write), `/admin/users`,
 `/admin/roles`, `/admin/audit`, `/admin/backups`.

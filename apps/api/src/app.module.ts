@@ -16,6 +16,7 @@ import { CatalogAdminModule } from './modules/catalog/admin/catalog-admin.module
 import { ListModule } from './common/list/list.module.js';
 import { DashboardModule } from './modules/dashboard/dashboard.module.js';
 import { HealthModule } from './modules/health/health.module.js';
+import { InventoryModule } from './modules/inventory/inventory.module.js';
 import { SettingsModule } from './modules/settings/settings.module.js';
 import { ShippingModule } from './modules/shipping/shipping.module.js';
 import { MediaModule } from './modules/media/media.module.js';
@@ -49,6 +50,7 @@ import { PrismaModule } from './prisma/prisma.module.js';
     AuthModule,
     CatalogModule,
     CatalogAdminModule,
+    InventoryModule,
     ShippingModule,
     DashboardModule,
     MediaModule,

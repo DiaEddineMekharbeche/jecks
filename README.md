@@ -82,9 +82,23 @@ generated SQL. CI fails if the schema and the migrations disagree.
 
 ## Status
 
-**M0 (Foundation)**, **M1.0 (admin framework)**, **M1.1 (media pipeline)** and
-**M1.2 (catalog admin)** are complete. See
+**M0 (Foundation)**, **M1.0 (admin framework)**, **M1.1 (media pipeline)**,
+**M1.2 (catalog admin)** and **M1.3 (inventory and purchasing)** are complete. See
 [`docs/PRD-COMPLETION.md`](docs/PRD-COMPLETION.md) for the milestone plan.
+
+M1.3 made stock real:
+
+- **Stock overview** by variant and location, with valuation at cost, low and out
+  buckets, adjust and transfer, and CSV/Excel export.
+- **A stock ledger** rather than an editable number: every change is a signed movement
+  carrying its resulting balance, written under a row lock so two agents cannot both
+  sell the last unit.
+- **Suppliers and purchase orders** through draft, ordered, partially received and
+  received. Receiving moves stock, spreads freight across the lines by value, and
+  re-averages the weighted-average cost of each variant.
+- **Stock counts** that freeze the expected quantity when the session opens, then post
+  the difference against live stock when applied, so sales made during the count survive
+  it.
 
 M1.2 made the catalogue editable:
 
@@ -144,6 +158,5 @@ Earlier, M0 delivered:
 - Admin: sign-in, permission-gated navigation, dashboard reading pre-aggregated stats
 - Worker: daily statistics, scheduled prices, abandoned carts, low-stock alerts
 
-Not built yet: inventory and purchasing (M1.3), settings, users and audit screens
-(M1.4), cart and checkout, order management, delivery operations, finance reporting and
+Not built yet: settings, users and audit screens (M1.4), cart and checkout, order management, delivery operations, finance reporting and
 marketing tools (M2 to M6 in PRD Section 13). **Do not point a live domain at this yet.**

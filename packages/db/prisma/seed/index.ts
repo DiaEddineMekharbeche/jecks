@@ -5,6 +5,7 @@ import { seedGeo } from './02-geo.js';
 import { seedCatalog } from './03-catalog.js';
 import { seedContent } from './04-content.js';
 import { seedDemo } from './05-demo.js';
+import { seedPurchasing } from './06-purchasing.js';
 import { placeholderStorageRoot } from './placeholder-media.js';
 
 /**
@@ -34,6 +35,9 @@ async function main(): Promise<void> {
 
   process.stdout.write('\nContent\n');
   await seedContent(prisma);
+
+  process.stdout.write('\nSuppliers and purchasing\n');
+  await seedPurchasing(prisma, ownerId);
 
   if (withDemo) {
     process.stdout.write('\nDemo trading data\n');
