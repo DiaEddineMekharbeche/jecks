@@ -1,6 +1,7 @@
 import { hash } from '@node-rs/argon2';
 import { PERMISSIONS, PERMISSION_GROUPS, ROLE_PERMISSIONS, RoleSlug } from '@jecks/shared';
 import type { PrismaClient } from '@prisma/client';
+import { NOTIFICATION_TEMPLATES } from './templates.js';
 import { log, tr } from './util.js';
 
 const ROLE_NAMES: Record<string, { fr: string; ar: string; en: string }> = {
@@ -168,108 +169,11 @@ export async function seedSystem(prisma: PrismaClient): Promise<{ ownerId: strin
   log('settings', settings.length);
 
   // --- notification templates ------------------------------------------------
-  const templates = [
-    {
-      event: 'order.placed',
-      channel: 'SMS' as const,
-      body: tr(
-        "Jeck's: merci {{customer_name}}! Commande {{order_number}} recue. Suivi: {{tracking_url}}",
-        'جيكس: شكرا {{customer_name}}! تم استلام طلبك {{order_number}}. التتبع: {{tracking_url}}',
-        "Jeck's: thanks {{customer_name}}! Order {{order_number}} received. Track: {{tracking_url}}",
-      ),
-    },
-    {
-      event: 'order.confirmed',
-      channel: 'SMS' as const,
-      body: tr(
-        "Jeck's: commande {{order_number}} confirmee. Total {{order_total}}. Livraison sous {{eta_days}} jours.",
-        'جيكس: تم تأكيد الطلب {{order_number}}. المجموع {{order_total}}. التوصيل خلال {{eta_days}} أيام.',
-        "Jeck's: order {{order_number}} confirmed. Total {{order_total}}. Delivery in {{eta_days}} days.",
-      ),
-    },
-    {
-      event: 'order.shipped',
-      channel: 'SMS' as const,
-      body: tr(
-        "Jeck's: commande {{order_number}} expediee. Suivi: {{tracking_url}}",
-        'جيكس: تم شحن الطلب {{order_number}}. التتبع: {{tracking_url}}',
-        "Jeck's: order {{order_number}} shipped. Track: {{tracking_url}}",
-      ),
-    },
-    {
-      event: 'order.out_for_delivery',
-      channel: 'SMS' as const,
-      body: tr(
-        "Jeck's: votre colis {{order_number}} est en cours de livraison aujourd'hui. Preparez {{order_total}}.",
-        'جيكس: طردك {{order_number}} في طريقه إليك اليوم. جهز {{order_total}}.',
-        "Jeck's: your parcel {{order_number}} is out for delivery today. Please have {{order_total}} ready.",
-      ),
-    },
-    {
-      event: 'order.delivered',
-      channel: 'SMS' as const,
-      body: tr(
-        "Jeck's: commande {{order_number}} livree. Merci! Donnez votre avis: {{review_url}}",
-        'جيكس: تم تسليم الطلب {{order_number}}. شكرا! شاركنا رأيك: {{review_url}}',
-        "Jeck's: order {{order_number}} delivered. Thank you! Leave a review: {{review_url}}",
-      ),
-    },
-    {
-      event: 'order.failed',
-      channel: 'SMS' as const,
-      body: tr(
-        "Jeck's: nous n'avons pas pu livrer {{order_number}}. Rappelez-nous au {{store_phone}}.",
-        'جيكس: تعذر تسليم {{order_number}}. اتصل بنا على {{store_phone}}.',
-        "Jeck's: we could not deliver {{order_number}}. Call us on {{store_phone}}.",
-      ),
-    },
-    {
-      event: 'cart.abandoned',
-      channel: 'SMS' as const,
-      body: tr(
-        "Jeck's: votre panier vous attend. Code {{promo_code}} pour -10%: {{cart_url}}",
-        'جيكس: سلتك في انتظارك. رمز {{promo_code}} لخصم 10%: {{cart_url}}',
-        "Jeck's: your cart is waiting. Code {{promo_code}} for 10% off: {{cart_url}}",
-      ),
-    },
-    {
-      event: 'stock.back_in_stock',
-      channel: 'SMS' as const,
-      body: tr(
-        "Jeck's: {{product_name}} est de retour en stock. {{product_url}}",
-        'جيكس: {{product_name}} متوفر من جديد. {{product_url}}',
-        "Jeck's: {{product_name}} is back in stock. {{product_url}}",
-      ),
-    },
-    {
-      event: 'order.placed',
-      channel: 'EMAIL' as const,
-      subject: tr('Commande {{order_number}} confirmée', 'تأكيد الطلب {{order_number}}', 'Order {{order_number}} received'),
-      body: tr(
-        'Bonjour {{customer_name}},\n\nNous avons bien reçu votre commande {{order_number}} d’un montant de {{order_total}}.\nSuivez-la ici: {{tracking_url}}\n\nL’équipe Jeck’s',
-        'مرحبا {{customer_name}}،\n\nاستلمنا طلبك {{order_number}} بقيمة {{order_total}}.\nتابعه هنا: {{tracking_url}}\n\nفريق جيكس',
-        'Hi {{customer_name}},\n\nWe received your order {{order_number}} for {{order_total}}.\nTrack it here: {{tracking_url}}\n\nThe Jeck’s team',
-      ),
-    },
-    {
-      event: 'inventory.low',
-      channel: 'TELEGRAM' as const,
-      body: tr(
-        'Stock bas: {{sku}} ({{product_name}}) — il reste {{quantity}}.',
-        'مخزون منخفض: {{sku}} ({{product_name}}) — بقي {{quantity}}.',
-        'Low stock: {{sku}} ({{product_name}}) — {{quantity}} left.',
-      ),
-    },
-    {
-      event: 'delivery.failed',
-      channel: 'TELEGRAM' as const,
-      body: tr(
-        'Livraison échouée: {{order_number}} ({{wilaya}}) — motif {{reason}}.',
-        'فشل التسليم: {{order_number}} ({{wilaya}}) — السبب {{reason}}.',
-        'Failed delivery: {{order_number}} ({{wilaya}}) — reason {{reason}}.',
-      ),
-    },
-  ];
+  //
+  // The bodies live in templates.ts so their variable names sit next to the list the
+  // admin editor offers. A name that drifts renders as a literal placeholder in a real
+  // SMS, which nobody notices until a customer forwards one.
+  const templates = NOTIFICATION_TEMPLATES;
 
   for (const template of templates) {
     await prisma.notificationTemplate.upsert({
@@ -280,7 +184,10 @@ export async function seedSystem(prisma: PrismaClient): Promise<{ ownerId: strin
         subject: (template as { subject?: unknown }).subject as never,
         body: template.body as never,
       },
-      update: { body: template.body as never },
+      update: {
+        body: template.body as never,
+        subject: ((template as { subject?: unknown }).subject ?? null) as never,
+      },
     });
   }
   log('notification templates', templates.length);

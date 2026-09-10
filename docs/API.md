@@ -344,6 +344,59 @@ and carry a sentence written for the shopper.
 
 ---
 
+## Checkout and orders
+
+| Method | Path | Auth | Notes |
+|---|---|---|---|
+| POST | `/orders` | public | Places a cash-on-delivery order from the current cart |
+| GET | `/admin/orders` | `orders.read` | List and export; `/counts` for the tabs |
+| GET | `/admin/orders/:id` | `orders.read` | Items, timeline, notes, calls, risk, margin |
+| POST | `/admin/orders/:id/transition` | `orders.transition` | The only way a status ever changes |
+| POST | `/admin/orders/bulk` | `orders.transition` | One action over a selection; refusals reported per order |
+| PATCH | `/admin/orders/:id` | `orders.write` | Customer and delivery details, before packing only |
+| POST | `/admin/orders/:id/notes` | `orders.write` | Internal note |
+| POST | `/admin/orders/:id/call-logs` | `orders.write` | Outcome and any callback time |
+| PATCH | `/admin/orders/:id/tags` | `orders.write` | Replaces the tag set |
+| POST | `/admin/orders/:id/assign` | `orders.write` | Assign to an agent |
+
+**`POST /orders` is idempotent.** Send an `Idempotency-Key` header. A repeat returns the
+original order rather than creating a second one, enforced twice: a Redis lock for two
+simultaneous requests, and a unique column for a replay hours later. If Redis is
+unreachable the request proceeds, because the column is what actually guarantees it.
+
+**Nothing is trusted from the browser.** The cart is re-priced, the shipping re-quoted
+and the stock re-checked at the moment of the order. Line items snapshot the product
+name, the price *and the cost*, so an order stays readable and its margin stays correct
+after the catalogue changes.
+
+**Risk is advisory, not a gate** — PRD F-AD-31. Failed-delivery history, duplicates
+inside the window, orders per phone per day, orders per IP per hour, order size against
+the shop's average, phone verification and address specificity produce a 0-100 score and
+a list of flags. Only a blacklist blocks; the flood patterns ask for a captcha. Nothing
+else refuses an order, because refusing a real customer costs more than a wasted trip.
+
+**Every status change goes through one door.** `OrderService.transition` applies the
+state machine of PRD Section 7 inside a single transaction: stock moves, payment status,
+timestamp, event row, promo release and customer rollups. An illegal move returns
+`ILLEGAL_TRANSITION` naming what *is* allowed from there.
+
+Stock has two distinct states. `stockReserved` holds units against availability;
+`stockDeducted` means they have left the shelf. The deduction moment is configurable
+(`orders.stock_deduction_moment`), and deducting always releases the reservation that
+covered it — otherwise the same units are counted twice.
+
+**Payment providers.** `cod` is always available and is the fallback for everything;
+`chargily` (CIB / Edahabia) is switched on in Settings › Payments. A Chargily webhook is
+verified by HMAC against the raw body *before* any field of it is read.
+
+**Notifications.** Order events enqueue `notification.dispatch`. The worker resolves the
+recipient, renders the template in the customer's own language, and picks a transport:
+log (default), SMTP, Twilio, a configurable HTTP gateway for Algerian providers, WhatsApp
+Cloud, or Telegram for owner alerts. Every message carries a dedupe key with a unique
+index, so a queue retry can never send the same SMS twice.
+
+---
+
 ## Storefront — reviews, wishlist, engagement and account
 
 | Method | Path | Auth | Notes |
@@ -487,10 +540,6 @@ a `Job` row and enqueues it; the dump is `pg_dump --format=custom`, stored under
 
 The modules below are specified in the PRD and scheduled by milestone. They are listed
 here so integrators can see the shape of the finished API, not because they exist.
-
-**M3 — checkout and orders.** `POST /cart`, `PATCH /cart/items`, `POST /cart/promo`,
-`POST /orders`, `GET /orders/track`, order writes on `/admin/orders` with `/:id/transition`,
-`/:id/call-logs` and `/:id/documents`, `/admin/promotions`.
 
 **M4 — delivery.** `/admin/shipping/{zones,rates,couriers,shipments,vehicles,drivers,runs,settlements}`,
 `POST /webhooks/couriers/:provider`.

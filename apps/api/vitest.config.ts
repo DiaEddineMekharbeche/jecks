@@ -10,11 +10,12 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'lcov'],
       // PRD Section 10.6 sets a 90 % bar on domain logic: the cross-cutting layer every
-      // request passes through, plus the calculations that decide money and stock.
-      // M4 adds the order state machine and the settlement math to this list.
+      // request passes through, plus every calculation that decides money, stock or an
+      // order's fate. M5 adds the P&L and the settlement math to this list.
       include: [
         'src/common/**',
         'src/modules/promotions/engine/**',
+        'src/modules/orders/domain/**',
         'src/modules/inventory/costing.ts',
         'src/modules/inventory/stock-ledger.service.ts',
       ],

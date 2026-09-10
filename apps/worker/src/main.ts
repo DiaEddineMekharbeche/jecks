@@ -4,6 +4,8 @@ import { PrismaClient } from '@jecks/db';
 import { Worker, type Job } from 'bullmq';
 import pino from 'pino';
 import { runBackup } from './jobs/backup.js';
+import { dispatchNotification } from './notifications/dispatcher.js';
+import { readSecret } from './lib/secrets.js';
 import { rebuildDailyStats } from './jobs/daily-stats.js';
 import { processMedia } from './jobs/media-process.js';
 import {
@@ -34,6 +36,11 @@ const prisma = new PrismaClient();
 const storage = createStorage(storageConfigFromEnv());
 
 const workers: Worker[] = [];
+
+/** The public storefront origin, used to build tracking links inside messages. */
+function storefrontUrl(): string {
+  return (process.env.STOREFRONT_URL ?? 'http://localhost:3000').replace(/\/$/, '');
+}
 
 function register(queue: string, handler: (job: Job) => Promise<unknown>, concurrency = 5): void {
   const worker = new Worker(
@@ -77,8 +84,17 @@ async function main(): Promise<void> {
         return detectAbandonedCarts(prisma);
       case 'low-stock-alerts': {
         const alerts = await collectLowStockAlerts(prisma);
-        // TODO(M4): hand these to the Notifier interface of PRD Section 6.1.
-        if (alerts.length > 0) logger.warn({ count: alerts.length }, 'low stock');
+        for (const alert of alerts) {
+          await dispatchNotification(
+            { event: 'inventory.low', variantId: alert.variantId },
+            {
+              prisma,
+              secret: (key) => readSecret(prisma, key),
+              storefrontUrl: storefrontUrl(),
+              log: (line) => logger.info({ notification: line }, 'notification'),
+            },
+          );
+        }
         return { alerts: alerts.length };
       }
       default:
@@ -86,12 +102,21 @@ async function main(): Promise<void> {
     }
   });
 
-  register(QUEUE_NAMES.notifications, async (job) => {
-    // The SMS, e-mail and WhatsApp adapters land with M3 (PRD Section 6.1). Until then
-    // the queue is real and the payload is logged, so the wiring is exercised.
-    logger.info({ payload: job.data }, 'notification (log adapter)');
-    return { delivered: false, adapter: 'log' };
-  }, 10);
+  register(
+    QUEUE_NAMES.notifications,
+    async (job) => {
+      if (job.name !== 'notification.dispatch' && job.name !== 'notification.send') {
+        throw new Error(`Unknown notifications job: ${job.name}`);
+      }
+      return dispatchNotification(job.data as never, {
+        prisma,
+        secret: (key) => readSecret(prisma, key),
+        storefrontUrl: storefrontUrl(),
+        log: (line) => logger.info({ notification: line }, 'notification'),
+      });
+    },
+    10,
+  );
 
   register(
     QUEUE_NAMES.media,

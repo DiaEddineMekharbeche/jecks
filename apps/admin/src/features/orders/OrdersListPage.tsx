@@ -27,8 +27,11 @@ import { useQuery } from '@tanstack/react-query';
 import type { ColumnDef } from '@tanstack/react-table';
 import { BookmarkPlus, Download, Search, Star, Trash2, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { useSavedViews, useServerTable } from '@/lib/server-table';
+import { message } from '@/lib/errors';
+import * as ordersApi from './api';
 
 /**
  * Orders list — PRD F-AD-30.
@@ -82,7 +85,19 @@ const dateFormatter = new Intl.DateTimeFormat('fr-DZ', {
   minute: '2-digit',
 });
 
+/**
+ * What the selection bar offers. Each one is a real transition, so an order the state
+ * machine refuses is reported by name rather than silently skipped.
+ */
+const BULK_ACTIONS = [
+  { value: 'confirm' as const, label: 'Confirmer' },
+  { value: 'pack' as const, label: 'Marquer préparées' },
+  { value: 'ship' as const, label: 'Marquer expédiées' },
+];
+
 export function OrdersListPage() {
+  const navigate = useNavigate();
+
   const table = useServerTable<OrderRow>({
     module: 'orders',
     endpoint: '/admin/orders',
@@ -96,6 +111,42 @@ export function OrdersListPage() {
   const [viewName, setViewName] = useState('');
   const [viewShared, setViewShared] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [bulkBusy, setBulkBusy] = useState<string | null>(null);
+
+  /**
+   * Applies one action to the selection.
+   *
+   * Refusals are listed rather than swallowed: an agent confirming forty orders needs
+   * to know which two were already cancelled, and losing the other thirty-eight to a
+   * single failure would be worse than either.
+   */
+  async function runBulk(
+    action: (typeof BULK_ACTIONS)[number]['value'],
+    ids: string[],
+    clear: () => void,
+  ) {
+    setBulkBusy(action);
+    try {
+      const result = await ordersApi.bulkOrders({ ids, action });
+
+      if (result.updated > 0) {
+        notify.success(`${result.updated} commande(s) mise(s) à jour`);
+      }
+      for (const failure of result.failed.slice(0, 3)) {
+        notify.error(`${failure.number} — ${failure.message}`);
+      }
+      if (result.failed.length > 3) {
+        notify.error(`et ${result.failed.length - 3} autre(s) refusée(s)`);
+      }
+
+      clear();
+      table.refetch();
+    } catch (error) {
+      notify.error(message(error, "L'action groupée a échoué"));
+    } finally {
+      setBulkBusy(null);
+    }
+  }
 
   const { data: counts = {} } = useQuery({
     queryKey: ['admin', 'orders', 'counts'],
@@ -380,15 +431,20 @@ export function OrdersListPage() {
             </Button>
           ) : null
         }
-        bulkActions={(ids) => (
+        onRowClick={(row) => navigate(`/orders/${row.id}`)}
+        bulkActions={(ids, clear) => (
           <>
-            {/* Bulk transitions and label printing arrive with M3. */}
-            <Button variant="outline" size="sm" disabled title="Disponible au jalon M3">
-              Confirmer ({ids.length})
-            </Button>
-            <Button variant="outline" size="sm" disabled title="Disponible au jalon M3">
-              Imprimer les étiquettes
-            </Button>
+            {BULK_ACTIONS.map((action) => (
+              <Button
+                key={action.value}
+                variant="outline"
+                size="sm"
+                loading={bulkBusy === action.value}
+                onClick={() => void runBulk(action.value, ids, clear)}
+              >
+                {action.label} ({ids.length})
+              </Button>
+            ))}
           </>
         )}
         toolbar={

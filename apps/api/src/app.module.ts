@@ -5,6 +5,7 @@ import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter.js';
 import { AuditInterceptor } from './common/interceptors/audit.interceptor.js';
+import { IdempotencyGuard } from './common/idempotency/idempotency.guard.js';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
 import { PermissionsGuard } from './common/guards/permissions.guard.js';
 import { CorrelationInterceptor } from './common/interceptors/correlation.interceptor.js';
@@ -22,6 +23,7 @@ import { SettingsModule } from './modules/settings/settings.module.js';
 import { ShippingModule } from './modules/shipping/shipping.module.js';
 import { MediaModule } from './modules/media/media.module.js';
 import { OrdersModule } from './modules/orders/orders.module.js';
+import { PaymentsModule } from './modules/payments/payments.module.js';
 import { PromotionsModule } from './modules/promotions/promotions.module.js';
 import { QueueModule } from './modules/queue/queue.module.js';
 import { GlobalSearchModule } from './modules/search/global-search.module.js';
@@ -63,6 +65,7 @@ import { PrismaModule } from './prisma/prisma.module.js';
     DashboardModule,
     MediaModule,
     OrdersModule,
+    PaymentsModule,
     RealtimeModule,
     ViewsModule,
     GlobalSearchModule,
@@ -75,6 +78,9 @@ import { PrismaModule } from './prisma/prisma.module.js';
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
+    // After authentication, before permissions: an unauthenticated request should be
+    // refused before it can hold an idempotency key.
+    { provide: APP_GUARD, useClass: IdempotencyGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },
   ],
 })

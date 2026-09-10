@@ -99,7 +99,7 @@ export async function detectAbandonedCarts(prisma: PrismaClient): Promise<{ crea
 
 /** Low-stock alerts — PRD F-AD-52. Returns what the notifier should send. */
 export async function collectLowStockAlerts(prisma: PrismaClient): Promise<
-  Array<{ sku: string; productName: string; available: number; threshold: number }>
+  Array<{ variantId: string; sku: string; productName: string; available: number; threshold: number }>
 > {
   const products = await prisma.product.findMany({
     where: { status: 'ACTIVE', deletedAt: null, trackInventory: true },
@@ -109,6 +109,7 @@ export async function collectLowStockAlerts(prisma: PrismaClient): Promise<
       variants: {
         where: { active: true, deletedAt: null },
         select: {
+          id: true,
           sku: true,
           inventoryLevels: { select: { onHand: true, reserved: true } },
         },
@@ -116,7 +117,7 @@ export async function collectLowStockAlerts(prisma: PrismaClient): Promise<
     },
   });
 
-  const alerts: Array<{ sku: string; productName: string; available: number; threshold: number }> = [];
+  const alerts: Array<{ variantId: string; sku: string; productName: string; available: number; threshold: number }> = [];
 
   for (const product of products) {
     const name = (product.name as Record<string, string> | null)?.fr ?? '';
@@ -127,6 +128,7 @@ export async function collectLowStockAlerts(prisma: PrismaClient): Promise<
       );
       if (available <= product.lowStockThreshold) {
         alerts.push({
+          variantId: variant.id,
           sku: variant.sku,
           productName: name,
           available,

@@ -84,9 +84,29 @@ generated SQL. CI fails if the schema and the migrations disagree.
 
 **M0 (Foundation)**, **M1.0 (admin framework)**, **M1.1 (media pipeline)**,
 **M1.2 (catalog admin)**, **M1.3 (inventory and purchasing)**, **M1.4 (settings,
-users, roles, journal, backups)** and **M2 (storefront completion)** are complete,
-along with the promotion engine of M3.1. See
+users, roles, journal, backups)**, **M2 (storefront completion)** and **M3 (checkout,
+orders, notifications)** are complete. See
 [`docs/PRD-COMPLETION.md`](docs/PRD-COMPLETION.md) for the milestone plan.
+
+M3 closed the loop from basket to doorstep:
+
+- **Guest checkout** on one page, idempotent, re-pricing the cart from scratch and
+  re-quoting the shipping before it asks for anything. Order lines snapshot the price
+  and the cost, so an order stays readable and its margin exact after the catalogue
+  moves on.
+- **A risk score** that flags an order for a human rather than refusing it: failed
+  deliveries weighed against attempts, duplicates, floods per phone and per address,
+  order size against the shop's average. Only a blacklist blocks.
+- **An order state machine** that is pure, covers the graph of PRD Section 7 exactly,
+  and is the single door every status change goes through. Reserved and deducted are
+  tracked separately, so a cancellation always knows whether to release or restock.
+- **The order screen an agent lives in**: risk flags in sentences, tel: and WhatsApp
+  links, call logging with callbacks, editable address before packing, notes, tags, and
+  transition buttons the server decides.
+- **Payments** behind one interface. Cash on delivery always works and is the fallback;
+  Chargily is switched on in settings and its webhook is verified before it is read.
+- **Notifications** with six real transports and a dedupe key, so a queue retry can
+  never send the same SMS twice. The sign-in code now goes out the same way.
 
 M2 turned the storefront from a catalogue into a shop:
 
@@ -197,5 +217,5 @@ Earlier, M0 delivered:
 - Admin: sign-in, permission-gated navigation, dashboard reading pre-aggregated stats
 - Worker: daily statistics, scheduled prices, abandoned carts, low-stock alerts
 
-Not built yet: checkout, order management, delivery operations, finance reporting and
+Not built yet: delivery operations, finance reporting and
 marketing tools (M2 to M6 in PRD Section 13). **Do not point a live domain at this yet.**

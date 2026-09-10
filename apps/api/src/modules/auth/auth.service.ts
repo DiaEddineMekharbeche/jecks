@@ -12,6 +12,7 @@ import { hash, verify } from '@node-rs/argon2';
 import { authenticator } from 'otplib';
 import type { AuthTokens, SessionUser } from '@jecks/shared';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { QueueService } from '../queue/queue.service.js';
 import type { AccessTokenPayload } from '../../common/guards/jwt-auth.guard.js';
 
 /** How long an OTP stays usable, and how many wrong tries before it dies. */
@@ -35,6 +36,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
+    private readonly queue: QueueService,
   ) {}
 
   // --- staff -----------------------------------------------------------------
@@ -137,8 +139,23 @@ export class AuthService {
 
     const isProduction = this.config.get<string>('NODE_ENV') === 'production';
     if (!isProduction) this.logger.log(`OTP for ${phone}: ${code}`);
-    // TODO(M3): hand off to the Notifier interface (PRD Section 6.1) instead of logging.
 
+    // The code goes out through the notification queue like every other message, so it
+    // uses the shop's own gateway and its own template. `test: true` skips the dedupe
+    // key: a second code for the same phone is a new message, not a retry of the first.
+    void this.queue
+      .enqueue('notifications', 'notification.dispatch', {
+        event: 'auth.otp',
+        recipient: phone,
+        test: true,
+        variables: { code, minutes: String(Math.round(OTP_TTL_MS / 60_000)) },
+      })
+      .catch((error: unknown) => {
+        this.logger.warn(`Could not queue the sign-in code: ${String(error)}`);
+      });
+
+    // Outside production the code comes back in the response too, so a developer can
+    // sign in with no SMS gateway configured at all.
     return { expiresAt, ...(isProduction ? {} : { devCode: code }) };
   }
 

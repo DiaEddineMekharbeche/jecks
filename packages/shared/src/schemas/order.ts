@@ -134,8 +134,30 @@ export const driverStopUpdateSchema = z
   });
 
 export type OrderTransitionInput = z.infer<typeof orderTransitionSchema>;
+export type CallLogInput = z.infer<typeof callLogSchema>;
 export type ManualOrderInput = z.infer<typeof manualOrderSchema>;
 export type ReturnRequestInput = z.infer<typeof returnRequestSchema>;
 export type OrderListQuery = z.infer<typeof orderListQuerySchema>;
 export type DeliveryRunInput = z.infer<typeof deliveryRunSchema>;
 export type DriverStopUpdate = z.infer<typeof driverStopUpdateSchema>;
+
+/**
+ * Why an order scored the way it did — PRD F-AD-31.
+ *
+ * Defined here rather than in the API because the admin renders these as labels: one
+ * list means a new flag cannot appear on screen as a raw enum nobody translated.
+ */
+export const RISK_FLAGS = [
+  'BLACKLISTED',
+  'FAILED_HISTORY',
+  'MANY_CANCELLATIONS',
+  'DUPLICATE_ORDER',
+  'ORDER_FLOOD',
+  'IP_FLOOD',
+  'UNUSUALLY_LARGE',
+  'PHONE_UNVERIFIED',
+  'VAGUE_ADDRESS',
+  'FIRST_ORDER',
+] as const;
+
+export type RiskFlag = (typeof RISK_FLAGS)[number];

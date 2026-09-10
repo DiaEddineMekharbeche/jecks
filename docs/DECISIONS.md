@@ -605,3 +605,94 @@ number can shop again as a new customer.
 
 The orders stay. They are accounting records the shop is required to keep, and a cascade
 would take the shop's own books with them.
+
+## D59 — The order state machine is a pure function of its context (M3.3)
+
+`effectsOf({ from, to, deductionMoment, stockReserved, stockDeducted, … })` returns what
+should happen; a service applies it inside one transaction. The machine reads nothing
+and writes nothing.
+
+That is what makes "every legal and illegal edge" a table of fifty-two cases rather than
+a conversation, and it is why the stock effects can be reasoned about without opening a
+database. It throws on an illegal move rather than returning a null effect: a caller who
+forgot to check would otherwise write the new status with no side effects at all, which
+is worse than either outcome on its own.
+
+## D60 — Reserved and deducted are two different states, and an order is in one (M3.3)
+
+`Order.stockReserved` means units are held against availability. `Order.stockDeducted`
+means they have physically left the shelf. Deducting always releases the reservation
+that covered it.
+
+Without both flags a cancellation cannot tell a release from a restock: it would either
+leak the held units forever or invent stock that was never taken. One boolean cannot
+express the difference, and inferring it from the status breaks the moment the shop
+changes `orders.stock_deduction_moment`.
+
+## D61 — A short COD payment is not PAID (M3.3)
+
+A driver handed less than the total leaves the order `PARTIALLY_REFUNDED` rather than
+`PAID`. It is a slightly odd use of the enum, but the alternative is worse: marking it
+paid hides the shortfall from the cash reconciliation, which is the one report that
+exists to find exactly that.
+
+## D62 — Risk flags an order for a human; only the blacklist refuses one (M3.2)
+
+The score weighs failed deliveries against attempts (two out of thirty is a bad week,
+two out of two is a habit), duplicates, orders per phone per day, orders per IP per
+hour, order size against the shop's average, phone verification and address specificity.
+
+Nothing above blocks. A shared IP in a student residence, a customer with two bad
+deliveries, a genuinely large first order — all are real customers, and refusing them
+costs more than the courier trip the check was meant to save. A captcha is asked for
+only on the patterns a script produces, never on a customer's own history.
+
+## D63 — Idempotency is enforced twice, and the database half is authoritative (M3.2)
+
+A Redis `SET NX` lock stops two simultaneous requests; the unique `Order.idempotencyKey`
+column stops a replay hours later. When Redis is unreachable the guard lets the request
+through and logs it.
+
+That is deliberate. The column already prevents the duplicate order, and refusing every
+checkout because a cache is down would turn a degraded dependency into an outage.
+
+## D64 — Order numbers are allocated under an advisory lock (M3.2)
+
+`pg_advisory_xact_lock` on the day, then read the last number and add one, all inside the
+order's transaction.
+
+Reading the maximum without the lock means two checkouts in the same millisecond both
+read it, and the second fails on the unique index — turning the shop's busiest minute
+into its only lost sales. The lock is per day, so it never serialises more than the
+handful of orders arriving in the same instant.
+
+## D65 — Notifications are deduplicated by key, not by hope (M3.4)
+
+Every message has a `dedupeKey` of event, channel, recipient and subject id, with a
+unique index behind it. A queue retry after a partial failure updates that row rather
+than sending again.
+
+A queue that retries without this sends a customer two "your order shipped" messages,
+and the second one teaches them to distrust the first. Test sends skip the key, because
+a second sign-in code for the same phone is a new message rather than a retry.
+
+## D66 — Every notifier ships working, including the default (M3.4)
+
+`LogNotifier` writes the message it would have sent and reports success, and it is what
+an unconfigured shop uses. SMTP is spoken directly rather than through a mail library;
+the Algerian SMS gateways are covered by one configurable HTTP adapter rather than one
+class per provider, because they have no common API beyond "a URL that takes a phone and
+a message".
+
+Two details cost more integrations than anything else, so both are handled and tested:
+most Algerian gateways want `0…` rather than `+213…`, and one character outside GSM
+03.38 drops a message from 160 characters to 70 and doubles its price.
+
+## D67 — Cash on delivery is a real provider, not a null object (M3.2)
+
+`CodProvider` implements the same interface as Chargily, is always configured, and is
+the fallback whenever another provider is missing or misconfigured.
+
+A shopper whose chosen gateway stopped working between loading the page and pressing the
+button should end up with a cash-on-delivery order, not an error. In Algeria that is not
+a degraded outcome; it is what the overwhelming majority of orders are anyway.

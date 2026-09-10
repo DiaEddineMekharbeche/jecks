@@ -2,7 +2,8 @@
 
 import { isValidDzPhone, type Locale, type TrackedOrder } from '@jecks/shared';
 import { Button } from '@jecks/ui';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { OrderDetail } from './account/panels';
 import { clientApi, errorMessage } from '@/lib/client-api';
 import type { Dictionary } from '@/lib/dictionary';
@@ -15,11 +16,19 @@ import type { Dictionary } from '@/lib/dictionary';
  * order agent otherwise answers by telephone.
  */
 export function TrackForm({ locale, dictionary }: { locale: Locale; dictionary: Dictionary }) {
+  const params = useSearchParams();
   const [number, setNumber] = useState('');
   const [phone, setPhone] = useState('');
   const [order, setOrder] = useState<TrackedOrder | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // A shopper arriving from the confirmation page has the number already; making them
+  // copy it out of the URL would be a needless step at the one moment they are anxious.
+  useEffect(() => {
+    const fromUrl = params.get('number');
+    if (fromUrl) setNumber(fromUrl.toUpperCase());
+  }, [params]);
 
   const ready = number.trim().length >= 4 && isValidDzPhone(phone);
 

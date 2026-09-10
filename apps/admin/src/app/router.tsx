@@ -38,6 +38,7 @@ import { RolesPage } from '@/features/settings/RolesPage';
 import { SettingsLayout } from '@/features/settings/SettingsLayout';
 import { SettingsScopePage } from '@/features/settings/SettingsScopePage';
 import { UsersPage } from '@/features/settings/UsersPage';
+import { OrderDetailPage } from '@/features/orders/OrderDetailPage';
 import { OrdersListPage } from '@/features/orders/OrdersListPage';
 import { AppShell } from './AppShell';
 import { NAVIGATION } from './navigation';
@@ -90,6 +91,15 @@ export function AppRoutes() {
           element={
             <Protected permission="orders.read">
               <OrdersListPage />
+            </Protected>
+          }
+        />
+
+        <Route
+          path="/orders/:id"
+          element={
+            <Protected permission="orders.read">
+              <OrderDetailPage />
             </Protected>
           }
         />

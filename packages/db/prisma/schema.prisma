@@ -1396,6 +1396,7 @@ model Cart {
 
   @@index([customerId])
   @@index([updatedAt])
+  @@index([expiresAt])
   @@map("carts")
 }
 
@@ -1468,6 +1469,13 @@ model Order {
   tags         String[]
   /// 0-100 COD fraud heuristic (F-AD-31): failed history, duplicates, blacklist.
   riskScore    Int     @default(0)
+  /// Why the score is what it is, so an agent reads reasons rather than a number.
+  riskFlags    Json?
+  /// Whether this order currently holds a reservation, and whether its units have
+  /// physically left the shelf. The state machine reads both; without them a cancel
+  /// cannot tell a release from a restock.
+  stockReserved Boolean @default(false)
+  stockDeducted Boolean @default(false)
 
   utmSource   String? @db.VarChar(120)
   utmMedium   String? @db.VarChar(120)
@@ -2435,6 +2443,10 @@ model Notification {
   readAt    DateTime?
   sentAt    DateTime?
   metadata  Json?
+  /// Stable per (event, recipient, subject) so a retried job cannot send twice.
+  dedupeKey String?             @unique @db.VarChar(160)
+  locale    String              @default("fr") @db.VarChar(5)
+  attempts  Int                 @default(0)
   createdAt DateTime            @default(now())
 
   user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
