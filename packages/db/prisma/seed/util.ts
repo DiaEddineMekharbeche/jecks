@@ -88,3 +88,30 @@ export function log(step: string, detail?: string | number): void {
   const suffix = detail === undefined ? '' : ` ${detail}`;
   process.stdout.write(`  ${step}${suffix}\n`);
 }
+
+/**
+ * How much of the seed to run — PRD Section 8.
+ *
+ * `full` is the development database: every chart has data because there are orders,
+ * customers and a year of statistics behind it.
+ *
+ * `minimal` is a real shop on its first day. It creates only what the platform cannot
+ * run without — the owner, the roles, the 58 wilayas and their shipping rates, the
+ * settings and the message templates — and nothing a shopper would see. No demo caps,
+ * no CMS pages, and no staff accounts beyond the owner, because eight accounts sharing
+ * one seeded password is not something to hand to a live shop.
+ *
+ * `structure` sits between the two: no trading history, but the demo catalogue and home
+ * page are there to look at.
+ */
+export type SeedScope = 'minimal' | 'structure' | 'full';
+
+export function seedScope(env: NodeJS.ProcessEnv = process.env): SeedScope {
+  const explicit = env.SEED_SCOPE?.trim().toLowerCase();
+  if (explicit === 'minimal' || explicit === 'structure' || explicit === 'full') return explicit;
+
+  // The flag this replaced. Kept working so an existing CI job or runbook does not break.
+  if (env.SEED_DEMO_DATA === 'false') return 'structure';
+
+  return 'full';
+}

@@ -90,6 +90,7 @@ export const DICTIONARY = {
       subscribe: 'S’inscrire',
       emailPlaceholder: 'Votre e-mail',
       rights: 'Tous droits réservés.',
+      help: 'Aide',
       madeIn: 'Conçu à Alger',
     },
 cart: {
@@ -307,6 +308,7 @@ cart: {
       subscribe: 'اشتراك',
       emailPlaceholder: 'بريدك الإلكتروني',
       rights: 'كل الحقوق محفوظة.',
+      help: 'المساعدة',
       madeIn: 'صُمم في الجزائر العاصمة',
     },
 cart: {
@@ -523,6 +525,7 @@ cart: {
       subscribe: 'Subscribe',
       emailPlaceholder: 'Your e-mail',
       rights: 'All rights reserved.',
+      help: 'Help',
       madeIn: 'Designed in Algiers',
     },
 cart: {

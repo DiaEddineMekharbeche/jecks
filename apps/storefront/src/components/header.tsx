@@ -2,7 +2,7 @@
 
 import { LOCALES, t, type Locale } from '@jecks/shared';
 import { cn } from '@jecks/ui';
-import { Heart, Menu, Search, ShoppingBag, User, X } from 'lucide-react';
+import { Menu, Search, ShoppingBag, X } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -137,20 +137,6 @@ export function Header({
               aria-label={dictionary.nav.search}
             >
               <Search className="h-5 w-5" />
-            </Link>
-            <Link
-              href={`/${locale}/account/wishlist`}
-              className="hidden p-2 text-muted transition-colors hover:text-ink sm:block"
-              aria-label={dictionary.nav.wishlist}
-            >
-              <Heart className="h-5 w-5" />
-            </Link>
-            <Link
-              href={`/${locale}/account`}
-              className="hidden p-2 text-muted transition-colors hover:text-ink sm:block"
-              aria-label={dictionary.nav.account}
-            >
-              <User className="h-5 w-5" />
             </Link>
             <button
               type="button"

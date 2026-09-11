@@ -8,12 +8,15 @@ import { seedDemo } from './05-demo.js';
 import { seedPurchasing } from './06-purchasing.js';
 import { seedEngagement } from './07-engagement.js';
 import { placeholderStorageRoot } from './placeholder-media.js';
+import { seedScope } from './util.js';
 
 /**
  * Seed entry point — PRD Section 8: enough data that every dashboard chart renders.
  *
- *   pnpm db:seed                  full seed, including demo orders
- *   SEED_DEMO_DATA=false pnpm db:seed    structure only, for a real launch
+ *   pnpm db:seed                          everything, including demo orders
+ *   SEED_SCOPE=structure pnpm db:seed     catalogue and content, no trading history
+ *   SEED_SCOPE=minimal   pnpm db:seed     a real shop's first day: the owner, the
+ *                                         wilayas, the rates, the settings, nothing else
  *
  * Every step is idempotent: running it twice does not duplicate rows.
  */

@@ -2,7 +2,7 @@ import { hash } from '@node-rs/argon2';
 import { PERMISSIONS, PERMISSION_GROUPS, ROLE_PERMISSIONS, RoleSlug } from '@jecks/shared';
 import type { PrismaClient } from '@prisma/client';
 import { NOTIFICATION_TEMPLATES } from './templates.js';
-import { log, tr } from './util.js';
+import { log, tr, type SeedScope } from './util.js';
 
 const ROLE_NAMES: Record<string, { fr: string; ar: string; en: string }> = {
   owner: { fr: 'Propriétaire', ar: 'المالك', en: 'Owner' },
@@ -20,7 +20,10 @@ for (const [group, keys] of Object.entries(PERMISSION_GROUPS)) {
   for (const key of keys) GROUP_OF.set(key, group);
 }
 
-export async function seedSystem(prisma: PrismaClient): Promise<{ ownerId: string }> {
+export async function seedSystem(
+  prisma: PrismaClient,
+  scope: SeedScope = 'full',
+): Promise<{ ownerId: string }> {
   // --- permissions -----------------------------------------------------------
   for (const key of PERMISSIONS) {
     await prisma.permission.upsert({
@@ -62,8 +65,17 @@ export async function seedSystem(prisma: PrismaClient): Promise<{ ownerId: strin
     (await prisma.role.findMany({ select: { id: true, slug: true } })).map((r) => [r.slug, r.id]),
   );
 
-  const staff = [
-    { email: process.env.SEED_OWNER_EMAIL ?? 'owner@jecks.dz', name: 'Maher', phone: '+213551000001', role: RoleSlug.OWNER },
+  const owner = {
+    email: process.env.SEED_OWNER_EMAIL ?? 'owner@jecks.dz',
+    name: 'Maher',
+    phone: '+213551000001',
+    role: RoleSlug.OWNER,
+  };
+
+  // A live shop gets the owner and nobody else. Eight accounts sharing one seeded
+  // password is not something to hand to a real business, and the owner can invite the
+  // rest from Settings once they know who they are.
+  const colleagues = [
     { email: 'manager@jecks.dz', name: 'Nadia Belkacem', phone: '+213551000002', role: RoleSlug.MANAGER },
     { email: 'agent@jecks.dz', name: 'Yacine Haddad', phone: '+213551000003', role: RoleSlug.ORDER_AGENT },
     { email: 'warehouse@jecks.dz', name: 'Karim Slimani', phone: '+213551000004', role: RoleSlug.WAREHOUSE },
@@ -72,6 +84,8 @@ export async function seedSystem(prisma: PrismaClient): Promise<{ ownerId: strin
     { email: 'driver1@jecks.dz', name: 'Rachid Boumediene', phone: '+213661000011', role: RoleSlug.DRIVER },
     { email: 'driver2@jecks.dz', name: 'Amine Zerrouki', phone: '+213661000012', role: RoleSlug.DRIVER },
   ];
+
+  const staff = scope === 'minimal' ? [owner] : [owner, ...colleagues];
 
   let ownerId = '';
   for (const person of staff) {

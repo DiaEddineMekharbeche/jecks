@@ -30,13 +30,13 @@ export function Footer({
         </div>
 
         {/* Always present, whatever the owner put in the footer menu: tracking an order
-            without an account is the single most-asked question an agent answers. */}
-        <nav aria-label={dictionary.account.title}>
-          <p className="eyebrow mb-3">{dictionary.account.title}</p>
+            is the single most-asked question an agent answers, and it works from a phone
+            number alone — there are no customer accounts on this shop. */}
+        <nav aria-label={dictionary.footer.help}>
+          <p className="eyebrow mb-3">{dictionary.footer.help}</p>
           <ul className="flex flex-col gap-2">
             {[
               { to: `/${locale}/track`, label: dictionary.track.title },
-              { to: `/${locale}/account/orders`, label: dictionary.account.orders },
               { to: `/${locale}/contact`, label: dictionary.contact.title },
             ].map((link) => (
               <li key={link.to}>

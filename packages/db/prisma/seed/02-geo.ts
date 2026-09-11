@@ -1,13 +1,13 @@
 import type { PrismaClient } from '@prisma/client';
 import { COMMUNES } from './data/communes.js';
 import { WILAYAS, ZONE_NAMES, ZONE_RATES } from './data/wilayas.js';
-import { ascii, log, tr } from './util.js';
+import { ascii, log, tr, type SeedScope } from './util.js';
 
 /**
  * Geography, shipping zones and rates, couriers, pickup points, warehouse and fleet.
  * Covers PRD F-AD-60 to F-AD-62.
  */
-export async function seedGeo(prisma: PrismaClient): Promise<void> {
+export async function seedGeo(prisma: PrismaClient, scope: SeedScope = 'full'): Promise<void> {
   // --- wilayas ---------------------------------------------------------------
   for (const wilaya of WILAYAS) {
     await prisma.wilaya.upsert({
@@ -176,6 +176,11 @@ export async function seedGeo(prisma: PrismaClient): Promise<void> {
   log('locations', locations.length);
 
   // --- fleet -----------------------------------------------------------------
+  // Invented vans and drivers belong in a demo, not in a shop that is about to take
+  // real orders. The wilayas, couriers, rates and warehouse above are configuration and
+  // stay either way.
+  if (scope === 'minimal') return;
+
   const vehicles = [
     { plate: '16-12345-119', label: 'Renault Kangoo blanc', kind: 'van', capacityKg: 650 },
     { plate: '16-67890-121', label: 'Fiat Doblo gris', kind: 'van', capacityKg: 750 },
