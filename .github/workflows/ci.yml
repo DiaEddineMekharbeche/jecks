@@ -92,6 +92,13 @@ jobs:
       - name: Unit tests with coverage
         run: pnpm test:cov
 
+      # Reports rather than blocks: a transitive advisory with no patch available should
+      # be seen and triaged, not left to break every pull request until somebody upstream
+      # publishes a fix.
+      - name: Dependency audit
+        if: always()
+        run: pnpm audit --audit-level moderate || true
+
       - name: Upload coverage
         if: always()
         uses: actions/upload-artifact@v4

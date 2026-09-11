@@ -97,9 +97,13 @@ to be switched off by hand.
 
 | Part | Evidence |
 |---|---|
+| The failure is recorded with a reason | `e2e/tests/failed-delivery.spec.ts` — "a failed delivery is recorded with a reason" |
+| A failed order is not stranded | Same file — "a failed order can be sent out again or returned, not left stranded" |
+| A return puts the stock back, through the ledger | Same file — "a return puts the stock back, and the ledger says who did", which counts movements before and after rather than trusting the on-hand number |
 | Return and cancellation restock | `apps/api/src/modules/orders/domain/state-machine.spec.ts` — "restocks when a deducted order is cancelled", "restocks resellable returns" |
 | A damaged return does not restock | Same file — restock is a decision on the return, not an automatic consequence |
 | Reschedule keeps the shipment and moves the date | The delivery module; the routing and rate arithmetic in `apps/api/src/modules/delivery/domain/*.spec.ts` |
+| The customer record remembers | `e2e/tests/failed-delivery.spec.ts` — the reliability figure is on the customer screen an agent already looks at |
 | The customer's counts | `Customer.ordersCount` and `Customer.deliveredCount` are rolled up on every terminal transition; the risk score and the segment read them rather than aggregating on the fly |
 | Success rate by wilaya and by driver | `apps/api/src/modules/delivery/delivery-analytics.service.ts`, rendered on Admin › Livraison › Analyse |
 
