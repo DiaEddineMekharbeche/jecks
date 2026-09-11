@@ -30,6 +30,7 @@ import {
 } from '../../common/decorators/auth.decorators.js';
 import { zod } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthService, type IssuedSession } from './auth.service.js';
+import { CSRF_COOKIE, issueCsrfToken } from '../../common/guards/csrf.guard.js';
 
 const REFRESH_COOKIE = 'jk_refresh';
 /**
@@ -123,6 +124,7 @@ export class AuthController {
     await this.auth.logout(user.sessionId);
     response.clearCookie(REFRESH_COOKIE, this.cookieOptions());
     response.clearCookie(ACCESS_COOKIE, this.cookieOptions());
+    response.clearCookie(CSRF_COOKIE, { ...this.cookieOptions(), httpOnly: false });
   }
 
   @Post('logout-all')
@@ -173,7 +175,17 @@ export class AuthController {
       ...this.cookieOptions(),
       maxAge: issued.tokens.expiresIn * 1000,
     });
-    return { data: { ...issued.tokens, user: issued.user } };
+
+    // The CSRF token the refresh and logout routes will require back as a header. It is
+    // deliberately readable by script: it proves the caller could read our cookies, not
+    // that they are anybody in particular.
+    const csrfToken = issueCsrfToken(
+      response,
+      this.config.get<boolean>('COOKIE_SECURE') ?? false,
+      this.config.get<string>('COOKIE_DOMAIN') ?? 'localhost',
+    );
+
+    return { data: { ...issued.tokens, csrfToken, user: issued.user } };
   }
 
   private cookieOptions() {

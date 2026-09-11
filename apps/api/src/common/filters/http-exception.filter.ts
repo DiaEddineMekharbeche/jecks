@@ -9,6 +9,7 @@ import {
 import { Prisma } from '@jecks/db';
 import type { Request, Response } from 'express';
 import { ZodError } from 'zod';
+import type { ErrorReporter } from '../../modules/ops/error-reporter.js';
 
 /**
  * Single error shape for the whole API: `{ error: { code, message, details } }`,
@@ -18,6 +19,12 @@ import { ZodError } from 'zod';
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
   private readonly logger = new Logger('Http');
+
+  /**
+   * Optional so the filter can be constructed bare in a test, and so a deployment with
+   * no reporter configured behaves exactly as it did before there was one.
+   */
+  constructor(private readonly reporter?: ErrorReporter) {}
 
   catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
@@ -31,6 +38,17 @@ export class AllExceptionsFilter implements ExceptionFilter {
         `${request.method} ${request.url} -> ${status} ${code}`,
         exception instanceof Error ? exception.stack : String(exception),
       );
+
+      // Only server errors are reported. A 404 or a failed validation is the system
+      // working; sending those would bury the ones that are not.
+      void this.reporter
+        ?.capture(exception instanceof Error ? exception : new Error(String(exception)), {
+          correlationId: request.correlationId,
+          route: request.path,
+          method: request.method,
+          userId: (request as { user?: { id?: string } }).user?.id ?? null,
+        })
+        .catch(() => undefined);
     } else {
       this.logger.warn(`${request.method} ${request.url} -> ${status} ${code}: ${message}`);
     }

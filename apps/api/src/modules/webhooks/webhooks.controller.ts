@@ -12,6 +12,7 @@ import {
 import { ApiExcludeEndpoint, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { RawBodyRequest } from '@nestjs/common';
 import type { Request } from 'express';
+import { Throttle } from '@nestjs/throttler';
 import { Public } from '../../common/decorators/auth.decorators.js';
 import { NoAudit } from '../../common/interceptors/audit.interceptor.js';
 import { WebhooksService } from './webhooks.service.js';
@@ -41,6 +42,13 @@ export class WebhooksController {
 
   constructor(private readonly webhooks: WebhooksService) {}
 
+  /**
+   * Generous, because a courier legitimately posts a scan per parcel per stage, and a
+   * busy afternoon is hundreds of them. The ceiling exists for the case where something
+   * is stuck in a retry loop rather than for an attacker: an unsigned body is refused
+   * before it costs anything.
+   */
+  @Throttle({ default: { limit: 600, ttl: 60_000 } })
   @Public()
   @NoAudit()
   @Post('couriers/:provider')
@@ -55,6 +63,7 @@ export class WebhooksController {
     return this.webhooks.handleCourier(provider, raw, headers);
   }
 
+  @Throttle({ default: { limit: 120, ttl: 60_000 } })
   @Public()
   @NoAudit()
   @ApiExcludeEndpoint()

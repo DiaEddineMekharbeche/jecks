@@ -13,6 +13,7 @@ export const settingsKeys = {
   invitations: ['admin', 'settings', 'invitations'] as const,
   backups: ['admin', 'settings', 'backups'] as const,
   auditEntityTypes: ['admin', 'settings', 'audit-entity-types'] as const,
+  queues: ['admin', 'settings', 'queues'] as const,
 };
 
 export function useSettings() {
@@ -71,6 +72,20 @@ export function useBackups() {
     queryFn: settings.listBackups,
     refetchInterval: (query) =>
       (query.state.data ?? []).some((backup) => backup.status === 'running') ? 4_000 : false,
+  });
+}
+
+/**
+ * Queue state, refreshed every ten seconds.
+ *
+ * Somebody opens this screen because something is stuck, and watches it to see whether
+ * it moves. A static snapshot would answer the wrong question.
+ */
+export function useQueues() {
+  return useQuery({
+    queryKey: settingsKeys.queues,
+    queryFn: settings.readQueues,
+    refetchInterval: 10_000,
   });
 }
 

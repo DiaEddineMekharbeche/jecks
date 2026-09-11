@@ -10,8 +10,11 @@ coverage/
 .env.local
 .env.*.local
 !.env.example
-storage/
-uploads/
+# Anchored: these are the local upload directories at the repo root. Unanchored, they
+# also matched packages/storage and apps/api/src/modules/storage, and silently kept two
+# source directories out of the repository.
+/storage/
+/uploads/
 .DS_Store
 Thumbs.db
 *.log

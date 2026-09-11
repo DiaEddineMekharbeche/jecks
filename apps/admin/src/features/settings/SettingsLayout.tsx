@@ -37,6 +37,7 @@ export const SETTINGS_SECTIONS: Section[] = [
   { to: '/settings/users', label: 'Équipe', group: 'Administration', permission: 'users.read' },
   { to: '/settings/roles', label: 'Rôles', group: 'Administration', permission: 'users.read' },
   { to: '/settings/backups', label: 'Sauvegardes', group: 'Administration' },
+  { to: '/settings/queues', label: 'Files d’attente', group: 'Administration' },
   { to: '/settings/maintenance', label: 'Maintenance', group: 'Administration' },
 ];
 

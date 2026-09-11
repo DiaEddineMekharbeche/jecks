@@ -41,10 +41,17 @@ export interface ClientRequest extends Omit<RequestInit, 'body'> {
 let refreshing: Promise<boolean> | null = null;
 
 async function refreshSession(): Promise<boolean> {
+  // The CSRF cookie is script-readable on purpose; copying it into a header is what
+  // proves the request came from a page that could read our cookies.
+  const csrf = /(?:^|;\s*)jk_csrf=([^;]+)/.exec(document.cookie)?.[1];
+
   refreshing ??= fetch(`${BASE}/auth/refresh`, {
     method: 'POST',
     credentials: 'include',
-    headers: { Accept: 'application/json' },
+    headers: {
+      Accept: 'application/json',
+      ...(csrf ? { 'x-csrf-token': decodeURIComponent(csrf) } : {}),
+    },
   })
     .then((response) => response.ok)
     .catch(() => false)

@@ -6,7 +6,9 @@ and English.
 
 Specification: [`docs/PRD.md`](docs/PRD.md). Decisions the PRD left open:
 [`docs/DECISIONS.md`](docs/DECISIONS.md). API contract: [`docs/API.md`](docs/API.md).
-Operations: [`docs/RUNBOOK.md`](docs/RUNBOOK.md).
+Operations: [`docs/RUNBOOK.md`](docs/RUNBOOK.md). Security:
+[`docs/SECURITY.md`](docs/SECURITY.md). What "done" means and where it is proven:
+[`docs/ACCEPTANCE.md`](docs/ACCEPTANCE.md).
 
 ## Quick start
 
@@ -79,16 +81,40 @@ generated SQL. CI fails if the schema and the migrations disagree.
 | `pnpm db:migrate` / `db:seed` / `db:studio` / `db:reset` | Database |
 | `pnpm --filter @jecks/ui storybook` | Design system on :6006 |
 | `pnpm docker:up` / `docker:down` / `docker:logs` | Local services |
+| `pnpm e2e` | Playwright against a running, seeded stack (`pnpm e2e:install` first) |
+| `pnpm load` | k6 catalogue load test, 200 readers against a p95 of 200 ms |
+| `./infra/deploy.sh` | Deploy to the VPS; `--rollback` undoes it |
 
 ## Status
 
-**M0 (Foundation)**, **M1.0 (admin framework)**, **M1.1 (media pipeline)**,
-**M1.2 (catalog admin)**, **M1.3 (inventory and purchasing)**, **M1.4 (settings,
-users, roles, journal, backups)**, **M2 (storefront completion)**, **M3 (checkout,
-orders, notifications)**, **M4 (delivery, fleet and cash)** and **M5 (finance,
-reporting, customers and loyalty)** and **M6 (content, marketing and polish)** are
-complete. Every module of PRD Section 5 now has its screens. See
-[`docs/PRD-COMPLETION.md`](docs/PRD-COMPLETION.md) for the milestone plan.
+**v1 complete.** M0 through M7 have shipped: the foundation, the admin framework, the
+media pipeline, catalogue administration, inventory and purchasing, settings and roles,
+the storefront, checkout and orders, delivery and cash, finance and customers, content
+and marketing, and the hardening pass. Every module of PRD Section 5 has its screens and
+every navigation entry leads somewhere.
+
+Where each of the seven acceptance criteria is proven, and what is checked by hand rather
+than by a test, is in [`docs/ACCEPTANCE.md`](docs/ACCEPTANCE.md). The milestone plan is
+[`docs/PRD-COMPLETION.md`](docs/PRD-COMPLETION.md).
+
+M7 made it safe to point a domain at:
+
+- **The catalogue is cached** in Redis with short lifetimes, and a write to an admin
+  route drops the whole namespace rather than guessing which keys it touched. With Redis
+  down the site is slower, not broken.
+- **`/metrics`** in Prometheus format, guarded by the internal token, with the gauges
+  worth an alert: unshipped orders older than a day, cache reachability, 5xx rate.
+  Written by hand, like the mailer and the PDF writer, rather than adding a client.
+- **A queue screen** replacing Bull Board: depths, the last failures with their reason,
+  and a retry, behind the same permission as everything else.
+- **CSRF** as a double-submit token on the two routes a cookie alone authenticates, and
+  **signed document links** valid fifteen minutes for the label that has to reach a
+  courier over WhatsApp.
+- **An end-to-end suite** covering the seams a unit test cannot: guest checkout on a
+  phone, an order walked to delivered and appearing in the P&L, an agent refused the
+  finances by the API rather than by the menu.
+- **A deploy script** that refuses on a bad environment, backs up before it migrates, and
+  waits for readiness before claiming success.
 
 M6 gave the shop its own voice:
 
@@ -266,5 +292,11 @@ Earlier, M0 delivered:
 - Admin: sign-in, permission-gated navigation, dashboard reading pre-aggregated stats
 - Worker: daily statistics, scheduled prices, abandoned carts, low-stock alerts
 
-Not built yet: delivery operations, finance reporting and
-marketing tools (M2 to M6 in PRD Section 13). **Do not point a live domain at this yet.**
+Known gaps, stated plainly, are in [`docs/SECURITY.md`](docs/SECURITY.md) and at the end
+of [`docs/ACCEPTANCE.md`](docs/ACCEPTANCE.md): no alerting is configured out of the box,
+there is no WAF, backups are not encrypted beyond the storage provider, and the
+two-minute checkout and the Lighthouse budget are measured by hand.
+
+Before a real domain, work through the checklist at the end of
+[`docs/SECURITY.md`](docs/SECURITY.md) — generated secrets, `COOKIE_SECURE`, the seeded
+owner password changed, and one restore from backup done on purpose.

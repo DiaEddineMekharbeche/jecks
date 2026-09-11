@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "packageManager": "pnpm@9.15.9",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "turbo run dev --parallel",
     "build": "turbo run build",
@@ -21,7 +23,11 @@
     "db:reset": "pnpm --filter @jecks/db reset",
     "docker:up": "docker compose -f infra/docker/docker-compose.yml up -d",
     "docker:down": "docker compose -f infra/docker/docker-compose.yml down",
-    "docker:logs": "docker compose -f infra/docker/docker-compose.yml logs -f"
+    "docker:logs": "docker compose -f infra/docker/docker-compose.yml logs -f",
+    "e2e": "pnpm --filter @jecks/e2e e2e",
+    "e2e:install": "pnpm --filter @jecks/e2e install:browsers",
+    "load": "k6 run e2e/load/catalog.js",
+    "e2e:ui": "pnpm --filter @jecks/e2e e2e:ui"
   },
   "devDependencies": {
     "@types/node": "^20.14.10",

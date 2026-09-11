@@ -165,13 +165,113 @@ jobs:
         env:
           DATABASE_URL: postgresql://jecks:jecks@localhost:5433/jecks_migrate?schema=public
 
+  e2e:
+    name: End-to-end
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: quality
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: jecks
+          POSTGRES_PASSWORD: jecks
+          POSTGRES_DB: jecks_e2e
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U jecks"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+
+    env:
+      DATABASE_URL: postgresql://jecks:jecks@localhost:5432/jecks_e2e?schema=public
+      NODE_ENV: test
+      API_PORT: '4000'
+      API_URL: http://localhost:4000/api/v1
+      API_PUBLIC_URL: http://localhost:4000/api/v1
+      STOREFRONT_URL: http://localhost:3000
+      ADMIN_URL: http://localhost:5174
+      CORS_ORIGINS: http://localhost:3000,http://localhost:5174
+      COOKIE_DOMAIN: localhost
+      COOKIE_SECURE: 'false'
+      STORAGE_DRIVER: local
+      NEXT_PUBLIC_API_URL: http://localhost:4000/api/v1
+      NEXT_PUBLIC_SITE_URL: http://localhost:3000
+      VITE_API_URL: http://localhost:4000/api/v1
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:generate
+      - run: pnpm --filter @jecks/db exec prisma migrate deploy
+
+      # Demo data, unlike the unit-test job: these specs confirm a seeded order and
+      # print a seeded run's manifest.
+      - name: Seed with demo data
+        run: pnpm db:seed
+
+      - run: pnpm build
+
+      - name: Install Chromium
+        run: pnpm e2e:install
+
+      - name: Start the stack
+        run: |
+          pnpm --filter @jecks/api start > /tmp/api.log 2>&1 &
+          pnpm --filter @jecks/worker start > /tmp/worker.log 2>&1 &
+          pnpm --filter @jecks/storefront start > /tmp/storefront.log 2>&1 &
+          pnpm --filter @jecks/admin preview --port 5174 --host > /tmp/admin.log 2>&1 &
+
+      - name: Wait for it
+        run: |
+          for url in             http://localhost:4000/api/v1/health/ready             http://localhost:3000             http://localhost:5174; do
+            for attempt in $(seq 1 60); do
+              curl -fsS "$url" > /dev/null 2>&1 && break
+              [ "$attempt" = 60 ] && { echo "::error::$url never answered"; cat /tmp/*.log; exit 1; }
+              sleep 2
+            done
+          done
+
+      - name: Run the specs
+        run: pnpm e2e
+
+      # A failed run is unreadable without the traces, and the logs usually say why.
+      - name: Report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-report
+          path: |
+            e2e/playwright-report
+            e2e/test-results
+            /tmp/*.log
+          if-no-files-found: ignore
+          retention-days: 7
+
   images:
     name: Docker images
     runs-on: ubuntu-latest
     timeout-minutes: 30
     # Images are only worth building for a release.
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [quality, build]
+    needs: [quality, build, e2e]
 
     strategy:
       matrix:

@@ -104,3 +104,38 @@ export const listAuditEntityTypes = () => api<string[]>('/admin/audit/entity-typ
 export const listBackups = () => api<BackupRow[]>('/admin/backups');
 
 export const triggerBackup = () => api<BackupRow>('/admin/backups', { method: 'POST' });
+
+// --- queues -----------------------------------------------------------------
+
+export interface QueueCounts {
+  name: string;
+  waiting: number;
+  active: number;
+  completed: number;
+  failed: number;
+  delayed: number;
+  scheduled: number;
+}
+
+export interface FailedJob {
+  queue: string;
+  id: string;
+  name: string;
+  reason: string;
+  attempts: number;
+  failedAt: string | null;
+}
+
+export interface QueueState {
+  reachable: boolean;
+  queues: QueueCounts[];
+  failures: FailedJob[];
+}
+
+export const readQueues = () => api<QueueState>('/admin/ops/queues');
+
+export const retryJob = (queue: string, jobId: string) =>
+  api<{ retried: boolean }>('/admin/ops/queues/retry', {
+    method: 'POST',
+    body: { queue, jobId },
+  });

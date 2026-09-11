@@ -729,6 +729,67 @@ arrangements go wrong.
 
 ---
 
+## Operations and documents
+
+| Method | Path | Auth | Notes |
+|---|---|---|---|
+| GET | `/metrics` | `x-internal-token` | Prometheus exposition; not in Swagger |
+| GET | `/admin/ops/queues` | `settings.read` | Depths per queue plus the last 25 failures |
+| POST | `/admin/ops/queues/retry` | `settings.write` | Body `{ queue, jobId }` |
+| GET | `/documents/:token` | the token itself | A signed, expiring link to one stored file |
+
+**`/metrics` is guarded by the internal token, not by a session.** Prometheus has no
+user to sign in as, and the numbers say how many orders the shop takes, which is not
+public. Unset `INTERNAL_API_TOKEN` and the route 404s rather than opening. The exposition
+is written by hand — counters keyed by route *template*, so `/orders/:id` is one series
+rather than one per order — and the business gauges beside them are the ones worth an
+alert: unshipped orders older than a day, whether the cache is reachable, queue depth.
+
+**The queue screen replaces Bull Board.** It reads the Redis keys BullMQ documents, so it
+is the same truth a dashboard would show, behind the same permission as everything else,
+without mounting a second application inside this one. A retry moves the job id from the
+failed sorted set back onto the waiting list, which is what a retry is; the payload is
+already stored.
+
+**Signed document links** carry a storage key and an expiry, signed with
+`CREDENTIALS_KEY` and valid fifteen minutes. They exist for the case where a document has
+to leave the app — a label forwarded to a courier over WhatsApp — and everything else
+goes through the authenticated admin route. The token is restricted to five storage
+prefixes and any key containing `..` is refused, so a forged token cannot walk out of
+them. Responses are `no-store` and `Content-Disposition: attachment`.
+
+---
+
+## Caching
+
+Six catalogue reads are cached in Redis: the grid (60 s), a product (30 s), collections
+(300 s), facets (60 s), and search (30 s). Nothing behind authentication is cached, and
+no response containing a customer is.
+
+Invalidation is **coarse on purpose**. A successful write to an admin route drops the
+whole namespace it belongs to rather than computing which keys it touched — publishing
+one product clears every catalogue key. Getting invalidation exactly right is where
+caches go wrong, and the cost of being crude here is one repopulated cache after an edit.
+
+The cache is optional. With Redis unreachable every read falls through to the database
+and the site is slower, not broken.
+
+---
+
+## Cross-site request forgery
+
+Most routes are driven by a bearer token, which a cross-origin page cannot read or
+attach. The two exceptions are the routes a cookie alone authenticates —
+`POST /auth/refresh` and `POST /auth/logout` — and those require a double-submit token:
+a script-readable `jk_csrf` cookie whose value must be echoed in `x-csrf-token`.
+Another origin can cause the cookie to be sent but cannot read it.
+
+The cookie is issued at sign-in and on every refresh. A mismatch is `403` with
+`CSRF_FAILED`. A request carrying a bearer token is exempt: the sender is not a browser,
+so there is no cookie to forge.
+
+---
+
 ## Health
 
 | Method | Path | Notes |

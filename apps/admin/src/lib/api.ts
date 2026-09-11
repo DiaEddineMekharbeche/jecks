@@ -61,8 +61,21 @@ export interface RequestOptions extends Omit<RequestInit, 'body'> {
   skipRefresh?: boolean;
 }
 
+/**
+ * The CSRF token the API issued at sign-in.
+ *
+ * Read from the cookie rather than held in a variable, so a tab opened after sign-in
+ * has it too. The cookie is deliberately script-readable: it proves the caller could
+ * read our cookies, which is exactly what a cross-site page cannot do.
+ */
+function csrfToken(): string | null {
+  const match = /(?:^|;\s*)jk_csrf=([^;]+)/.exec(document.cookie);
+  return match ? decodeURIComponent(match[1]!) : null;
+}
+
 export async function api<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { body, query, skipRefresh, headers, ...rest } = options;
+  const csrf = csrfToken();
 
   const url = new URL(`${BASE}${path}`, window.location.origin);
   applyQuery(url, query);
@@ -74,6 +87,7 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
       Accept: 'application/json',
       ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
       ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      ...(csrf ? { 'x-csrf-token': csrf } : {}),
       ...headers,
     },
     body: body === undefined ? undefined : JSON.stringify(body),

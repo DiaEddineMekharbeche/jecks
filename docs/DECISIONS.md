@@ -884,3 +884,95 @@ orders that reached a doorstep.
 An influencer whose audience orders enthusiastically and refuses at the door has not sold
 anything. Paying commission on placed orders is how a cash-on-delivery shop ends up
 paying for its own return shipping.
+
+## D87 — Only the catalogue is cached, and invalidation is coarse (M7)
+
+Six catalogue reads sit behind Redis with short lifetimes. A successful write to an admin
+route drops the whole namespace rather than the keys it touched: editing one product
+clears every catalogue key.
+
+Precise invalidation is where caches go wrong. A product appears in a grid, a collection,
+a facet count and three search results, and the day somebody adds a fourth place is the
+day a stale price is shown to a customer. Being crude costs one repopulation after an
+edit, which nobody notices, and removes the whole class of bug.
+
+Nothing behind authentication is cached and no response containing a customer is, so
+there is no cache key that can leak one shopper's data to another. With Redis
+unreachable, every read falls through to the database: the site is slower, not broken.
+
+## D88 — Metrics, Sentry and the PDF writer are written here, not installed (M7)
+
+`/metrics` renders the Prometheus text format from a Map. The Sentry adapter posts a JSON
+event to the store endpoint. Both are a few dozen lines.
+
+`prom-client` and `@sentry/node` are each a dependency tree, a version to keep current
+and an upgrade that can break a boot, in exchange for code whose entire job is to format
+text this codebase already has. The same reasoning produced the raw-ESMTP mailer and the
+PDF writer. The line is drawn at anything with real algorithmic content — Argon2, Sharp
+and Prisma are dependencies, and should be.
+
+The cost is honest: a Sentry API change would break the adapter silently, which is why a
+failed capture logs a warning and never affects the response.
+
+## D89 — Counters are keyed by route template (M7)
+
+`GET /orders/:id` is one series, not one per order.
+
+Keying on the literal path turns a metric into an unbounded set of series that fills
+Prometheus's memory in a week and makes the numbers useless in the meantime. Nest exposes
+the matched route, so the template is available without guessing at it.
+
+## D90 — CSRF is a double-submit token on exactly two routes (M7)
+
+`auth/refresh` and `auth/logout` require a `jk_csrf` cookie echoed in `x-csrf-token`.
+Every other route is exempt.
+
+Those two are the only ones a cookie alone authenticates; everything else needs a bearer
+token, which a cross-origin page cannot read or attach. Applying the check everywhere
+would add a header to every request in the admin and every webhook from a courier, to
+protect against something already impossible. A request carrying a bearer token is
+skipped explicitly, because the sender is not a browser and has no cookie to forge.
+
+CORS is the first lock. This is the second, for the day an origin is added carelessly.
+
+## D91 — Documents leave through a signed link, not a public URL (M7)
+
+Labels, manifests, backups and exports are fetched through an authenticated admin route.
+The exception is `/documents/:token`, where the token is a storage key and an expiry
+signed with `CREDENTIALS_KEY`, valid fifteen minutes.
+
+A label has to reach a courier over WhatsApp, and a link that requires signing in to the
+admin does not survive that journey. The alternatives are worse: a public bucket exposes
+every label ever printed to anyone who can guess a filename, and emailing the PDF puts
+customer addresses in a third party's mailbox.
+
+The token is restricted to five storage prefixes and refuses any key containing `..`, so
+a forged one cannot walk out of them even if the signature were somehow produced.
+
+## D92 — The queue screen replaces Bull Board (M7)
+
+Admin › Réglages › Files d'attente reads BullMQ's Redis keys directly and shows depths,
+recent failures and a retry button.
+
+Bull Board is an Express application mounted inside the API, with its own auth story, its
+own asset pipeline and its own idea of who is allowed in. What an operator actually needs
+from it is four numbers per queue and the reason the last job died. Reading the keys
+BullMQ documents gives the same truth behind the same permission as every other screen,
+with nothing extra to secure.
+
+The retry moves a job id from the failed sorted set back to the waiting list. That is
+what a retry is; the payload never left Redis.
+
+## D93 — The deploy script refuses before it acts (M7)
+
+`infra/deploy.sh` checks the environment, dumps the database, builds, migrates, restarts
+and then waits for `/health/ready` before reporting success.
+
+Each check exists because the failure is silent otherwise: example JWT secrets ship and
+nobody notices until a token is forged; a migration half-applies and the backup was taken
+afterwards; the API crash-loops against a schema it cannot read while the script prints a
+green tick. Verifying at the end is the difference between a deploy and a hope.
+
+Rollback goes back to the previous image tag, recorded before the build. A migration that
+must be undone needs a new forward migration, because `_prisma_migrations` is not a thing
+to hand-edit at two in the morning.

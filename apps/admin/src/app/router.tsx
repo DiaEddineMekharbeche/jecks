@@ -64,6 +64,7 @@ import { MediaLibraryPage } from '@/features/media/MediaLibraryPage';
 import { AcceptInvitationPage } from '@/features/settings/AcceptInvitationPage';
 import { BackupsPage } from '@/features/settings/BackupsPage';
 import { NotificationTemplatesPage } from '@/features/settings/NotificationTemplatesPage';
+import { QueuesPage } from '@/features/settings/QueuesPage';
 import { RolesPage } from '@/features/settings/RolesPage';
 import { SettingsLayout } from '@/features/settings/SettingsLayout';
 import { SettingsScopePage } from '@/features/settings/SettingsScopePage';
@@ -363,6 +364,7 @@ export function AppRoutes() {
           <Route index element={<Navigate to="/settings/store" replace />} />
           <Route path="templates" element={<NotificationTemplatesPage />} />
           <Route path="backups" element={<BackupsPage />} />
+          <Route path="queues" element={<QueuesPage />} />
           <Route
             path="users"
             element={

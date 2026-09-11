@@ -77,6 +77,7 @@ pnpm db:generate
 | `POSTGRES_PASSWORD` | |
 | `MINIO_ROOT_PASSWORD` / `S3_SECRET_KEY` | |
 | `SEED_OWNER_PASSWORD` | Or delete the seeded owner and invite a real one. |
+| `INTERNAL_API_TOKEN` | Presented by the worker on internal routes and by Prometheus on `/metrics`. Unset, those routes return 404 rather than opening. |
 
 Generate one: `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`
 
@@ -95,57 +96,101 @@ Target is a single machine running Docker Compose behind Nginx with Let's Encryp
 ssh jecks@<host>
 cd /srv/jecks
 git pull
-docker compose -f infra/docker/docker-compose.yml -f infra/docker/docker-compose.prod.yml pull
-docker compose -f infra/docker/docker-compose.yml -f infra/docker/docker-compose.prod.yml up -d --no-deps api worker web
-docker compose exec api node dist/main.js --migrate   # or: pnpm db:migrate:deploy
+./infra/deploy.sh
 ```
 
-Migrations run before the new containers take traffic. `prisma migrate deploy` never
-resets and never prompts, which is why the production script uses it and not
-`migrate dev`.
+The script does the whole sequence and refuses to start if any of it is not safe:
 
-**Roll back** to the previous image tag:
+1. **Checks the environment.** Missing variables, or JWT secrets still set to the example
+   values, stop the deploy before anything changes.
+2. **Takes a database backup** into `backups/pre-deploy-<timestamp>.dump`. Before the
+   migration, never after.
+3. **Builds the images**, recording the previous tags so a rollback has somewhere to go.
+4. **Runs `prisma migrate deploy`** in its own container. A failure here stops the
+   deploy with the old containers still serving traffic.
+5. **Restarts the services** and waits for `/health/ready` to answer. If it never does,
+   the script prints the API log and tells you how to roll back.
 
 ```bash
-docker compose -f … up -d --no-deps api=jecks/api:<previous-tag>
+./infra/deploy.sh --no-build    # restart with the images already built
+./infra/deploy.sh --rollback    # back to the previous image tag
 ```
 
 A migration that has to be undone needs a new forward migration. Do not hand-edit
 `_prisma_migrations`.
 
+### First deploy on a clean machine
+
+```bash
+git clone <repo> /srv/jecks && cd /srv/jecks
+cp .env.example .env && nano .env        # see §2; generate real secrets
+./infra/deploy.sh
+docker compose -f infra/docker/docker-compose.prod.yml run --rm api pnpm db:seed
+```
+
+The seed is safe to run once on a new database and prints the owner sign-in. Change that
+password immediately.
+
 ---
 
 ## 4. Backups
 
-### Nightly dump
+### The nightly job
+
+The worker runs `pg_dump` at **02:30 Africa/Algiers**, every night, without anyone asking
+it to. The dump is custom-format, uploaded to storage under `backups/`, and copies older
+than **14 days** are deleted once the new one has landed — never before, so a failed
+backup never takes the previous one with it.
+
+Admin › Réglages › Sauvegardes lists the runs with their size and a download link, and
+has a button to take one now. That is the screen to check after a bad night; a missing
+row means the worker was not running.
+
+The dump is written to a temporary file and then uploaded, rather than streamed. A
+truncated upload that still gets stored looks fine in the list until the day somebody
+needs it.
+
+Media is not in the dump. It lives in object storage and is covered by the bucket's own
+versioning; if the local storage driver is in use, back up `./storage` alongside it.
 
 ```bash
+# Take one by hand, without the app:
 docker exec jecks-postgres pg_dump -U jecks -Fc jecks > /srv/backups/jecks-$(date +%F).dump
 ```
 
-Keep 30 days. The dump is custom-format, so it restores selectively and compresses well.
-Media lives in object storage and is backed up by the bucket's own versioning; if the
-local driver is in use, back up `./storage` alongside the dump.
+### Restore drill
 
-### Restore, tested quarterly
+Do this **once before going live** and then quarterly. A backup nobody has restored is a
+file, not a backup.
 
 ```bash
-# 1. Stop writers
-docker compose stop api worker
+# 1. Fetch last night's dump from storage (or use a local copy).
+#    The admin backup list gives a signed link, valid fifteen minutes.
+curl -o /tmp/restore.dump "<signed link>"
 
-# 2. Restore into a scratch database first and check it
+# 2. Stop the writers.
+docker compose -f infra/docker/docker-compose.prod.yml stop api worker
+
+# 3. Restore beside the live database, never over it.
 docker exec -i jecks-postgres createdb -U jecks jecks_restore
-docker exec -i jecks-postgres pg_restore -U jecks -d jecks_restore < /srv/backups/jecks-2026-09-08.dump
-docker exec jecks-postgres psql -U jecks -d jecks_restore -c "select count(*) from orders;"
+docker exec -i jecks-postgres pg_restore -U jecks -d jecks_restore < /tmp/restore.dump
 
-# 3. Only when that looks right, swap it in
+# 4. Check it is the database you think it is.
+docker exec jecks-postgres psql -U jecks -d jecks_restore -c   "select (select count(*) from orders) as orders,
+          (select count(*) from customers) as customers,
+          (select max(created_at) from orders) as newest_order;"
+
+# 5. Only when those numbers look right, swap.
 docker exec jecks-postgres psql -U jecks -d postgres -c "alter database jecks rename to jecks_old;"
 docker exec jecks-postgres psql -U jecks -d postgres -c "alter database jecks_restore rename to jecks;"
-docker compose start api worker
+docker compose -f infra/docker/docker-compose.prod.yml start api worker
 ```
 
-Restoring straight over the live database is how a bad backup becomes an outage. Always
-restore beside it first.
+Keep `jecks_old` for a week before dropping it.
+
+For a drill rather than a real restore, stop after step 4 and
+`dropdb -U jecks jecks_restore`. Write down the date you did it; the point of the drill
+is knowing the commands work on **this** machine, with **this** Postgres version.
 
 ---
 
@@ -162,15 +207,61 @@ restore beside it first.
 Readiness failing while liveness passes means the database is unreachable: check the
 Postgres container before restarting the API.
 
+### Metrics
+
+```bash
+curl -sf -H "x-internal-token: $INTERNAL_API_TOKEN" localhost:4000/api/v1/metrics
+```
+
+Prometheus exposition format. Point a Prometheus at it and alert on these four, which are
+the ones worth waking somebody for:
+
+| Metric | Alert when | Why |
+|---|---|---|
+| `jecks_up` | absent for 2 min | The API is down. |
+| `jecks_orders_unshipped_over_24h` | > 20 | Orders are being taken and not dispatched. |
+| `jecks_cache_enabled` | 0 for 10 min | Redis is gone: the site works but is slow, and the queues are not running. |
+| `jecks_http_requests_total{status="5xx"}` | rate rising | Something is broken that the logs will name. |
+
+The endpoint is guarded by `INTERNAL_API_TOKEN` rather than by a session, because
+Prometheus has no user and the numbers say how much the shop sells.
+
+### Queues
+
+Admin › Réglages › Files d’attente shows every queue’s depth and the most recent
+failures, with a retry button.
+It reads the same Redis keys BullMQ writes, so it is the same truth a dashboard would
+show, behind the permission everything else uses.
+
+A queue with a growing `waiting` count and no `active` jobs means the worker is not
+running. A growing `failed` count means it is running and something is wrong; the
+failure reason is on that screen.
+
+### Errors
+
+Set `SENTRY_DSN` to send server errors to Sentry. Unset, they go to the log with a
+correlation id, which is also in the `x-correlation-id` header of the failing response —
+so a customer quoting one is enough to find the request.
+
 ---
 
 ## 6. Common incidents
 
 ### Orders are coming in but no SMS goes out
 
-The notification adapter is log-only until M3. Confirm with
-`docker compose logs worker | grep notification`. If an adapter is configured, check
-`notifications` rows with `status = 'failed'` and the `error` column.
+In order: check that an SMS provider is selected and credentialed in Admin › Réglages ›
+Notifications. With none selected the log adapter is used, which writes the message to
+the worker log and reports success — correct for development, silent in production.
+
+```sql
+SELECT channel, status, error, count(*)
+FROM notifications
+WHERE "createdAt" > now() - interval '2 hours'
+GROUP BY 1, 2, 3 ORDER BY 4 DESC;
+```
+
+`failed` rows carry the gateway's own message in `error`; `pending` rows that never
+move mean the worker is not draining the queue, which is the next section.
 
 ### The dashboard shows yesterday's numbers
 
@@ -186,13 +277,19 @@ Or from the repo: `pnpm --filter @jecks/worker exec tsx scripts/enqueue.ts repor
 
 ### A queue is backing up
 
+Admin › Réglages › Files d’attente shows every queue’s depth and the most recent
+failures with their reason, and retries a job without a shell. Use it first.
+
 ```bash
 docker exec jecks-redis redis-cli LLEN bull:notifications:wait
-docker compose restart worker
+docker compose -f infra/docker/docker-compose.prod.yml restart worker
 ```
 
 Jobs are retried three times with exponential backoff and then land in the failed set,
 where they are kept for seven days. Nothing is lost by restarting the worker.
+
+Waiting jobs climbing with none active means the worker is down. Failures climbing means
+it is up and something downstream is not — the reason on that screen names it.
 
 ### Stock looks wrong
 
@@ -242,13 +339,18 @@ DELETE FROM analytics_events WHERE "occurredAt" < now() - interval '180 days';
 
 ---
 
-## 8. What is not built yet
+## 8. Known gaps
 
-M0 delivered the foundation. Checkout, order management, delivery operations, finance
-reporting and the marketing tools arrive in M1–M6 (PRD Section 13). Before then:
+The platform is complete against PRD v1. What is deliberately not in it:
 
-- there is no way to place an order through the storefront;
-- notification adapters log instead of sending;
-- courier adapters other than manual/CSV are configuration rows without code.
+- **No alerting is configured.** `/metrics` is exposed and the right gauges are there,
+  but nothing pages anybody until a Prometheus and an Alertmanager are pointed at it.
+- **No WAF.** Rate limits are per-process; a distributed flood needs something in front.
+- **Backups are not encrypted** beyond whatever the storage provider does. The dump holds
+  every customer's phone number and address — turn on bucket encryption if they go to S3.
+- **Courier adapters other than Maystro are polled, not pushed.** Status changes arrive
+  within twenty minutes rather than instantly.
+- **Commune coordinates are not in the bundled dataset**, so run optimisation falls back
+  to the wilaya centroid. Good enough to order a city route, not a street-level one.
 
-Do not point a live domain at this until M7.
+See `docs/SECURITY.md` for the security posture and the pre-launch checklist.
