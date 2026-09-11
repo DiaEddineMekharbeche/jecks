@@ -976,3 +976,38 @@ green tick. Verifying at the end is the difference between a deploy and a hope.
 Rollback goes back to the previous image tag, recorded before the build. A migration that
 must be undone needs a new forward migration, because `_prisma_migrations` is not a thing
 to hand-edit at two in the morning.
+
+## D94 — Marketing is its own section, behind its own permission (M7)
+
+The newsletter, abandoned carts and affiliates moved out of Contenu to `/marketing`,
+guarded by `marketing.read` rather than `content.read`. The old addresses redirect.
+
+`marketing.read` had existed in the permission catalogue since M0 and was granted to the
+marketing role, but nothing checked it: every marketing endpoint asked for `content.read`
+instead. A permission that grants nothing is worse than no permission, because the
+matrix screen shows it being granted.
+
+The split is also the right shape. Content is what the shop says about itself; marketing
+is who it says it to. A shop can reasonably let somebody run campaigns without letting
+them rewrite the home page, and could not express that while the two shared a permission.
+
+## D95 — A report has two export paths, and the long one is a job (M7)
+
+Adding `format` to a report streams the file back on the request. `POST` to its
+`exports` endpoint queues a job instead: the row appears at once, the worker runs it, and
+the file lands in storage with a link.
+
+The streamed path is right for what is on the screen and wrong for a year of order lines.
+The browser holds a connection open for as long as the query takes, an Nginx in front
+gives up at thirty seconds by default, and the accountant discovers this at the end of
+the minute rather than the beginning. Raising the timeout moves the failure without
+removing it.
+
+The split follows the one courier polling established: the worker owns the queue slot,
+the retry and the timeout; the API owns the query, because the report lives beside the
+database and a second implementation in the worker would eventually give a different
+number. The worker passes only a job id — the parameters are already in the row, and
+sending them through Redis as well would be two copies that can disagree.
+
+The queued path requires `reports.export` rather than `reports.read`. An unbounded export
+is a copy of the shop's numbers leaving the shop, and the job records who asked for it.

@@ -280,6 +280,21 @@ export const reportQuerySchema = z.object({
 
 export type ReportQuery = z.infer<typeof reportQuerySchema>;
 
+/**
+ * Asking for an export nobody waits for.
+ *
+ * No `limit`: the point of the queued path is that it is not capped at what a screen
+ * can show. The period is, though — an export with no dates would scan the whole table
+ * and is nearly always somebody who meant this year.
+ */
+export const reportExportRequestSchema = z.object({
+  from: z.coerce.date(),
+  to: z.coerce.date(),
+  format: z.enum(['csv', 'xlsx']).default('xlsx'),
+});
+
+export type ReportExportRequest = z.infer<typeof reportExportRequestSchema>;
+
 export interface ReportColumn {
   key: string;
   label: string;

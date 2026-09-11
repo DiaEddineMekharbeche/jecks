@@ -122,3 +122,58 @@ describe('ExportService — XLSX', () => {
     expect((await body()).subarray(0, 2).toString('ascii')).toBe('PK');
   });
 });
+
+describe('ExportService — toBuffer', () => {
+  it('produces the same CSV the download does, byte-order mark included', async () => {
+    const buffer = await new ExportService().toBuffer('csv', COLUMNS, ROWS);
+    const text = buffer.toString('utf8');
+
+    expect(text.charCodeAt(0)).toBe(0xfeff);
+    // Header plus one line per row, and a trailing newline.
+    expect(text.trim().split('\n')).toHaveLength(3);
+    expect(text).toContain('JK-260909-0001');
+  });
+
+  it('quotes a cell containing a comma, so the columns do not shift', async () => {
+    const buffer = await new ExportService().toBuffer('csv', COLUMNS, ROWS);
+
+    expect(buffer.toString('utf8')).toContain('"Alger, Centre"');
+  });
+
+  it('writes an empty CSV as a header and nothing else', async () => {
+    const buffer = await new ExportService().toBuffer('csv', COLUMNS, []);
+
+    expect(buffer.toString('utf8').trim().split('\n')).toHaveLength(1);
+  });
+
+  it('produces a real workbook', async () => {
+    const buffer = await new ExportService().toBuffer('xlsx', COLUMNS, ROWS);
+
+    // XLSX is a ZIP container; "PK" is its signature.
+    expect(buffer.subarray(0, 2).toString('ascii')).toBe('PK');
+    expect(buffer.length).toBeGreaterThan(1000);
+  });
+
+  it('produces a valid workbook for an empty export rather than a corrupt file', async () => {
+    const buffer = await new ExportService().toBuffer('xlsx', COLUMNS, []);
+
+    expect(buffer.subarray(0, 2).toString('ascii')).toBe('PK');
+  });
+
+  it('does not truncate a workbook that outgrows one stream chunk', async () => {
+    // A single PassThrough chunk is 64 KB by default; a short read here would have
+    // produced a file that opens as "damaged" only for large exports.
+    const many = Array.from({ length: 5000 }, (_, index) => ({
+      number: `JK-260909-${String(index).padStart(4, '0')}`,
+      total: index * 100,
+      placedAt: new Date('2026-09-09T10:00:00Z'),
+      note: 'Une note assez longue pour remplir la feuille',
+    }));
+
+    const buffer = await new ExportService().toBuffer('xlsx', COLUMNS, many);
+
+    expect(buffer.length).toBeGreaterThan(65_536);
+    // The ZIP end-of-central-directory record; a truncated file has no such tail.
+    expect(buffer.subarray(buffer.length - 22).indexOf(Buffer.from('PK\u0005\u0006', 'ascii'))).toBe(0);
+  });
+});

@@ -83,6 +83,15 @@ jobs:
         env:
           SEED_DEMO_DATA: 'false'
 
+      # The completion plan's rule: no milestone marker survives v1. A left-behind
+      # TODO(M5) is a screen somebody meant to come back to.
+      - name: No milestone markers left behind
+        run: |
+          if grep -rn "TODO(M" apps packages e2e --include='*.ts' --include='*.tsx' --include='*.sql'; then
+            echo "::error::Milestone TODOs are still in the source"
+            exit 1
+          fi
+
       - name: Lint
         run: pnpm lint
 

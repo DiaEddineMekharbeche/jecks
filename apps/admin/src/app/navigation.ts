@@ -5,6 +5,7 @@ import {
   ClipboardList,
   FileText,
   LayoutDashboard,
+  Mail,
   Megaphone,
   Package,
   Settings,
@@ -40,6 +41,7 @@ export const NAVIGATION: NavItem[] = [
   { key: "finance", label: 'Finances', to: '/finance', icon: Wallet, permission: 'finance.read' },
   { key: "reports", label: 'Rapports', to: '/reports', icon: BarChart3, permission: 'reports.read' },
   { key: "content", label: 'Contenu', to: '/content', icon: FileText, permission: 'content.read' },
+  { key: "marketing", label: 'Marketing', to: '/marketing', icon: Mail, permission: 'marketing.read' },
   { key: "audit", label: 'Journal', to: '/audit', icon: ClipboardList, permission: 'audit.read' },
   { key: "settings", label: 'Réglages', to: '/settings', icon: Settings, permission: 'settings.read' },
 ];

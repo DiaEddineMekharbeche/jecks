@@ -29,6 +29,7 @@ import { useState } from 'react';
 import { download } from '@/lib/api';
 import { formatDa, message } from '@/lib/errors';
 import * as finance from './api';
+import { ReportExportsPanel } from './ReportExportsPanel';
 
 /**
  * The report library — PRD F-AD-80/81.
@@ -136,7 +137,10 @@ export function ReportsPage() {
               }
             />
           ) : report.data ? (
-            <ReportView result={report.data} />
+            <div className="flex flex-col gap-5">
+              <ReportView result={report.data} />
+              <ReportExportsPanel selected={selected} from={from} to={to} />
+            </div>
           ) : null}
         </div>
       </div>

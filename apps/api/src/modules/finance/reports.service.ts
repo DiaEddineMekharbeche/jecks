@@ -26,6 +26,17 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 
 const MONEY: ReportColumn['type'] = 'money';
 
+/**
+ * The filename stem for a report, without the date.
+ *
+ * `sales.by_product` becomes `sales-by-product`. Shared by the streamed download and
+ * the queued export so the same report does not arrive under two different names
+ * depending on which button was pressed.
+ */
+export function exportBaseName(key: string): string {
+  return key.replace(/[._]/g, '-');
+}
+
 @Injectable()
 export class ReportsService {
   constructor(private readonly prisma: PrismaService) {}

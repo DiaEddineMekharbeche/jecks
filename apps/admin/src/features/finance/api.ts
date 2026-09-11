@@ -90,3 +90,26 @@ export const reportCatalogue = () =>
 
 export const runReport = (key: ReportKey, query: { from?: string; to?: string; limit?: number }) =>
   api<ReportResult>(`/admin/reports/${key}`, { query });
+
+// --- queued exports ---------------------------------------------------------
+
+export interface ReportExportRow {
+  id: string;
+  key: string;
+  title: string;
+  format: 'csv' | 'xlsx';
+  from: string | null;
+  to: string | null;
+  status: 'queued' | 'running' | 'ready' | 'failed';
+  rows: number | null;
+  error: string | null;
+  createdAt: string;
+  downloadUrl: string | null;
+}
+
+export const listReportExports = () => api<ReportExportRow[]>('/admin/reports/exports');
+
+export const queueReportExport = (
+  key: ReportKey,
+  body: { from: string; to: string; format: 'csv' | 'xlsx' },
+) => api<ReportExportRow>(`/admin/reports/${key}/exports`, { method: 'POST', body });

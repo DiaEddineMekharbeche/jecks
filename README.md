@@ -115,6 +115,9 @@ M7 made it safe to point a domain at:
   finances by the API rather than by the menu.
 - **A deploy script** that refuses on a bad environment, backs up before it migrates, and
   waits for readiness before claiming success.
+- **Marketing became its own section** behind `marketing.read`, a permission the role
+  matrix had been granting since M0 while nothing checked it. Queued report exports use
+  `reports.export` for the same reason: it existed and meant nothing.
 
 M6 gave the shop its own voice:
 

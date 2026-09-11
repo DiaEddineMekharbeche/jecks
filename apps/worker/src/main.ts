@@ -10,6 +10,7 @@ import { dispatchNotification } from './notifications/dispatcher.js';
 import { readSecret } from './lib/secrets.js';
 import { rebuildDailyStats } from './jobs/daily-stats.js';
 import { processMedia } from './jobs/media-process.js';
+import { runReportExport } from './jobs/report-export.js';
 import {
   applyPriceSchedules,
   collectLowStockAlerts,
@@ -74,6 +75,13 @@ async function main(): Promise<void> {
     if (job.name === 'daily-stats') {
       const days = (job.data as { days?: number }).days;
       return rebuildDailyStats(prisma, { days });
+    }
+    if (job.name === 'report.export') {
+      const { jobId } = job.data as { jobId?: string };
+      return runReportExport(jobId ?? '', {
+        apiUrl: process.env.API_PUBLIC_URL ?? 'http://localhost:4000/api/v1',
+        token: process.env.INTERNAL_API_TOKEN,
+      });
     }
     throw new Error(`Unknown reports job: ${job.name}`);
   }, 2);

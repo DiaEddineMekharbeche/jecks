@@ -286,7 +286,7 @@ export class MarketingController {
   constructor(private readonly marketing: MarketingService) {}
 
   @Get('newsletter')
-  @RequirePermissions('content.read')
+  @RequirePermissions('marketing.read')
   @ApiOperation({ summary: 'The subscriber list' })
   subscribers(@Query('limit') limit?: string) {
     return this.marketing.listSubscribers(limit ? Math.min(Number(limit), 2000) : 500);
@@ -294,7 +294,7 @@ export class MarketingController {
 
   @Get('newsletter/stats')
   @NoAudit()
-  @RequirePermissions('content.read')
+  @RequirePermissions('marketing.read')
   @ApiOperation({ summary: 'How the list is growing, and where from' })
   newsletterStats() {
     return this.marketing.newsletterStats();
@@ -302,21 +302,21 @@ export class MarketingController {
 
   @Get('newsletter/providers')
   @NoAudit()
-  @RequirePermissions('content.read')
+  @RequirePermissions('marketing.read')
   @ApiOperation({ summary: 'Providers the list can be copied to' })
   providers() {
     return this.marketing.newsletterProviders();
   }
 
   @Post('newsletter/sync')
-  @RequirePermissions('content.write')
+  @RequirePermissions('marketing.write')
   @ApiOperation({ summary: 'Copy the list to the configured provider' })
   sync(@Body(zod(newsletterSyncSchema)) body: NewsletterSyncInput) {
     return this.marketing.syncNewsletter(body);
   }
 
   @Get('abandoned-carts')
-  @RequirePermissions('content.read')
+  @RequirePermissions('marketing.read')
   @ApiOperation({ summary: 'Carts nobody finished' })
   carts(@Query('filter') filter?: string) {
     const allowed = ['open', 'contacted', 'recovered', 'all'] as const;
@@ -326,41 +326,41 @@ export class MarketingController {
 
   @Get('abandoned-carts/stats')
   @NoAudit()
-  @RequirePermissions('content.read')
+  @RequirePermissions('marketing.read')
   @ApiOperation({ summary: 'Open, contacted, recovered and what each is worth' })
   cartStats() {
     return this.marketing.abandonedCartStats();
   }
 
   @Post('abandoned-carts/contact')
-  @RequirePermissions('content.write')
+  @RequirePermissions('marketing.write')
   @ApiOperation({ summary: 'Queue a recovery message; each cart is contacted once' })
   contact(@Body(zod(contactCartSchema)) body: ContactCartInput) {
     return this.marketing.contactCarts(body);
   }
 
   @Get('affiliates')
-  @RequirePermissions('content.read')
+  @RequirePermissions('marketing.read')
   @ApiOperation({ summary: 'Affiliates and what their code actually earned' })
   affiliates() {
     return this.marketing.listAffiliates();
   }
 
   @Post('affiliates')
-  @RequirePermissions('content.write')
+  @RequirePermissions('marketing.write')
   createAffiliate(@Body(zod(affiliateInputSchema)) body: AffiliateInput) {
     return this.marketing.createAffiliate(body);
   }
 
   @Patch('affiliates/:id')
-  @RequirePermissions('content.write')
+  @RequirePermissions('marketing.write')
   updateAffiliate(@Param('id') id: string, @Body(zod(affiliateInputSchema)) body: AffiliateInput) {
     return this.marketing.updateAffiliate(id, body);
   }
 
   @Delete('affiliates/:id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @RequirePermissions('content.write')
+  @RequirePermissions('marketing.write')
   async removeAffiliate(@Param('id') id: string): Promise<void> {
     await this.marketing.removeAffiliate(id);
   }

@@ -648,6 +648,8 @@ and every credential.
 | GET | `/admin/finance/ledger/balances` | `finance.read` | Cash, bank, courier, customer |
 | GET | `/admin/reports` | `reports.read` | The library: seventeen named reports |
 | GET | `/admin/reports/:key` | `reports.read` | Runs one; add a format to stream it as a file |
+| POST | `/admin/reports/:key/exports` | `reports.export` | Queues a full export; returns a row to poll |
+| GET | `/admin/reports/exports[/:id]` | `reports.export` | Recent exports and their download links |
 | GET | `/admin/customers` | `customers.read` | Value, reliability and segment; list and export |
 | GET | `/admin/customers/segments` | `customers.read` | How many are in each, and what they are worth |
 | GET | `/admin/customers/:id` | `customers.read` | Orders, addresses, notes and the points ledger |
@@ -689,6 +691,18 @@ a clean one: that would launder the history the blacklist exists to keep.
 
 ---
 
+**Two ways to export a report, for two different questions.** Adding `format` to the
+report itself streams the file straight back, which is right for the hundred rows on the
+screen. A year of order lines is a different matter: the browser holds a connection open
+for a minute and a proxy gives up at thirty seconds. So the second path queues a job, the
+row appears immediately, the worker runs it, and the file lands in storage with a link.
+
+The queued path carries no row limit, and it needs `reports.export` rather than
+`reports.read`, because a full export is a copy of the shop's numbers leaving the shop.
+Who asked is recorded on the job.
+
+---
+
 ## Content and marketing
 
 | Method | Path | Auth | Notes |
@@ -701,11 +715,11 @@ a clean one: that would launder the history the blacklist exists to keep.
 | GET POST DELETE | `/admin/content/menus[/:id]` | `content.read` / `write` | Items as a tree |
 | POST PATCH DELETE | `/admin/content/menus/:id/items`, `/items/:itemId` | `content.write` | Two levels, which is what a mega-menu is |
 | GET POST DELETE | `/admin/content/redirects[/:id]` | `content.read` / `write` | A loop is refused |
-| GET | `/admin/marketing/newsletter` | `content.read` | The subscriber list, with stats and sources |
-| POST | `/admin/marketing/newsletter/sync` | `content.write` | Copies the list to the configured provider |
-| GET | `/admin/marketing/abandoned-carts` | `content.read` | Open, contacted or recovered |
-| POST | `/admin/marketing/abandoned-carts/contact` | `content.write` | Queues a recovery message; each cart once |
-| GET POST PATCH DELETE | `/admin/marketing/affiliates[/:id]` | `content.read` / `write` | With what their code actually earned |
+| GET | `/admin/marketing/newsletter` | `marketing.read` | The subscriber list, with stats and sources |
+| POST | `/admin/marketing/newsletter/sync` | `marketing.write` | Copies the list to the configured provider |
+| GET | `/admin/marketing/abandoned-carts` | `marketing.read` | Open, contacted or recovered |
+| POST | `/admin/marketing/abandoned-carts/contact` | `marketing.write` | Queues a recovery message; each cart once |
+| GET POST PATCH DELETE | `/admin/marketing/affiliates[/:id]` | `marketing.read` / `write` | With what their code actually earned |
 
 **Anything scheduled carries a window.** Home sections, banners and announcements each
 have `startsAt` and `endsAt`, and the storefront filters on read. A banner for a sale

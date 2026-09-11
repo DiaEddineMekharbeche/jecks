@@ -126,8 +126,15 @@ matching movement.
 
 Export is one service for every list — `apps/api/src/common/list/export.service.ts` —
 covering CSV and XLSX, so a new report inherits export rather than implementing it.
-`export.service.spec.ts` covers both formats, the empty case, and the byte-order mark that
-stops Excel mangling every accent in a French or Arabic column.
+`export.service.spec.ts` covers both formats, the empty case, the byte-order mark that
+stops Excel mangling every accent in a French or Arabic column, and a workbook large
+enough to span several stream chunks.
+
+A report exports two ways. The button on the screen streams the file back, which suits
+the rows being looked at. For a long period there is a queued export with no row limit,
+run by the worker and delivered as a link (D95); it needs `reports.export`, and
+`report-exports.spec.ts` covers the failure paths that would otherwise leave a row stuck
+on "running".
 
 The seed produces a year of demo orders, so every report has something to draw. A report
 that renders empty against the seed is a bug in the report.

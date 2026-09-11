@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -11,8 +12,9 @@ import {
   Query,
   Req,
   Res,
+  UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiExcludeController, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import {
   REPORT_KEYS,
   adminListQuerySchema,
@@ -21,6 +23,7 @@ import {
   expenseInputSchema,
   ledgerEntryInputSchema,
   pnlQuerySchema,
+  reportExportRequestSchema,
   reportQuerySchema,
   type AdSpendInput,
   type AdminListQuery,
@@ -28,16 +31,19 @@ import {
   type ExpenseInput,
   type LedgerEntryInput,
   type PnlQuery,
+  type ReportExportRequest,
   type ReportKey,
   type ReportQuery,
 } from '@jecks/shared';
 import type { Request, Response } from 'express';
 import {
   CurrentUser,
+  Public,
   RawResponse,
   RequirePermissions,
   type AuthenticatedUser,
 } from '../../common/decorators/auth.decorators.js';
+import { InternalTokenGuard } from '../../common/guards/internal-token.guard.js';
 import { AuditEntity, NoAudit } from '../../common/interceptors/audit.interceptor.js';
 import { ExportService } from '../../common/list/export.service.js';
 import { parseFilters } from '../../common/list/list.helper.js';
@@ -45,7 +51,8 @@ import { zod } from '../../common/pipes/zod-validation.pipe.js';
 import { EXPENSE_EXPORT_COLUMNS, ExpensesService } from './expenses.service.js';
 import { LEDGER_EXPORT_COLUMNS, LedgerService } from './ledger.service.js';
 import { PNL_EXPORT_COLUMNS, PnlService } from './pnl.service.js';
-import { ReportsService } from './reports.service.js';
+import { ReportExportsService } from './report-exports.service.js';
+import { ReportsService, exportBaseName } from './reports.service.js';
 
 @ApiTags('admin/finance')
 @ApiBearerAuth()
@@ -269,6 +276,7 @@ export class ReportsController {
   constructor(
     private readonly reports: ReportsService,
     private readonly exporter: ExportService,
+    private readonly exports: ReportExportsService,
   ) {}
 
   @Get()
@@ -277,6 +285,39 @@ export class ReportsController {
   @ApiOperation({ summary: 'Every report the library offers' })
   catalogue() {
     return this.reports.catalogue();
+  }
+
+  @Get('exports')
+  @NoAudit()
+  @RequirePermissions('reports.export')
+  @ApiOperation({ summary: 'Recent queued exports, newest first' })
+  listExports() {
+    return this.exports.list();
+  }
+
+  @Get('exports/:id')
+  @NoAudit()
+  @RequirePermissions('reports.export')
+  @ApiOperation({ summary: 'One export, for polling while it runs' })
+  getExport(@Param('id') id: string) {
+    return this.exports.get(id);
+  }
+
+  @Post(':key/exports')
+  @RequirePermissions('reports.export')
+  @ApiOperation({ summary: 'Queue an export too large to wait for in the browser' })
+  queueExport(
+    @Param('key') key: string,
+    @Body(zod(reportExportRequestSchema)) body: ReportExportRequest,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    if (!(REPORT_KEYS as readonly string[]).includes(key)) {
+      throw new BadRequestException({
+        code: 'UNKNOWN_REPORT',
+        message: `Rapport inconnu : ${key}`,
+      });
+    }
+    return this.exports.queueExport(key as ReportKey, body, user.id);
   }
 
   @Get(':key')
@@ -305,11 +346,33 @@ export class ReportsController {
         header: column.label,
         value: (row: Record<string, string | number | null>) => row[column.key] ?? '',
       }));
-      await this.exporter.stream(response, query.format, key.replace(/\./g, '-'), columns, result.rows);
+      await this.exporter.stream(response, query.format, exportBaseName(key), columns, result.rows);
       return;
     }
 
     response.json({ data: result });
+  }
+}
+
+/**
+ * The export runner, called by the worker — PRD Section 6.5.
+ *
+ * Same split as courier polling and the nightly maintenance: the worker owns the queue
+ * slot and the retry, the API owns the query, because the report lives here and running
+ * it from two places would be two answers to one question.
+ */
+@ApiTags('internal')
+@ApiExcludeController()
+@Controller('internal/reports')
+export class InternalReportsController {
+  constructor(private readonly exports: ReportExportsService) {}
+
+  @Public()
+  @NoAudit()
+  @UseGuards(InternalTokenGuard)
+  @Post('export')
+  run(@Body('jobId') jobId: string) {
+    return this.exports.run(jobId);
   }
 }
 

@@ -28,6 +28,7 @@ import {
   AffiliatesPage,
   NewsletterPage,
 } from '@/features/content/MarketingPages';
+import { MarketingLayout } from '@/features/content/MarketingLayout';
 import { MenusPage } from '@/features/content/MenusPage';
 import { PagesPage } from '@/features/content/PagesPage';
 import { RedirectsPage } from '@/features/content/RedirectsPage';
@@ -200,7 +201,7 @@ export function AppRoutes() {
           <Route path="media" element={<MediaLibraryPage />} />
         </Route>
 
-        {/* Content and marketing — PRD F-AD-90/91. */}
+        {/* Content — PRD F-AD-90. */}
         <Route
           path="/content"
           element={
@@ -214,10 +215,28 @@ export function AppRoutes() {
           <Route path="announcements" element={<AnnouncementsPage />} />
           <Route path="pages" element={<PagesPage />} />
           <Route path="menus" element={<MenusPage />} />
-          <Route path="newsletter" element={<NewsletterPage />} />
+          <Route path="redirects" element={<RedirectsPage />} />
+
+          {/* These lived here before marketing got its own permission. Bookmarks and
+              links in old e-mails still point at them. */}
+          <Route path="newsletter" element={<Navigate to="/marketing" replace />} />
+          <Route path="carts" element={<Navigate to="/marketing/carts" replace />} />
+          <Route path="affiliates" element={<Navigate to="/marketing/affiliates" replace />} />
+        </Route>
+
+        {/* Marketing — PRD F-AD-91. Its own permission, so a shop can let somebody run
+            campaigns without letting them rewrite the home page. */}
+        <Route
+          path="/marketing"
+          element={
+            <Protected permission="marketing.read">
+              <MarketingLayout />
+            </Protected>
+          }
+        >
+          <Route index element={<NewsletterPage />} />
           <Route path="carts" element={<AbandonedCartsPage />} />
           <Route path="affiliates" element={<AffiliatesPage />} />
-          <Route path="redirects" element={<RedirectsPage />} />
         </Route>
 
         {/* Customers — PRD F-AD-40 to F-AD-42. */}

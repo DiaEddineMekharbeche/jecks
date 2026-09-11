@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import {
   AdSpendController,
   ExpensesController,
+  InternalReportsController,
   LedgerController,
   PnlController,
   ReportsController,
@@ -9,6 +10,7 @@ import {
 import { ExpensesService } from './expenses.service.js';
 import { LedgerService } from './ledger.service.js';
 import { PnlService } from './pnl.service.js';
+import { ReportExportsService } from './report-exports.service.js';
 import { ReportsService } from './reports.service.js';
 
 /**
@@ -24,8 +26,9 @@ import { ReportsService } from './reports.service.js';
     LedgerController,
     PnlController,
     ReportsController,
+    InternalReportsController,
   ],
-  providers: [ExpensesService, LedgerService, PnlService, ReportsService],
-  exports: [ExpensesService, LedgerService, PnlService, ReportsService],
+  providers: [ExpensesService, LedgerService, PnlService, ReportsService, ReportExportsService],
+  exports: [ExpensesService, LedgerService, PnlService, ReportsService, ReportExportsService],
 })
 export class FinanceModule {}

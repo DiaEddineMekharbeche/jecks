@@ -1,3 +1,4 @@
+import { PassThrough } from 'node:stream';
 import { Injectable } from '@nestjs/common';
 import type { Response } from 'express';
 import ExcelJS from 'exceljs';
@@ -9,6 +10,12 @@ import ExcelJS from 'exceljs';
  * Both formats stream: a 50 000-row export must not be assembled in memory first, and
  * the operator should see the download start immediately.
  */
+
+/**
+ * Excel on Windows reads a bare UTF-8 CSV as Latin-1 and mangles every accent and every
+ * Arabic character. The byte-order mark is what makes it open correctly.
+ */
+const BOM = '﻿';
 
 export interface ExportColumn<T> {
   header: string;
@@ -32,6 +39,55 @@ export class ExportService {
       : this.streamCsv(response, stamped, columns, rows);
   }
 
+  /**
+   * The same two formats, into memory instead of down a socket.
+   *
+   * For an export nobody is waiting on: a scheduled report goes to storage and the
+   * operator gets a link. Deliberately not the path a browser download takes, because
+   * assembling 50 000 rows in memory to then write them out is the thing `stream`
+   * exists to avoid.
+   */
+  async toBuffer<T>(
+    format: 'csv' | 'xlsx',
+    columns: ExportColumn<T>[],
+    rows: T[],
+  ): Promise<Buffer> {
+    if (format === 'csv') {
+      const header = columns.map((column) => csvCell(column.header)).join(',');
+      const body = rows.map((row) => columns.map((column) => csvCell(column.value(row))).join(','));
+      const lines = [header, ...body].map((line) => `${line}\n`).join('');
+      return Buffer.from(BOM + lines, 'utf8');
+    }
+
+    const sink = new PassThrough();
+    const chunks: Buffer[] = [];
+    sink.on('data', (chunk: Buffer) => chunks.push(chunk));
+    const finished = new Promise<void>((resolve, reject) => {
+      sink.on('end', resolve);
+      sink.on('error', reject);
+    });
+
+    const workbook = new ExcelJS.stream.xlsx.WorkbookWriter({ stream: sink, useStyles: true });
+    const sheet = workbook.addWorksheet('Export', { views: [{ state: 'frozen', ySplit: 1 }] });
+
+    sheet.columns = columns.map((column) => ({
+      header: column.header,
+      key: column.header,
+      width: column.width ?? Math.min(Math.max(column.header.length + 4, 12), 40),
+    }));
+    sheet.getRow(1).font = { bold: true };
+
+    for (const row of rows) {
+      sheet.addRow(columns.map((column) => column.value(row) ?? '')).commit();
+    }
+
+    sheet.commit();
+    await workbook.commit();
+    await finished;
+
+    return Buffer.concat(chunks);
+  }
+
   private streamCsv<T>(
     response: Response,
     filename: string,
@@ -41,9 +97,7 @@ export class ExportService {
     response.setHeader('Content-Type', 'text/csv; charset=utf-8');
     response.setHeader('Content-Disposition', `attachment; filename="${filename}.csv"`);
 
-    // Excel on Windows reads a bare UTF-8 CSV as Latin-1 and mangles every accent and
-    // every Arabic character. The byte-order mark is what makes it open correctly.
-    response.write('﻿');
+    response.write(BOM);
     response.write(`${columns.map((column) => csvCell(column.header)).join(',')}\n`);
 
     for (const row of rows) {

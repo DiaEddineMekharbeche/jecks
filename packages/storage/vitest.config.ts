@@ -8,9 +8,9 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'lcov'],
       include: ['src/index.ts'],
-      // The S3 verbs need a live bucket to exercise; the local driver, the key guard
-      // and the configuration resolution — where the bugs actually were — are covered.
-      thresholds: { lines: 60, functions: 70, branches: 80, statements: 60 },
+      // The S3 driver is covered against a stubbed fetch, signature included; what is
+      // left is filesystem error branches that would need a read-only disk to reach.
+      thresholds: { lines: 90, functions: 90, branches: 90, statements: 90 },
     },
   },
 });

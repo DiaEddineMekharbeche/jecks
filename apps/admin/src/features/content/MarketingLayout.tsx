@@ -2,24 +2,22 @@ import { cn } from '@jecks/ui';
 import { NavLink, Outlet } from 'react-router-dom';
 
 /**
- * Sub-navigation for content and marketing — PRD Section 5.10.
+ * Sub-navigation for marketing — PRD Section 5.11.
  *
- * The home page comes first because it is what a shop changes most, and the redirects
- * come last because nobody looks at them until something breaks.
+ * Separate from Contenu because they answer to different permissions: content is what
+ * the shop says about itself, marketing is who it says it to, and a shop can reasonably
+ * let somebody edit one without the other.
  */
 const TABS: Array<{ to: string; label: string; end?: boolean }> = [
-  { to: '/content', label: 'Page d’accueil', end: true },
-  { to: '/content/banners', label: 'Bannières' },
-  { to: '/content/announcements', label: 'Annonces' },
-  { to: '/content/pages', label: 'Pages' },
-  { to: '/content/menus', label: 'Menus' },
-  { to: '/content/redirects', label: 'Redirections' },
+  { to: '/marketing', label: 'Newsletter', end: true },
+  { to: '/marketing/carts', label: 'Paniers abandonnés' },
+  { to: '/marketing/affiliates', label: 'Affiliés' },
 ];
 
-export function ContentLayout() {
+export function MarketingLayout() {
   return (
     <div className="flex flex-col gap-5">
-      <nav aria-label="Sections du contenu" className="-mx-1 overflow-x-auto px-1">
+      <nav aria-label="Sections du marketing" className="-mx-1 overflow-x-auto px-1">
         <div className="flex min-w-max items-center gap-1 border-b border-line">
           {TABS.map((tab) => (
             <NavLink
