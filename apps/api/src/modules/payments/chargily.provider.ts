@@ -67,6 +67,41 @@ export class ChargilyProvider implements PaymentProvider {
   }
 
   /**
+   * Asks Chargily who we are.
+   *
+   * `/balance` is a read: it proves the key is live without putting a checkout into
+   * their dashboard, which is what creating a one-dinar test payment would do. A 401
+   * is the case worth catching — a key that was revoked, or pasted with a space.
+   */
+  async testConnection(): Promise<{ ok: boolean; message: string }> {
+    const apiKey = await this.secrets.secret('payments.chargily_api_key');
+    if (!apiKey) {
+      return { ok: false, message: 'Aucune clé API Chargily n’est enregistrée.' };
+    }
+
+    try {
+      const response = await this.http(`${API_BASE}/balance`, {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${apiKey}` },
+      });
+
+      if (response.status === 401 || response.status === 403) {
+        return { ok: false, message: 'Chargily refuse la clé API (401). Vérifiez-la.' };
+      }
+
+      if (!response.ok) {
+        return { ok: false, message: `Chargily a répondu ${response.status}.` };
+      }
+
+      return { ok: true, message: 'Chargily répond et accepte la clé.' };
+    } catch (error) {
+      // A network failure is not a bad key, and saying so saves somebody re-pasting a
+      // working one.
+      return { ok: false, message: `Chargily est injoignable : ${(error as Error).message}` };
+    }
+  }
+
+  /**
    * Creates a checkout and hands back the URL to send the shopper to.
    *
    * Amounts go over as whole dinars: Chargily quotes in the major unit, and sending

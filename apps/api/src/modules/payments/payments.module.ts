@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { SystemModule } from '../system/system.module.js';
 import { ChargilyProvider } from './chargily.provider.js';
 import { CodProvider } from './cod.provider.js';
+import { PaymentProvidersController } from './payments.controller.js';
 import { PaymentsService } from './payments.service.js';
 
 /**
@@ -13,6 +14,7 @@ import { PaymentsService } from './payments.service.js';
  */
 @Module({
   imports: [SystemModule],
+  controllers: [PaymentProvidersController],
   providers: [CodProvider, ChargilyProvider, PaymentsService],
   exports: [PaymentsService],
 })

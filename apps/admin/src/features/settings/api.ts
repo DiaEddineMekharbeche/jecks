@@ -139,3 +139,20 @@ export const retryJob = (queue: string, jobId: string) =>
     method: 'POST',
     body: { queue, jobId },
   });
+
+// --- payment providers ------------------------------------------------------
+
+export interface PaymentProviderRow {
+  key: string;
+  label: string;
+  redirects: boolean;
+  configured: boolean;
+}
+
+export const listPaymentProviders = () =>
+  api<PaymentProviderRow[]>('/admin/payments/providers');
+
+export const testPaymentProvider = (key: string) =>
+  api<{ ok: boolean; message: string }>(`/admin/payments/providers/${key}/test`, {
+    method: 'POST',
+  });

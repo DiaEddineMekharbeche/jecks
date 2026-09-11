@@ -23,6 +23,7 @@ import { ApiRequestError } from '@/lib/api';
 import { message } from '@/lib/errors';
 import { useSession } from '@/features/auth/session';
 import * as settingsApi from './api';
+import { PaymentProvidersPanel } from './PaymentProvidersPanel';
 import { SETTINGS_FORMS, type SettingField } from './fields';
 import { useSettings, useSettingsInvalidate } from './queries';
 
@@ -149,6 +150,9 @@ export function SettingsScopePage() {
           ))}
         </CardBody>
       </Card>
+
+      {/* Only Paiements has something to reach; couriers have their own screen. */}
+      {key === 'payments' ? <PaymentProvidersPanel /> : null}
     </div>
   );
 }

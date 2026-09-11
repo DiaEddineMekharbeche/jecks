@@ -51,6 +51,15 @@ export interface PaymentProvider {
   /** Whether the shop has configured enough for this provider to work. */
   isConfigured(): Promise<boolean>;
 
+  /**
+   * Does the configuration actually work?
+   *
+   * `isConfigured` only says the key is present. A key that is present and wrong reads
+   * as configured and fails at the one moment it matters, which is a shopper trying to
+   * pay. This asks the provider, read-only, and never creates anything.
+   */
+  testConnection(): Promise<{ ok: boolean; message: string }>;
+
   createSession(intent: PaymentIntent): Promise<PaymentSession>;
 
   /**

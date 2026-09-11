@@ -59,4 +59,35 @@ export class PaymentsService {
   byKey(key: string): PaymentProvider | null {
     return this.providers.find((provider) => provider.key === key) ?? null;
   }
+
+  /** Every provider with whether it is switched on, for Settings › Paiements. */
+  async describe(): Promise<
+    Array<{ key: string; label: string; redirects: boolean; configured: boolean }>
+  > {
+    return Promise.all(
+      this.providers.map(async (provider) => ({
+        key: provider.key,
+        label: provider.label,
+        redirects: provider.redirects,
+        configured: await provider.isConfigured(),
+      })),
+    );
+  }
+
+  /**
+   * Asks one provider whether its configuration actually works.
+   *
+   * The button exists because a key that is present and wrong reads as configured
+   * everywhere else and fails at checkout, in front of a customer.
+   */
+  async testConnection(key: string): Promise<{ ok: boolean; message: string }> {
+    const provider = this.byKey(key);
+    if (!provider) {
+      throw new BadRequestException({
+        code: 'UNKNOWN_PAYMENT_PROVIDER',
+        message: `Moyen de paiement inconnu : ${key}`,
+      });
+    }
+    return provider.testConnection();
+  }
 }

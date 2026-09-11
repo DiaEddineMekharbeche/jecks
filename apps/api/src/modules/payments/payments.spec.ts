@@ -293,3 +293,92 @@ describe('constantTimeEquals', () => {
     expect(constantTimeEquals('', 'a')).toBe(false);
   });
 });
+
+/**
+ * The connection test behind the button in Settings › Paiements.
+ *
+ * It exists because `isConfigured` only means a value is stored. A key pasted with a
+ * trailing space reads as configured everywhere else and fails at checkout, in front of
+ * a customer, which is the worst place to learn it.
+ */
+describe('payment connection test', () => {
+  it('says COD depends on nothing, rather than offering a dead button', async () => {
+    const result = await new CodProvider().testConnection();
+
+    expect(result.ok).toBe(true);
+  });
+
+  it('says so when no Chargily key is stored', async () => {
+    const provider = new ChargilyProvider(
+      settings({ 'payments.chargily_enabled': true }),
+      secrets({}),
+    );
+
+    const result = await provider.testConnection();
+
+    expect(result.ok).toBe(false);
+    expect(result.message).toMatch(/clé/i);
+  });
+
+  it('reads the key without creating a checkout', async () => {
+    const http = vi.fn(async () => response(200, { wallets: [] }));
+    const provider = new ChargilyProvider(
+      settings({ 'payments.chargily_enabled': true }),
+      secrets({ 'payments.chargily_api_key': API_KEY }),
+      http as unknown as HttpClient,
+    );
+
+    const result = await provider.testConnection();
+
+    expect(result.ok).toBe(true);
+    // A test that creates a one-dinar payment leaves a row in the shop's dashboard
+    // every time somebody presses the button.
+    const [url, init] = http.mock.calls[0] as unknown as [string, RequestInit];
+    expect(init.method).toBe('GET');
+    expect(url).not.toContain('checkouts');
+    expect((init.headers as Record<string, string>).Authorization).toBe(`Bearer ${API_KEY}`);
+  });
+
+  it('names a refused key instead of reporting a generic failure', async () => {
+    const http = (async () => response(401, { message: 'Unauthenticated' })) as unknown as HttpClient;
+    const provider = new ChargilyProvider(
+      settings({ 'payments.chargily_enabled': true }),
+      secrets({ 'payments.chargily_api_key': 'wrong' }),
+      http,
+    );
+
+    const result = await provider.testConnection();
+
+    expect(result.ok).toBe(false);
+    expect(result.message).toMatch(/401|clé/i);
+  });
+
+  it('tells an unreachable gateway apart from a bad key', async () => {
+    // Otherwise somebody re-pastes a working key to fix a network problem.
+    const http = (async () => {
+      throw new Error('getaddrinfo ENOTFOUND pay.chargily.net');
+    }) as unknown as HttpClient;
+
+    const provider = new ChargilyProvider(
+      settings({ 'payments.chargily_enabled': true }),
+      secrets({ 'payments.chargily_api_key': API_KEY }),
+      http,
+    );
+
+    const result = await provider.testConnection();
+
+    expect(result.ok).toBe(false);
+    expect(result.message).toMatch(/injoignable/i);
+  });
+
+  it('does not throw on an unexpected status, so the screen can show the number', async () => {
+    const http = (async () => response(503, 'maintenance')) as unknown as HttpClient;
+    const provider = new ChargilyProvider(
+      settings({ 'payments.chargily_enabled': true }),
+      secrets({ 'payments.chargily_api_key': API_KEY }),
+      http,
+    );
+
+    await expect(provider.testConnection()).resolves.toMatchObject({ ok: false });
+  });
+});

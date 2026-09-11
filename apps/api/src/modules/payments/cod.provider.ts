@@ -21,6 +21,11 @@ export class CodProvider implements PaymentProvider {
     return true;
   }
 
+  async testConnection(): Promise<{ ok: boolean; message: string }> {
+    // There is nothing to reach. Saying so is more useful than a disabled button.
+    return { ok: true, message: 'Le paiement à la livraison ne dépend d’aucun service.' };
+  }
+
   async createSession(intent: PaymentIntent): Promise<PaymentSession> {
     return {
       provider: this.key,

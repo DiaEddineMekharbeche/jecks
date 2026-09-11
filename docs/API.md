@@ -536,6 +536,8 @@ blamed for sales made while it was running. Applying compares the counted figure
 | PATCH | `/admin/roles/:id/permissions` | `users.write` | Replaces the grants of one role |
 | GET | `/admin/audit` | `audit.read` | Read-only; exports |
 | GET | `/admin/audit/:entityType/:entityId` | `audit.read` | History of one record |
+| GET | `/admin/payments/providers` | `settings.read` | Each payment provider and whether it is switched on |
+| POST | `/admin/payments/providers/:key/test` | `settings.write` | Asks the gateway whether the key works |
 | GET POST | `/admin/backups` | `settings.read` / `settings.write` | Queues a dump; the list polls while it runs |
 
 **Scopes, not keys.** Settings are validated per scope with a Zod schema in
@@ -554,6 +556,13 @@ pending invitation rather than leaving two live links.
 **The last owner cannot be removed.** Deactivating, deleting or un-owning the only
 active owner is refused: a shop with no owner has nobody who can grant the permission
 needed to make one.
+
+**Every integration can be tested from its own screen**, because "the key is stored" and
+"the key works" are different facts and only the second one matters. A courier is tested
+with a tracking call for a number that cannot exist, which exercises authentication
+without putting a parcel into their system. A payment gateway is tested with a read, not
+a one-dinar checkout that would leave a row in the shop's dashboard each time. A
+notification template is tested by sending a real message to a chosen address.
 
 **Backups** are taken by the worker, never in the request. `POST /admin/backups` creates
 a `Job` row and enqueues it; the dump is `pg_dump --format=custom`, stored under
