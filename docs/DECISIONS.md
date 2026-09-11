@@ -845,3 +845,42 @@ archives the other rather than deleting it.
 A blacklisted record refuses to merge into a clean one. Allowing it would launder exactly
 the history the blacklist exists to keep, and the preview endpoint exists so nobody
 discovers the size of the operation afterwards.
+
+## D83 — Scheduled content filters on read (M6)
+
+Home sections, banners and announcements carry `startsAt` and `endsAt`, and the
+storefront applies the window on every read rather than a job flipping a flag.
+
+A banner for a sale that ended at midnight has to be gone at midnight. A job that does
+that is a job that can fail, and the failure is invisible until a customer screenshots
+an expired offer. The admin still shows an out-of-window item, greyed: an owner needs to
+see the promotion they scheduled for next week.
+
+## D84 — Renaming a published page writes its redirect (M6)
+
+Changing a published page's slug creates a 301 from the old address in the same
+transaction.
+
+A shop that renames `/livraison` to `/expedition` has broken every link to it — from
+Instagram bios, from WhatsApp messages, from Google — and will not find out for months.
+Asking somebody to remember the redirect afterwards is asking them to remember something
+they have no reason to think about.
+
+## D85 — The shop owns the newsletter list (M6)
+
+Subscribers live in `newsletter_subscribers`; a provider receives a copy. Unsubscribes
+are pushed out with everybody else rather than being filtered from the sync.
+
+Filtering them would be the obvious optimisation and exactly wrong: the provider has to
+be told somebody left, or the next campaign reaches a person who asked not to be mailed.
+`log` is the default provider and writes what it would have sent, so a shop that mails by
+hand still has a working button.
+
+## D86 — Affiliate commission counts delivered orders (M6)
+
+Attribution is the promotion code an affiliate hands out, and revenue is counted only on
+orders that reached a doorstep.
+
+An influencer whose audience orders enthusiastically and refuses at the door has not sold
+anything. Paying commission on placed orders is how a cash-on-delivery shop ends up
+paying for its own return shipping.

@@ -1,6 +1,5 @@
 import { EmptyState } from '@jecks/ui';
 import type { Permission } from '@jecks/shared';
-import { Construction } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { AuditPage } from '@/features/audit/AuditPage';
@@ -20,6 +19,18 @@ import {
   SizeGuidesPage,
   TagsPage,
 } from '@/features/catalog/TaxonomyPages';
+import { AnnouncementsPage } from '@/features/content/AnnouncementsPage';
+import { BannersPage } from '@/features/content/BannersPage';
+import { ContentLayout } from '@/features/content/ContentLayout';
+import { HomeBuilderPage } from '@/features/content/HomeBuilderPage';
+import {
+  AbandonedCartsPage,
+  AffiliatesPage,
+  NewsletterPage,
+} from '@/features/content/MarketingPages';
+import { MenusPage } from '@/features/content/MenusPage';
+import { PagesPage } from '@/features/content/PagesPage';
+import { RedirectsPage } from '@/features/content/RedirectsPage';
 import { CustomerDetailPage } from '@/features/customers/CustomerDetailPage';
 import { CustomersListPage } from '@/features/customers/CustomersListPage';
 import { CashPage } from '@/features/delivery/CashPage';
@@ -63,7 +74,6 @@ import { PromotionEditorPage } from '@/features/promotions/PromotionEditorPage';
 import { PromotionsListPage } from '@/features/promotions/PromotionsListPage';
 import { SimulatorPage } from '@/features/promotions/SimulatorPage';
 import { AppShell } from './AppShell';
-import { NAVIGATION } from './navigation';
 
 /** Blocks a route until the session is known, then by permission. */
 function Protected({ permission, children }: { permission?: Permission; children: ReactNode }) {
@@ -187,6 +197,26 @@ export function AppRoutes() {
           <Route path="reviews" element={<ReviewsPage />} />
           <Route path="merchandising" element={<MerchandisingPage />} />
           <Route path="media" element={<MediaLibraryPage />} />
+        </Route>
+
+        {/* Content and marketing — PRD F-AD-90/91. */}
+        <Route
+          path="/content"
+          element={
+            <Protected permission="content.read">
+              <ContentLayout />
+            </Protected>
+          }
+        >
+          <Route index element={<HomeBuilderPage />} />
+          <Route path="banners" element={<BannersPage />} />
+          <Route path="announcements" element={<AnnouncementsPage />} />
+          <Route path="pages" element={<PagesPage />} />
+          <Route path="menus" element={<MenusPage />} />
+          <Route path="newsletter" element={<NewsletterPage />} />
+          <Route path="carts" element={<AbandonedCartsPage />} />
+          <Route path="affiliates" element={<AffiliatesPage />} />
+          <Route path="redirects" element={<RedirectsPage />} />
         </Route>
 
         {/* Customers — PRD F-AD-40 to F-AD-42. */}
@@ -353,20 +383,6 @@ export function AppRoutes() {
           <Route path=":scope" element={<SettingsScopePage />} />
         </Route>
 
-        {/* Modules whose screens arrive in later milestones still route, so the nav
-            never dead-ends and the permission wiring is testable today. */}
-        {NAVIGATION.filter((item) => item.status === 'planned').map((item) => (
-          <Route
-            key={item.to}
-            path={item.to}
-            element={
-              <Protected permission={item.permission}>
-                <PlannedModule label={item.label} milestone={item.milestone} />
-              </Protected>
-            }
-          />
-        ))}
-
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>
@@ -392,14 +408,4 @@ function Forbidden() {
 
 function NotFound() {
   return <EmptyState title="Page introuvable" description="Ce lien ne mène nulle part." />;
-}
-
-function PlannedModule({ label, milestone }: { label: string; milestone?: string }) {
-  return (
-    <EmptyState
-      icon={<Construction className="h-8 w-8" />}
-      title={`${label} arrive en ${milestone ?? 'v1'}`}
-      description="Le module est planifié dans le PRD (section 5) et sera livré à ce jalon. Le contrôle d’accès est déjà en place."
-    />
-  );
 }

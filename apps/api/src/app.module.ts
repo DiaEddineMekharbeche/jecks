@@ -16,6 +16,7 @@ import { CartModule } from './modules/cart/cart.module.js';
 import { CatalogModule } from './modules/catalog/catalog.module.js';
 import { CatalogAdminModule } from './modules/catalog/admin/catalog-admin.module.js';
 import { ListModule } from './common/list/list.module.js';
+import { ContentModule } from './modules/content/content.module.js';
 import { CouriersModule } from './modules/couriers/couriers.module.js';
 import { CustomersModule } from './modules/customers/customers.module.js';
 import { DashboardModule } from './modules/dashboard/dashboard.module.js';
@@ -70,6 +71,7 @@ import { PrismaModule } from './prisma/prisma.module.js';
     ShippingModule,
     CouriersModule,
     DeliveryModule,
+    ContentModule,
     CustomersModule,
     FinanceModule,
     MaintenanceModule,

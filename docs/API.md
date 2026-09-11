@@ -689,6 +689,46 @@ a clean one: that would launder the history the blacklist exists to keep.
 
 ---
 
+## Content and marketing
+
+| Method | Path | Auth | Notes |
+|---|---|---|---|
+| GET POST PATCH DELETE | `/admin/content/home[/:id]` | `content.read` / `write` | Home sections, in drawing order |
+| POST | `/admin/content/home/reorder` | `content.write` | One transaction, so the page never renders half-sorted |
+| GET POST PATCH DELETE | `/admin/content/banners[/:id]` | `content.read` / `write` | Grouped by placement |
+| GET POST PATCH DELETE | `/admin/content/announcements[/:id]` | `content.read` / `write` | The strip above the header |
+| GET POST PATCH DELETE | `/admin/content/pages[/:id]` | `content.read` / `write` | Renaming a published page writes its redirect |
+| GET POST DELETE | `/admin/content/menus[/:id]` | `content.read` / `write` | Items as a tree |
+| POST PATCH DELETE | `/admin/content/menus/:id/items`, `/items/:itemId` | `content.write` | Two levels, which is what a mega-menu is |
+| GET POST DELETE | `/admin/content/redirects[/:id]` | `content.read` / `write` | A loop is refused |
+| GET | `/admin/marketing/newsletter` | `content.read` | The subscriber list, with stats and sources |
+| POST | `/admin/marketing/newsletter/sync` | `content.write` | Copies the list to the configured provider |
+| GET | `/admin/marketing/abandoned-carts` | `content.read` | Open, contacted or recovered |
+| POST | `/admin/marketing/abandoned-carts/contact` | `content.write` | Queues a recovery message; each cart once |
+| GET POST PATCH DELETE | `/admin/marketing/affiliates[/:id]` | `content.read` / `write` | With what their code actually earned |
+
+**Anything scheduled carries a window.** Home sections, banners and announcements each
+have `startsAt` and `endsAt`, and the storefront filters on read. A banner for a sale
+that ended at midnight disappears by itself rather than waiting for somebody to switch it
+off. The admin shows an out-of-window item greyed rather than hiding it, so a promotion
+scheduled for next week is visible today.
+
+**Renaming a published page writes the redirect.** A shop that changes `/livraison` to
+`/expedition` has just broken every link to it and will not find out for months, so the
+old address is pointed at the new one at the moment of the rename.
+
+**The shop owns the newsletter list.** A provider gets a copy, never the original, and
+unsubscribes travel out with everyone else: leaving them behind would let the next
+campaign reach somebody who asked not to be mailed. `log` is the default and a real
+implementation; Brevo is switched on in Settings. A phone-only subscriber is counted as
+skipped rather than silently dropped, because Brevo keys contacts by e-mail.
+
+**Affiliate commission counts delivered orders.** An influencer whose audience orders and
+refuses at the door has not sold anything, and paying commission on that is how these
+arrangements go wrong.
+
+---
+
 ## Health
 
 | Method | Path | Notes |
@@ -698,12 +738,12 @@ a clean one: that would launder the history the blacklist exists to keep.
 
 ---
 
-## Planned surface
+## Idempotency
 
-The modules below are specified in the PRD and scheduled by milestone. They are listed
-here so integrators can see the shape of the finished API, not because they exist.
+`POST /orders` accepts an `Idempotency-Key` header, and a repeated key returns the
+original order rather than creating a second one. It is enforced twice: a Redis lock
+catches two simultaneous requests, and a unique column catches a replay hours later.
 
-**M6 — marketing.** `/marketing/newsletter`, `/reviews`, `/admin/content/*`.
-
-Order creation and inbound webhooks will accept an `Idempotency-Key` header; a repeated
-key returns the original result rather than creating a second order.
+Inbound webhooks are idempotent on the sender's own reference instead. A courier that
+resends the same event fifty times produces one event row and forty-nine no-ops; a
+payment gateway that resends a capture finds the payment already recorded.

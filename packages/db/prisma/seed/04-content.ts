@@ -236,6 +236,40 @@ export async function seedContent(prisma: PrismaClient): Promise<void> {
   }
   log('announcements', announcements.length);
 
+  // --- banners --------------------------------------------------------------
+  // One live, one scheduled for next week, so the admin shows both states.
+  const inAWeek = new Date(Date.now() + 7 * 86_400_000);
+
+  const banners = [
+    {
+      name: 'Livraison offerte',
+      placement: 'home_mid',
+      title: tr('Livraison offerte dès 6 000 DA', 'توصيل مجاني ابتداءً من 6000 دج', 'Free delivery over 6,000 DA'),
+      subtitle: tr('58 wilayas, à domicile ou au stop desk', '58 ولاية، إلى المنزل أو نقطة الاستلام', 'All 58 wilayas, home or stop desk'),
+      ctaLabel: tr('Voir les tarifs', 'شاهد الأسعار', 'See rates'),
+      ctaUrl: '/livraison',
+      position: 0,
+      active: true,
+    },
+    {
+      name: 'Rentrée — bandeau collection',
+      placement: 'collection_top',
+      title: tr('Sélection rentrée', 'اختيار الدخول المدرسي', 'Back-to-school picks'),
+      ctaLabel: tr('Découvrir', 'اكتشف', 'Discover'),
+      ctaUrl: '/collections/nouveautes',
+      position: 0,
+      active: true,
+      startsAt: inAWeek,
+    },
+  ];
+
+  for (const banner of banners) {
+    const existing = await prisma.banner.findFirst({ where: { name: banner.name } });
+    if (existing) await prisma.banner.update({ where: { id: existing.id }, data: banner as never });
+    else await prisma.banner.create({ data: banner as never });
+  }
+  log('banners', banners.length);
+
   // --- home builder sections ------------------------------------------------
   const collections = new Map(
     (await prisma.collection.findMany({ select: { id: true, slug: true } })).map((c) => [c.slug, c.id]),

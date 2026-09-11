@@ -86,8 +86,20 @@ generated SQL. CI fails if the schema and the migrations disagree.
 **M1.2 (catalog admin)**, **M1.3 (inventory and purchasing)**, **M1.4 (settings,
 users, roles, journal, backups)**, **M2 (storefront completion)**, **M3 (checkout,
 orders, notifications)**, **M4 (delivery, fleet and cash)** and **M5 (finance,
-reporting, customers and loyalty)** are complete. See
+reporting, customers and loyalty)** and **M6 (content, marketing and polish)** are
+complete. Every module of PRD Section 5 now has its screens. See
 [`docs/PRD-COMPLETION.md`](docs/PRD-COMPLETION.md) for the milestone plan.
+
+M6 gave the shop its own voice:
+
+- **A home builder**: blocks in the order they are drawn, each with its own window, so
+  a promotion scheduled for next week appears on its own and leaves on its own.
+- **Banners, announcements, pages and menus**, all scheduled the same way. Renaming a
+  published page writes the redirect for its old address.
+- **A newsletter list the shop owns**, copied to Brevo when that is switched on.
+  Unsubscribes travel with everyone else, so a campaign cannot reach somebody who left.
+- **Abandoned carts** with a recovery message each cart receives once, and **affiliates**
+  whose commission counts delivered orders rather than placed ones.
 
 M5 made the shop legible to its owner:
 

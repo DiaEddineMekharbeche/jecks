@@ -78,7 +78,6 @@ export function AppShell() {
           <ul className="flex flex-col gap-0.5">
             {items.map((item) => {
               const Icon = item.icon;
-              const planned = item.status === 'planned';
               const pending = unseen[item.key] ?? 0;
               return (
                 <li key={item.to}>
@@ -97,13 +96,10 @@ export function AppShell() {
                   >
                     <Icon className="h-4 w-4 shrink-0" />
                     <span className="flex-1">{item.label}</span>
-                    {/* A live count outranks the milestone tag: it needs acting on. */}
                     {pending > 0 ? (
                       <Badge tone="brass" className="animate-badge-pop">
                         {pending}
                       </Badge>
-                    ) : planned ? (
-                      <Badge tone="neutral">{item.milestone}</Badge>
                     ) : null}
                   </NavLink>
                 </li>
