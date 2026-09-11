@@ -5,7 +5,10 @@ export default defineConfig({
   format: ['esm', 'cjs'],
   dts: true,
   sourcemap: true,
-  clean: true,
+  // Not in watch mode. Cleaning wipes dist on every restart, and the declaration files
+  // take seconds longer to rebuild than the JavaScript — during which the API's compiler
+  // reads a dist with code and no types and reports every import as an implicit any.
+  clean: !process.argv.includes('--watch'),
   target: 'es2022',
   // Emits .js for ESM and .cjs for CommonJS so both frontends and Nest resolve it.
   outExtension: ({ format }) => ({ js: format === 'cjs' ? '.cjs' : '.js' }),
