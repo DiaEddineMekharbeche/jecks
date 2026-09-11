@@ -19,38 +19,49 @@ import { seedScope } from './util.js';
  *                                         wilayas, the rates, the settings, nothing else
  *
  * Every step is idempotent: running it twice does not duplicate rows.
+ *
+ * Note for a reset: `prisma migrate reset` runs this seed in a child process that does
+ * not carry an inline SEED_SCOPE through, so it always seeds `full`. To reset to a
+ * narrower scope, skip the seed and run it yourself:
+ *
+ *   prisma migrate reset --force --skip-seed
+ *   SEED_SCOPE=minimal pnpm db:seed
  */
 const prisma = new PrismaClient();
 
 async function main(): Promise<void> {
   const started = Date.now();
-  const withDemo = (process.env.SEED_DEMO_DATA ?? 'true') !== 'false';
+  const scope = seedScope();
 
-  process.stdout.write("\nSeeding Jeck's\n\n");
+  process.stdout.write(`\nSeeding Jeck's (${scope})\n\n`);
 
   process.stdout.write('System\n');
-  const { ownerId } = await seedSystem(prisma);
+  const { ownerId } = await seedSystem(prisma, scope);
 
   process.stdout.write('\nGeography, shipping and fleet\n');
-  await seedGeo(prisma);
+  await seedGeo(prisma, scope);
 
-  process.stdout.write('\nCatalog\n');
-  await seedCatalog(prisma);
+  if (scope === 'minimal') {
+    process.stdout.write('\nCatalogue, content and demo data skipped (SEED_SCOPE=minimal)\n');
+  } else {
+    process.stdout.write('\nCatalog\n');
+    await seedCatalog(prisma);
 
-  process.stdout.write('\nContent\n');
-  await seedContent(prisma);
+    process.stdout.write('\nContent\n');
+    await seedContent(prisma);
 
-  process.stdout.write('\nSuppliers and purchasing\n');
-  await seedPurchasing(prisma, ownerId);
+    process.stdout.write('\nSuppliers and purchasing\n');
+    await seedPurchasing(prisma, ownerId);
+  }
 
-  if (withDemo) {
+  if (scope === 'full') {
     process.stdout.write('\nDemo trading data\n');
     await seedDemo(prisma, ownerId);
 
     process.stdout.write('\nShopper engagement\n');
     await seedEngagement(prisma);
-  } else {
-    process.stdout.write('\nDemo data skipped (SEED_DEMO_DATA=false)\n');
+  } else if (scope === 'structure') {
+    process.stdout.write(`\nDemo trading data skipped (SEED_SCOPE=${scope})\n`);
   }
 
   const seconds = ((Date.now() - started) / 1000).toFixed(1);
