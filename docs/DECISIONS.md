@@ -788,3 +788,60 @@ They answer different questions. Collected under expected is a conversation with
 driver about a delivery. Reconciled under collected is just cash that has not reached
 the office yet. A single figure would hide the first inside the second, which is exactly
 the loss a cash-on-delivery shop cannot afford to miss.
+
+## D77 — One definition of profit, in the shared package (M5)
+
+`computePnl` lives in `@jecks/shared` rather than in the API, because the API serves the
+report and the worker writes the nightly `daily_stats` row. They were computing gross
+profit differently: the worker took delivery and refunds off it, the report did not.
+
+The rule is now: gross profit is goods less their cost. Delivery is a margin of its own,
+payment fees are their own line, and refunds come off the net. Whichever process asks,
+the answer is the same one.
+
+## D78 — Revenue is delivered, not placed (M5)
+
+The P&L, every sales report and the dashboard count an order when it reaches a doorstep,
+on the day it got there.
+
+A cash-on-delivery order is a request until the customer takes the parcel. Counting it at
+checkout makes a shop with a 60 % delivery rate look twice as profitable as it is, and
+that is the single easiest way for this platform to lie to its owner.
+`finance.revenue_basis` can switch to "paid" for a shop that trades mostly online, and
+every answer states the basis it used.
+
+## D79 — Discounts are shown, not subtracted twice (M5)
+
+Revenue is what was actually charged, which already has the discount taken off. The
+discount line in the P&L exists so an owner can see what was given away; subtracting it
+again would double-count it.
+
+This is tested explicitly, because it is the mistake that produces a P&L reading worse
+than reality and nobody notices for a quarter.
+
+## D80 — Period costs are allocated by revenue (M5)
+
+Rent does not belong to a wilaya, but a P&L grouped by wilaya that ignores rent flatters
+every row. Expenses and ad spend are spread across groups in proportion to revenue, and
+the remainder from the division goes to the largest group so the parts always add back to
+the whole.
+
+## D81 — Loyalty points are earned at the door (M5)
+
+Accrual happens on the DELIVERED transition and is reversed on RETURNED or REFUNDED,
+floored at zero. The ledger row carries the balance it produced, so a disputed balance can
+be walked back rather than argued about.
+
+Awarding at checkout would hand points to every customer who refuses a parcel, and points
+are money. Reversal is capped at zero because a customer who already spent them cannot owe
+them back.
+
+## D82 — Merging admits the identity was wrong (M5)
+
+The phone number is the customer identity (PRD Section 3), so the same person ordering
+from two numbers produces two half-histories. Merge moves everything to the survivor and
+archives the other rather than deleting it.
+
+A blacklisted record refuses to merge into a clean one. Allowing it would launder exactly
+the history the blacklist exists to keep, and the preview endpoint exists so nobody
+discovers the size of the operation afterwards.

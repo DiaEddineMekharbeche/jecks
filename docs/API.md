@@ -634,6 +634,61 @@ and every credential.
 
 ---
 
+## Finance, reporting and customers
+
+| Method | Path | Auth | Notes |
+|---|---|---|---|
+| GET | `/admin/finance/pnl` | `finance.read` | Grouped nine ways, optionally compared to the period before |
+| GET POST PATCH DELETE | `/admin/finance/expenses[/:id]` | `finance.read` / `write` | The list carries its own filtered total |
+| GET POST PATCH DELETE | `/admin/finance/expenses/categories[/:id]` | `finance.read` / `write` | A category with expenses cannot be deleted |
+| POST | `/admin/finance/expenses/generate-recurring` | `finance.write` | Writes the occurrences a series owes |
+| GET POST DELETE | `/admin/finance/ad-spend[/:id]` | `finance.read` / `write` | The same day and campaign replaces rather than adds |
+| GET | `/admin/finance/ad-spend/summary` | `finance.read` | ROAS and cost per order, attributed by UTM source |
+| GET POST | `/admin/finance/ledger` | `finance.read` / `write` | Signed entries; balances are derived |
+| GET | `/admin/finance/ledger/balances` | `finance.read` | Cash, bank, courier, customer |
+| GET | `/admin/reports` | `reports.read` | The library: seventeen named reports |
+| GET | `/admin/reports/:key` | `reports.read` | Runs one; add a format to stream it as a file |
+| GET | `/admin/customers` | `customers.read` | Value, reliability and segment; list and export |
+| GET | `/admin/customers/segments` | `customers.read` | How many are in each, and what they are worth |
+| GET | `/admin/customers/:id` | `customers.read` | Orders, addresses, notes and the points ledger |
+| POST PATCH | `/admin/customers[/:id]` | `customers.write` | |
+| POST | `/admin/customers/:id/notes` | `customers.write` | Internal note |
+| POST | `/admin/customers/:id/blacklist` | `customers.write` | Blocking takes a reason |
+| POST | `/admin/customers/:id/loyalty` | `customers.write` | Manual adjustment, with a reason |
+| GET | `/admin/customers/merge-preview` | `customers.write` | What a merge would move, before agreeing to it |
+| POST | `/admin/customers/merge` | `customers.write` | Cannot be undone |
+| GET POST PATCH DELETE | `/admin/customers/groups[/:id]` | `customers.read` / `write` | Group pricing |
+| GET | `/admin/dashboard/insights` | `reports.read` | Wilaya breakdown, order heatmap, funnel, activity |
+| POST | `/internal/maintenance/{recurring-expenses,segments,loyalty-expiry}` | internal token | What the worker calls nightly |
+
+**Revenue counts delivered orders.** In a cash-on-delivery market a placed order is a
+request: counting it as revenue makes a shop with a 60 % delivery rate look twice as
+profitable as it is. `finance.revenue_basis` can switch to "paid" for a shop that trades
+mostly online, and every answer says which basis produced it.
+
+**Discounts are reported, never subtracted twice.** Revenue is what was actually charged
+and already has the discount taken off. The discount line exists so it can be seen, not
+so it can be deducted again.
+
+**Gross profit is goods only.** Delivery has a margin of its own, payment fees are their
+own line, and refunds come off the net. One function in `@jecks/shared` computes all of
+it, because the API serves the report and the worker writes the nightly row, and two
+implementations would eventually disagree.
+
+**Period costs are shared out by revenue.** Rent belongs to no wilaya, but a P&L grouped
+by wilaya that ignores rent flatters every row. The remainder from the division goes to
+the largest group, so the parts always add back to the whole.
+
+**Points are earned at the door.** Loyalty accrues when an order is delivered and is
+taken back if it comes home again, floored at zero. Awarding at checkout would hand
+points to everyone who refuses the parcel.
+
+**Merging admits the phone number was wrong.** Everything moves to the surviving record
+and the other is archived rather than deleted. A blacklisted record refuses to merge into
+a clean one: that would launder the history the blacklist exists to keep.
+
+---
+
 ## Health
 
 | Method | Path | Notes |
@@ -647,9 +702,6 @@ and every credential.
 
 The modules below are specified in the PRD and scheduled by milestone. They are listed
 here so integrators can see the shape of the finished API, not because they exist.
-
-**M5 — finance and reporting.** `/admin/finance/{expenses,payments,pnl}`,
-`/admin/reports/*`, `/admin/customers`.
 
 **M6 — marketing.** `/marketing/newsletter`, `/reviews`, `/admin/content/*`.
 

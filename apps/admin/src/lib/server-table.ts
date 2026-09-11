@@ -79,6 +79,15 @@ export interface ServerTable<TRow> {
 
   exportRows: (format: 'csv' | 'xlsx') => Promise<void>;
   queryKey: unknown[];
+
+  /**
+   * Anything the endpoint put in `meta` beyond the pagination fields.
+   *
+   * A few lists answer a question of their own — the filtered total of a set of
+   * expenses, say — and that answer belongs with the rows it came from rather than in a
+   * second request that could disagree with them.
+   */
+  extraMeta: Record<string, unknown>;
 }
 
 export function useServerTable<TRow>(options: ServerTableOptions): ServerTable<TRow> {
@@ -159,8 +168,10 @@ export function useServerTable<TRow>(options: ServerTableOptions): ServerTable<T
       return {
         data: result.data ?? [],
         // The API always sends list meta; defaulting keeps a malformed response from
-        // rendering NaN in the pagination bar.
+        // rendering NaN in the pagination bar. Anything else it sent is carried through
+        // untouched.
         meta: {
+          ...(result.meta ?? {}),
           page: Number(result.meta?.page ?? 1),
           pageSize: Number(result.meta?.pageSize ?? defaultPageSize),
           total: Number(result.meta?.total ?? 0),
@@ -334,6 +345,7 @@ export function useServerTable<TRow>(options: ServerTableOptions): ServerTable<T
     applyView,
     exportRows,
     queryKey,
+    extraMeta: (meta ?? {}) as Record<string, unknown>,
   };
 }
 

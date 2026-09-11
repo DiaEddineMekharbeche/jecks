@@ -20,6 +20,8 @@ import {
   SizeGuidesPage,
   TagsPage,
 } from '@/features/catalog/TaxonomyPages';
+import { CustomerDetailPage } from '@/features/customers/CustomerDetailPage';
+import { CustomersListPage } from '@/features/customers/CustomersListPage';
 import { CashPage } from '@/features/delivery/CashPage';
 import { CouriersPage } from '@/features/delivery/CouriersPage';
 import { DeliveryAnalyticsPage } from '@/features/delivery/DeliveryAnalyticsPage';
@@ -32,6 +34,12 @@ import { RunsPage } from '@/features/delivery/RunsPage';
 import { SettlementsPage } from '@/features/delivery/SettlementsPage';
 import { ShipmentsPage } from '@/features/delivery/ShipmentsPage';
 import { DashboardPage } from '@/features/dashboard/DashboardPage';
+import { AdSpendPage } from '@/features/finance/AdSpendPage';
+import { ExpensesPage } from '@/features/finance/ExpensesPage';
+import { FinanceLayout } from '@/features/finance/FinanceLayout';
+import { LedgerPage } from '@/features/finance/LedgerPage';
+import { PnlPage } from '@/features/finance/PnlPage';
+import { ReportsPage } from '@/features/finance/ReportsPage';
 import { InventoryLayout } from '@/features/inventory/InventoryLayout';
 import { LocationsPage } from '@/features/inventory/LocationsPage';
 import { MovementsPage } from '@/features/inventory/MovementsPage';
@@ -180,6 +188,51 @@ export function AppRoutes() {
           <Route path="merchandising" element={<MerchandisingPage />} />
           <Route path="media" element={<MediaLibraryPage />} />
         </Route>
+
+        {/* Customers — PRD F-AD-40 to F-AD-42. */}
+        <Route
+          path="/customers"
+          element={
+            <Protected permission="customers.read">
+              <CustomersListPage />
+            </Protected>
+          }
+        />
+
+        <Route
+          path="/customers/:id"
+          element={
+            <Protected permission="customers.read">
+              <CustomerDetailPage />
+            </Protected>
+          }
+        />
+
+        {/* Finance — PRD F-AD-70 to F-AD-73. */}
+        <Route
+          path="/finance"
+          element={
+            <Protected permission="finance.read">
+              <FinanceLayout />
+            </Protected>
+          }
+        >
+          <Route index element={<PnlPage />} />
+          <Route path="expenses" element={<ExpensesPage />} />
+          <Route path="ad-spend" element={<AdSpendPage />} />
+          <Route path="ledger" element={<LedgerPage />} />
+        </Route>
+
+        {/* The report library — PRD F-AD-80/81. Separate from finance because a
+            marketing role reads reports without seeing the cash. */}
+        <Route
+          path="/reports"
+          element={
+            <Protected permission="reports.read">
+              <ReportsPage />
+            </Protected>
+          }
+        />
 
         {/* Delivery — PRD F-AD-60 to F-AD-65. Cash and settlements are gated again
             inside the layout, so a dispatcher never sees the drawer. */}

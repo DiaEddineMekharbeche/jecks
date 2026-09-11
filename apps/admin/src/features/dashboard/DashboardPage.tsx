@@ -15,6 +15,7 @@ import {
   YAxis,
 } from 'recharts';
 import { api } from '@/lib/api';
+import { InsightsPanel } from './InsightsPanel';
 
 type Period = '7d' | '30d' | '90d' | 'mtd' | 'ytd';
 
@@ -251,6 +252,10 @@ export function DashboardPage() {
           )}
         </CardBody>
       </Card>
+
+      {/* The map, the heatmap and the funnel load on their own so the tiles above are
+          never waiting on them. */}
+      <InsightsPanel period={period} />
     </div>
   );
 }

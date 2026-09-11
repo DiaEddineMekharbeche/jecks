@@ -133,7 +133,7 @@ function change(value: bigint | number, previous: bigint | number): number | nul
 }
 
 /** Windows are whole UTC days, matching how `daily_stats` is keyed. */
-function resolveWindow(period: DashboardPeriod): {
+export function resolveWindow(period: DashboardPeriod): {
   from: Date;
   to: Date;
   previousFrom: Date;

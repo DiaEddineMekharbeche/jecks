@@ -85,8 +85,24 @@ generated SQL. CI fails if the schema and the migrations disagree.
 **M0 (Foundation)**, **M1.0 (admin framework)**, **M1.1 (media pipeline)**,
 **M1.2 (catalog admin)**, **M1.3 (inventory and purchasing)**, **M1.4 (settings,
 users, roles, journal, backups)**, **M2 (storefront completion)**, **M3 (checkout,
-orders, notifications)** and **M4 (delivery, fleet and cash)** are complete. See
+orders, notifications)**, **M4 (delivery, fleet and cash)** and **M5 (finance,
+reporting, customers and loyalty)** are complete. See
 [`docs/PRD-COMPLETION.md`](docs/PRD-COMPLETION.md) for the milestone plan.
+
+M5 made the shop legible to its owner:
+
+- **A profit and loss** grouped nine ways and comparable to the period before. Revenue
+  counts delivered orders, because a cash-on-delivery order is a request until somebody
+  takes the parcel. The rule lives in one shared function the worker uses too.
+- **Expenses** with recurring series generated forward, ad spend with real ROAS
+  attributed by UTM source, and a signed ledger whose balances are never stored.
+- **Seventeen named reports**, each returning its own columns so the screen renders one
+  it has never seen.
+- **Customers** with segments computed nightly, a reliability figure that decides whether
+  the next order gets a phone call, and a merge that admits the phone number was wrong.
+- **Loyalty** earned at the door and taken back if the parcel comes home.
+- **A dashboard** that now answers where the orders are, when they arrive, and how many
+  survive to a doorstep.
 
 M4 took the parcel out of the warehouse:
 
