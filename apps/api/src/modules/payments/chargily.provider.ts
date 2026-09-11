@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { SettingsAdminService } from '../system/settings-admin.service.js';
 import { SettingsService } from '../settings/settings.service.js';
@@ -57,7 +57,7 @@ export class ChargilyProvider implements PaymentProvider {
     private readonly settings: SettingsService,
     private readonly secrets: SettingsAdminService,
     /** Overridden in tests; defaults to the platform fetch. */
-    private readonly http: HttpClient = (url, init) => fetch(url, init),
+    @Optional() private readonly http: HttpClient = (url, init) => fetch(url, init),
   ) {}
 
   async isConfigured(): Promise<boolean> {

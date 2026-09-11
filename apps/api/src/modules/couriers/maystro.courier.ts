@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { DeliveryFailureReason, ShipmentStatus } from '@jecks/db';
 import {
@@ -82,7 +82,7 @@ export class MaystroCourier implements CourierProvider {
   readonly supportsCancel = true;
   readonly requiredCredentials = ['apiKey'] as const;
 
-  constructor(private readonly http: CourierHttpClient = (url, init) => fetch(url, init)) {}
+  constructor(@Optional() private readonly http: CourierHttpClient = (url, init) => fetch(url, init)) {}
 
   async createShipment(
     parcel: CourierParcel,

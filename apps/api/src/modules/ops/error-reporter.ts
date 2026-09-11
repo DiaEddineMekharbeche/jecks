@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 /**
@@ -76,7 +76,7 @@ export class SentryErrorReporter implements ErrorReporter {
 
   constructor(
     config: ConfigService,
-    private readonly http: ReporterHttpClient = (url, init) => fetch(url, init),
+    @Optional() private readonly http: ReporterHttpClient = (url, init) => fetch(url, init),
   ) {
     this.dsn = parseDsn(config.get<string>('SENTRY_DSN'));
     this.environment = config.get<string>('NODE_ENV') ?? 'development';

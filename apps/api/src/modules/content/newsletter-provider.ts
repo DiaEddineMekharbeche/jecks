@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 
 /**
  * Newsletter providers — PRD F-AD-91.
@@ -95,7 +95,7 @@ export class BrevoNewsletterProvider implements NewsletterProvider {
 
   private readonly logger = new Logger(BrevoNewsletterProvider.name);
 
-  constructor(private readonly http: NewsletterHttpClient = (url, init) => fetch(url, init)) {}
+  constructor(@Optional() private readonly http: NewsletterHttpClient = (url, init) => fetch(url, init)) {}
 
   async sync(
     contacts: NewsletterContact[],
