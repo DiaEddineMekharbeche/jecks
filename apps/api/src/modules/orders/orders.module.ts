@@ -7,7 +7,8 @@ import { CheckoutController } from './checkout.controller.js';
 import { CheckoutService } from './checkout.service.js';
 import { OrderNumberService } from './order-number.service.js';
 import { OrderTransitionService } from './order-transition.service.js';
-import { OrdersAdminController } from './orders-admin.controller.js';
+import { OrderDocumentsController, OrdersAdminController } from './orders-admin.controller.js';
+import { OrderDocumentsService } from './order-documents.service.js';
 import { OrdersAdminService } from './orders-admin.service.js';
 import { OrdersController } from './orders.controller.js';
 import { OrdersListService } from './orders-list.service.js';
@@ -21,10 +22,11 @@ import { OrdersListService } from './orders-list.service.js';
  */
 @Module({
   imports: [CartModule, CustomersModule, InventoryModule, ShippingModule],
-  controllers: [OrdersController, OrdersAdminController, CheckoutController],
+  controllers: [OrdersController, OrdersAdminController, OrderDocumentsController, CheckoutController],
   providers: [
     OrdersListService,
     OrdersAdminService,
+    OrderDocumentsService,
     OrderTransitionService,
     OrderNumberService,
     CheckoutService,

@@ -25,7 +25,7 @@ import {
 } from '@jecks/ui';
 import { useQuery } from '@tanstack/react-query';
 import type { ColumnDef } from '@tanstack/react-table';
-import { BookmarkPlus, Download, Search, Star, Trash2, X } from 'lucide-react';
+import { BookmarkPlus, Download, Printer, Search, Star, Trash2, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '@/lib/api';
@@ -112,6 +112,24 @@ export function OrdersListPage() {
   const [viewShared, setViewShared] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [bulkBusy, setBulkBusy] = useState<string | null>(null);
+  const [printing, setPrinting] = useState<string | null>(null);
+
+  /**
+   * Prints the selection, one order per page.
+   *
+   * This is the morning routine: confirm what came in overnight, print the invoices and
+   * the packing slips, hand the stack to whoever fills the boxes.
+   */
+  async function printBatch(kind: 'invoice' | 'packing-slip', ids: string[]) {
+    setPrinting(kind);
+    try {
+      await ordersApi.downloadOrderDocuments(ids, kind);
+    } catch (error) {
+      notify.error(message(error, "L'impression a échoué"));
+    } finally {
+      setPrinting(null);
+    }
+  }
 
   /**
    * Applies one action to the selection.
@@ -445,6 +463,24 @@ export function OrdersListPage() {
                 {action.label} ({ids.length})
               </Button>
             ))}
+            <Button
+              variant="outline"
+              size="sm"
+              loading={printing === 'invoice'}
+              onClick={() => void printBatch('invoice', ids)}
+            >
+              <Printer className="h-4 w-4" />
+              Factures ({ids.length})
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              loading={printing === 'packing-slip'}
+              onClick={() => void printBatch('packing-slip', ids)}
+            >
+              <Printer className="h-4 w-4" />
+              Bons ({ids.length})
+            </Button>
           </>
         )}
         toolbar={

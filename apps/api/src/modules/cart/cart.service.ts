@@ -141,7 +141,11 @@ export class CartService {
       });
     }
 
-    const existingLine = target.items.find((item) => item.variantId === input.variantId);
+    // A plain line, not one that belongs to a bundle: those are keyed by their bundle
+    // and must not be merged into the loose line for the same variant.
+    const existingLine = target.items.find(
+      (item) => item.variantId === input.variantId && item.bundleId === null,
+    );
     const wanted = (existingLine?.quantity ?? 0) + input.quantity;
     const available = availableOf(variant.inventoryLevels);
     const capped = capQuantity(wanted, available, variant.product);
@@ -154,22 +158,24 @@ export class CartService {
       });
     }
 
-    await this.prisma.cartItem.upsert({
-      where: {
-        cartId_variantId_bundleId: {
+    // Not an upsert. Its `where` would need `bundleId: null` inside the compound unique,
+    // and Prisma refuses a null there — it threw on every add to the cart. The line we
+    // would have matched is already in hand.
+    if (existingLine) {
+      await this.prisma.cartItem.update({
+        where: { id: existingLine.id },
+        data: { quantity: capped },
+      });
+    } else {
+      await this.prisma.cartItem.create({
+        data: {
           cartId: target.id,
           variantId: input.variantId,
-          bundleId: null as unknown as string,
+          quantity: capped,
+          unitPrice: variant.price,
         },
-      },
-      create: {
-        cartId: target.id,
-        variantId: input.variantId,
-        quantity: capped,
-        unitPrice: variant.price,
-      },
-      update: { quantity: capped },
-    });
+      });
+    }
 
     await this.touch(target.id, customerId);
     return this.present(await this.requireById(target.id), customerId);

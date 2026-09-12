@@ -8,7 +8,7 @@ import type {
   OrderTagsInput,
   OrderTransitionInput,
 } from '@jecks/shared';
-import { api } from '@/lib/api';
+import { api, download } from '@/lib/api';
 
 /** Every call the order screens make — PRD F-AD-30 to F-AD-36. */
 
@@ -44,3 +44,13 @@ export const listCommunes = (wilayaCode: number) =>
   api<Array<{ id: string; name: Record<string, string> }>>(
     `/shipping/wilayas/${wilayaCode}/communes`,
   );
+
+// --- printable documents ----------------------------------------------------
+
+/** The invoice or the packing slip for one order, straight to the printer dialogue. */
+export const downloadOrderDocument = (id: string, kind: 'invoice' | 'packing-slip') =>
+  download(`/admin/orders/${id}/documents/${kind}.pdf`);
+
+/** The same two documents for a selection, one order per page. */
+export const downloadOrderDocuments = (orderIds: string[], kind: 'invoice' | 'packing-slip') =>
+  download('/admin/orders/documents/batch', { method: 'POST', body: { kind, orderIds } });

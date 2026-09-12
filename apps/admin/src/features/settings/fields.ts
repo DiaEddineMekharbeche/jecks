@@ -56,6 +56,7 @@ export const SETTINGS_FORMS: Record<SettingScope, SettingSection> = {
       { key: 'store.address', label: 'Adresse', kind: 'textarea' },
       { key: 'store.rc', label: 'Registre de commerce', kind: 'text' },
       { key: 'store.nif', label: 'NIF', kind: 'text' },
+      { key: 'store.art', label: 'Article d’imposition', kind: 'text' },
       {
         key: 'store.currency',
         label: 'Devise',

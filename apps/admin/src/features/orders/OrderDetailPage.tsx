@@ -47,6 +47,7 @@ import {
   ImageOff,
   MessageSquare,
   Phone,
+  Printer,
   Save,
   ShieldAlert,
   Tag,
@@ -91,6 +92,16 @@ export function OrderDetailPage() {
   const [busy] = useState(false);
 
   const order = query.data;
+
+  /** Streams the PDF straight to the browser's download, which opens the print dialogue. */
+  async function printDocument(kind: 'invoice' | 'packing-slip') {
+    if (!id) return;
+    try {
+      await orders.downloadOrderDocument(id, kind);
+    } catch (error) {
+      notify.error(message(error, "Le document n'a pas pu être généré"));
+    }
+  }
 
   function refresh(next: OrderDetail) {
     queryClient.setQueryData(['admin', 'order', id], next);
@@ -141,7 +152,24 @@ export function OrderDetailPage() {
         }
         description={`${SOURCE_LABELS[order.source] ?? order.source} · ${dateTimeFormatter.format(new Date(order.createdAt))}`}
         actions={
-          order.allowedTransitions.length > 0 ? (
+          <>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" variant="outline">
+                  <Printer className="h-4 w-4" />
+                  Imprimer
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onSelect={() => void printDocument('invoice')}>
+                  Facture
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => void printDocument('packing-slip')}>
+                  Bon de préparation
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            {order.allowedTransitions.length > 0 ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button size="sm" loading={busy}>
@@ -158,7 +186,8 @@ export function OrderDetailPage() {
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
-          ) : null
+            ) : null}
+          </>
         }
       />
 

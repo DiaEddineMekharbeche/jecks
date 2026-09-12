@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Res } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   callLogSchema,
@@ -6,21 +6,26 @@ import {
   orderBulkSchema,
   orderNoteSchema,
   orderTagsSchema,
+  orderDocumentBatchSchema,
   orderTransitionSchema,
   type CallLogInput,
   type OrderAddressPatchInput,
   type OrderBulkInput,
   type OrderNoteInput,
   type OrderTagsInput,
+  type OrderDocumentBatchInput,
   type OrderTransitionInput,
 } from '@jecks/shared';
+import type { Response } from 'express';
 import {
   CurrentUser,
+  RawResponse,
   RequirePermissions,
   type AuthenticatedUser,
 } from '../../common/decorators/auth.decorators.js';
-import { AuditEntity } from '../../common/interceptors/audit.interceptor.js';
+import { AuditEntity, NoAudit } from '../../common/interceptors/audit.interceptor.js';
 import { zod } from '../../common/pipes/zod-validation.pipe.js';
+import { OrderDocumentsService } from './order-documents.service.js';
 import { OrdersAdminService } from './orders-admin.service.js';
 
 /**
@@ -118,4 +123,67 @@ export class OrdersAdminController {
   assign(@Param('id') id: string, @Body('agentId') agentId: string | null) {
     return this.orders.assign(id, agentId || null);
   }
+}
+
+/**
+ * Printable order documents — PRD F-AD-36.
+ *
+ * A separate controller because these stream files rather than JSON, and because the
+ * batch form is the one an owner actually uses: confirm the morning's orders, print the
+ * invoices and the packing slips in two clicks.
+ */
+@ApiTags('admin/orders')
+@ApiBearerAuth()
+@Controller('admin/orders')
+export class OrderDocumentsController {
+  constructor(private readonly documents: OrderDocumentsService) {}
+
+  @Get(':id/documents/invoice.pdf')
+  @RawResponse()
+  @NoAudit()
+  @RequirePermissions('orders.documents')
+  @ApiOperation({ summary: 'The invoice for one order' })
+  async invoice(@Param('id') id: string, @Res() response: Response): Promise<void> {
+    send(response, await this.documents.invoices([id]), 'facture.pdf');
+  }
+
+  @Get(':id/documents/packing-slip.pdf')
+  @RawResponse()
+  @NoAudit()
+  @RequirePermissions('orders.documents')
+  @ApiOperation({ summary: 'The packing slip for one order' })
+  async packingSlip(@Param('id') id: string, @Res() response: Response): Promise<void> {
+    send(response, await this.documents.packingSlips([id]), 'bon-de-preparation.pdf');
+  }
+
+  @Post('documents/batch')
+  @HttpCode(HttpStatus.OK)
+  @RawResponse()
+  @NoAudit()
+  @RequirePermissions('orders.documents')
+  @ApiOperation({ summary: 'Invoices or packing slips for a batch, one order per page' })
+  async batch(
+    @Body(zod(orderDocumentBatchSchema)) body: OrderDocumentBatchInput,
+    @Res() response: Response,
+  ): Promise<void> {
+    const pdf =
+      body.kind === 'invoice'
+        ? await this.documents.invoices(body.orderIds)
+        : await this.documents.packingSlips(body.orderIds);
+
+    send(response, pdf, body.kind === 'invoice' ? 'factures.pdf' : 'bons-de-preparation.pdf');
+  }
+}
+
+/**
+ * Streams a PDF.
+ *
+ * `no-store` because these carry a customer's name, address and phone, and a shared
+ * office machine should not keep them in its browser cache.
+ */
+function send(response: Response, pdf: Buffer, filename: string): void {
+  response.setHeader('Content-Type', 'application/pdf');
+  response.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  response.setHeader('Cache-Control', 'no-store');
+  response.end(pdf);
 }

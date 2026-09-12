@@ -132,3 +132,16 @@ export const RISK_FLAGS = [
 ] as const;
 
 export type RiskFlag = (typeof RISK_FLAGS)[number];
+
+/**
+ * A batch of printable documents — PRD F-AD-36.
+ *
+ * The cap is the printer's, not the database's: two hundred pages is already a long
+ * wait on the machine in the back of a shop.
+ */
+export const orderDocumentBatchSchema = z.object({
+  kind: z.enum(['invoice', 'packing-slip']),
+  orderIds: z.array(z.string().uuid()).min(1).max(200),
+});
+
+export type OrderDocumentBatchInput = z.infer<typeof orderDocumentBatchSchema>;

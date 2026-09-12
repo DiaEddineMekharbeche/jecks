@@ -49,6 +49,9 @@ export const settingScopeSchemas = {
     'store.address': z.string().trim().max(400),
     'store.rc': z.string().trim().max(40),
     'store.nif': z.string().trim().max(40),
+    // Article d'imposition. Printed on an invoice beside the RC and the NIF; a shop
+    // without one leaves it blank and the line is omitted rather than left empty.
+    'store.art': z.string().trim().max(40),
     'store.currency': z.enum(['DZD']),
   }),
 
