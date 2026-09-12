@@ -43,6 +43,13 @@ the same list drives the navigation, the route guards and the API. A section tha
 hidden is also an unreachable URL — PRD acceptance criterion 6 — and the e2e suite
 proves it by requesting the endpoint directly rather than by looking at the menu.
 
+The surface is enforced, not trusted. `apps/api/permission-surface.txt` lists every
+route and what it demands, generated from the code; a test fails if any route loses its
+permission, demands one that does not exist, or if any permission in the catalogue ends
+up controlling nothing. That last rule is the one that matters: six times a permission
+has existed, been offered on the matrix screen, been respected by the menu, and been
+asked for by no route at all.
+
 Two checks that are easy to get wrong and are covered by tests:
 
 - A driver reads their own run. Every `/driver` route resolves the driver from the

@@ -207,6 +207,14 @@ jobs:
       - name: Integration tests
         run: pnpm test:integration
 
+      # The surface file is committed. A diff here is a change to who can reach what,
+      # and it should be read in the pull request rather than regenerated away.
+      - name: The permission surface is unchanged
+        if: failure()
+        run: |
+          echo "::error::If permission-surface.txt differs, regenerate it deliberately:"
+          echo "  UPDATE_PERMISSION_SURFACE=1 pnpm --filter @jecks/api test:integration permission-surface"
+
   e2e:
     name: End-to-end
     runs-on: ubuntu-latest

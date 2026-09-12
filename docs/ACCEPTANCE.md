@@ -158,6 +158,7 @@ that renders empty against the seed is a bug in the report.
 | The API refuses, not just the screen | Same file — "the API refuses the data, not just the screen", requesting the endpoint directly |
 | The same refusals through the real guards | `apps/api/src/modules/orders/orders-admin.int-spec.ts` — an agent refused the P&L, a warehouse hand refused a cancellation, against a real database |
 | A driver cannot ask for another driver's run | Same file — every `/driver` route resolves the driver from the session, never from a path parameter |
+| Every route demands the right permission | `apps/api/src/modules/permission-surface.int-spec.ts` and the committed `permission-surface.txt`: no admin route without a permission, no permission in the catalogue that nothing asks for, and the whole surface reviewed line by line |
 | The permission catalogue itself | `packages/shared/src/enums/permissions.ts`, one list driving the navigation, the route guards and the API |
 
 Hiding a menu entry is not authorization. Every one of these tests asks the API directly,

@@ -167,8 +167,15 @@ export class CustomersController {
     return this.customers.addNote(id, body, user.id);
   }
 
+  /**
+   * Its own permission, not `customers.write`.
+   *
+   * Correcting a phone number and refusing somebody's orders for ever are different
+   * decisions. `customers.blacklist` existed for exactly this and was asked for by
+   * nothing, so any agent who could fix a typo could also ban a customer.
+   */
   @Post(':id/blacklist')
-  @RequirePermissions('customers.write')
+  @RequirePermissions('customers.blacklist')
   @ApiOperation({ summary: 'Block or unblock a customer; blocking takes a reason' })
   blacklist(@Param('id') id: string, @Body(zod(blacklistSchema)) body: BlacklistInput) {
     return this.customers.setBlacklisted(id, body);

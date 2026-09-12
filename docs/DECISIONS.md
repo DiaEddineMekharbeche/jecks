@@ -1125,3 +1125,40 @@ let the builder see a scheduled block before its start date; that needs the stor
 accept the token and bypass the window filter (D83), and is not built. The panel says so
 in as many words, because letting somebody believe they are previewing a draft is worse
 than not offering the preview.
+
+## D101 — The permission surface is a reviewed artifact (M7)
+
+`apps/api/permission-surface.txt` lists every route the application registers and the
+permissions it demands, generated from the decorators rather than written by hand. An
+integration test regenerates it and fails on any difference.
+
+The same defect had appeared six times: a permission exists in the catalogue, appears on
+the permission-matrix screen, is respected by the admin navigation, and is demanded by no
+route. `marketing.read`, `reports.export`, `orders.cancel`, `orders.refund`,
+`customers.blacklist`, and the cash drawer asking for `delivery.read` when the screen
+behind it required `delivery.settle`. Every one was found because somebody thought to
+look, which is not a control.
+
+Four rules now hold it:
+
+- Every admin route demands at least one permission.
+- Every permission a route demands exists in the catalogue. A typo silently denies
+  everybody, which reads as a broken feature rather than a broken guard.
+- Every permission in the catalogue is demanded by some route, or is listed in
+  `ENFORCED_IN_CODE` with a reason. `orders.cancel` and `orders.refund` are the only two,
+  because the target of a transition decides them and a route-level guard cannot say
+  "this status needs more than the others".
+- The whole surface matches the committed file, line for line.
+
+The last one is the important one and it is deliberately inconvenient. A diff is not a
+failure to regenerate away; it is a change to who can reach what, and the point is that
+it lands in a pull request where somebody reads it.
+
+Metadata alone would prove only that the decorators are present, so a second group of
+tests calls the money, identity and ban routes as each role. If the guard were bypassed
+entirely, every rule above would still pass and those would not.
+
+Found by the rules on their first run: **`customers.blacklist` controlled nothing.**
+Blacklisting was gated by `customers.write`, so any agent who could correct a phone
+number could also refuse a customer's orders for ever. It is its own decision and now
+needs its own permission.
