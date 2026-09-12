@@ -1191,3 +1191,35 @@ sanitiser that eats the delivery policy is one that gets switched off.
 Still missing: the admin has no rich-text editor, so that HTML is typed by hand into a
 textarea. The plan asked for TipTap and it is not built; the sanitiser makes the field
 safe either way.
+
+## D103 — The rich-text editor, and its toolbar, are bounded by the sanitiser (M7)
+
+Page bodies and product descriptions are edited with TipTap. Until now they were HTML
+typed by hand into a textarea, which asked a shop owner to know what an `<h2>` is in
+order to write a delivery policy.
+
+**The toolbar offers only what survives the server.** Everything it can produce —
+headings, bold, italic, strike, lists, quote, inline code, links, images — is on the
+sanitiser's allow-list (D102). Anything that would not survive is absent rather than
+offered and then silently stripped on save; an editor that appears to accept a colour and
+loses it on reload is worse than one that never offered it. The link prompt refuses a
+`javascript:` URL as it is typed for the same reason, using the same scheme list the
+server enforces.
+
+Verified as a pair rather than separately: a document containing every construct the
+toolbar emits was saved through the real API and came back byte for byte.
+
+**Loaded on demand.** TipTap and ProseMirror are about 400 KB and serve two screens.
+Eagerly imported they sat in the main chunk, so an operator paid for them on the orders
+list — the screen that stays open all day. Everything reaches the editor through one lazy
+boundary, so the split holds by construction rather than by everybody importing the right
+file. The main chunk went from 2189 KB to 1785 KB.
+
+`TranslatedRichText` mirrors `TranslatedInput`: a tab per locale, a tick on the ones with
+content, and Arabic flips the editing surface to right-to-left. It is a separate
+component rather than a flag on the existing one, because a string the browser edits and
+an HTML document a ProseMirror instance produces have genuinely different shapes, and
+folding them together would give a component whose props half-apply in each mode.
+
+An empty rich-text field is `<p></p>`, not `''`. Both the "is this locale filled" tick
+and the value written back treat it as empty, or every untouched tab would show as done.

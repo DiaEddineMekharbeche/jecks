@@ -198,10 +198,6 @@ Said plainly, because an acceptance document that claims everything is not one.
 - **The load target is scripted, not scheduled.** `e2e/load/catalog.js` asserts a p95
   under 200 ms at 200 concurrent readers and reads the cache hit rate back out of
   `/metrics`, but it runs when somebody runs it.
-- **The admin has no rich-text editor.** Page bodies and product descriptions are HTML,
-  typed by hand into a textarea. The plan asked for TipTap. The field is safe either way
-  — it is sanitised on write — but an owner cannot format a delivery policy without
-  knowing what a `<h2>` is.
 - **The admin has no test suite of its own.** The API, the worker, the shared package and
   the storefront all have one; the admin has none, so its components are covered only
   through the end-to-end suite.

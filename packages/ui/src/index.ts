@@ -14,4 +14,5 @@ export * from './components/command';
 export * from './components/combobox';
 export * from './components/date-range';
 export * from './components/file-dropzone';
+export * from './components/rich-text';
 export * from './components/translated-input';

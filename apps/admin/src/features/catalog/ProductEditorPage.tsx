@@ -20,6 +20,7 @@ import {
   TabsList,
   TabsTrigger,
   TranslatedInput,
+  TranslatedRichText,
   cn,
   notify,
 } from '@jecks/ui';
@@ -563,11 +564,9 @@ function GeneralTab({ form, patch, fieldErrors = {} }: TabProps) {
             </Field>
 
             <Field label="Description">
-              <TranslatedInput
+              <TranslatedRichText
                 value={form.description}
                 onChange={(description) => patch({ description })}
-                multiline
-                rows={8}
                 requiredLocale=""
               />
             </Field>

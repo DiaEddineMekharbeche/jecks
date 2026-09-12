@@ -18,6 +18,7 @@ import {
   Skeleton,
   SwitchField,
   TranslatedInput,
+  TranslatedRichText,
   cn,
   notify,
 } from '@jecks/ui';
@@ -291,7 +292,7 @@ function PageDialog({
               ) : null}
 
               <Field label="Contenu" required>
-                <TranslatedInput value={body} onChange={setBody} multiline rows={10} />
+                <TranslatedRichText value={body} onChange={setBody} />
               </Field>
 
               <Field label="Résumé" hint="Utilisé dans les listes et le partage.">
