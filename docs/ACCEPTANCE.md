@@ -151,6 +151,7 @@ that renders empty against the seed is a bug in the report.
 | The agent cannot reach the finance screen | `e2e/tests/roles.spec.ts` — "an order agent cannot reach the finances" |
 | The agent can still do their own job | Same file — a guard that blocks everything passes the first test and fails the shop |
 | The API refuses, not just the screen | Same file — "the API refuses the data, not just the screen", requesting the endpoint directly |
+| The same refusals through the real guards | `apps/api/src/modules/orders/orders-admin.int-spec.ts` — an agent refused the P&L, a warehouse hand refused a cancellation, against a real database |
 | A driver cannot ask for another driver's run | Same file — every `/driver` route resolves the driver from the session, never from a path parameter |
 | The permission catalogue itself | `packages/shared/src/enums/permissions.ts`, one list driving the navigation, the route guards and the API |
 
@@ -181,10 +182,11 @@ Said plainly, because an acceptance document that claims everything is not one.
   above. Neither is in CI.
 - **Lighthouse ≥ 85 is not enforced in CI.** It is measured by hand before a release. A
   budget in the pipeline is the right next step.
-- **There is no integration harness against a real database.** Domain logic is unit
-  tested against stubs, and the end-to-end suite covers the seams; what is missing is the
-  middle layer, where a service runs against a real Postgres. Testcontainers is the
-  intended shape.
+- **The integration layer covers orders and checkout, not every controller.** The
+  harness exists — Testcontainers starts a Postgres and a Redis, the real migrations
+  apply, and the suite drives the application through its own guards — and the testing
+  contract asks for every `/admin/*` controller. Two modules are done. The rest inherit
+  the harness and the fixtures; they need their three cases written.
 - **The load target is scripted, not scheduled.** `e2e/load/catalog.js` asserts a p95
   under 200 ms at 200 concurrent readers and reads the cache hit rate back out of
   `/metrics`, but it runs when somebody runs it.

@@ -1025,3 +1025,33 @@ there eventually has a conversation it did not want.
 
 The note goes on the slip rather than the invoice for the same reason: "call before
 coming up, the bell does not work" is an instruction for the person carrying the box.
+
+## D97 — The integration suite starts its own databases (M7)
+
+`pnpm test:integration` runs the API against a Postgres and a Redis that Testcontainers
+starts for the run, applies the real migrations, and seeds only the reference data.
+`INTEGRATION_DATABASE_URL` points it at an existing instance while iterating.
+
+Containers rather than the Postgres that CI already provides as a service, because the
+suite should run the same way on a laptop as in CI. A test that only passes against a
+database somebody remembered to reset is not a test, and one that only passes in CI
+cannot be debugged where it fails.
+
+It is a separate config and a separate script. Keeping it out of `pnpm test` means the
+fast suite stays fast and still runs on a machine with no Docker daemon, which is what a
+pre-commit hook and a quick loop need.
+
+Two things this found on its first run, both invisible to every unit test because a unit
+test calls the service and never passes the guard:
+
+- **`orders.cancel` and `orders.refund` were never checked.** Both had been in the
+  permission catalogue since M0 and granted to roles. Anyone with `orders.transition` —
+  a warehouse hand marking boxes packed — could cancel a customer's order. The target of
+  the transition now decides, because a route-level guard cannot say "this status, not
+  that one". The third permission found granting nothing, after `marketing.read` and
+  `reports.export`.
+- **`TRUNCATE ... CASCADE` reached backwards into the fixtures.** `users` carries an
+  avatar pointing at `media`, so truncating media deleted the staff accounts the suite
+  had signed in as, and the next write failed on a foreign key that looked like an
+  application bug. The keep list is now closed over its own references before anything
+  is truncated.

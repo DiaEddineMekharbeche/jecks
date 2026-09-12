@@ -1,4 +1,15 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  ForbiddenException,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Res,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   callLogSchema,
@@ -15,6 +26,7 @@ import {
   type OrderTagsInput,
   type OrderDocumentBatchInput,
   type OrderTransitionInput,
+  type Permission,
 } from '@jecks/shared';
 import type { Response } from 'express';
 import {
@@ -35,6 +47,17 @@ import { OrdersAdminService } from './orders-admin.service.js';
  * may correct a phone number all day, and still not be the person who decides an order
  * is cancelled.
  */
+/**
+ * Targets that need a permission beyond `orders.transition`.
+ *
+ * Both already existed in the catalogue and were granted to roles; neither was read by
+ * anything until now.
+ */
+const EXTRA_PERMISSION: Partial<Record<string, Permission>> = {
+  CANCELLED: 'orders.cancel',
+  REFUNDED: 'orders.refund',
+};
+
 @ApiTags('admin/orders')
 @ApiBearerAuth()
 @AuditEntity('order')
@@ -56,6 +79,14 @@ export class OrdersAdminController {
     return this.orders.get(id);
   }
 
+  /**
+   * Moving an order along needs `orders.transition`; ending it needs more.
+   *
+   * Cancelling and refunding have their own permissions in the catalogue, and until
+   * this check existed nothing read them: a warehouse hand with `orders.transition` for
+   * marking boxes packed could cancel a customer's order. Two words of a route guard
+   * cannot express "this target, not that one", so the target decides here.
+   */
   @Post(':id/transition')
   @RequirePermissions('orders.transition')
   @ApiOperation({ summary: 'Move the order through the state machine' })
@@ -64,6 +95,14 @@ export class OrdersAdminController {
     @Body(zod(orderTransitionSchema)) body: OrderTransitionInput,
     @CurrentUser() user: AuthenticatedUser,
   ) {
+    const extra = EXTRA_PERMISSION[body.to];
+    if (extra && !user.permissions.includes(extra)) {
+      throw new ForbiddenException({
+        code: 'FORBIDDEN',
+        message: `Votre rôle ne permet pas cette action (${extra}).`,
+      });
+    }
+
     return this.orders.transition(id, body, { id: user.id, name: user.name });
   }
 

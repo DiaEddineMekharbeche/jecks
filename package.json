@@ -27,7 +27,8 @@
     "e2e": "pnpm --filter @jecks/e2e e2e",
     "e2e:install": "pnpm --filter @jecks/e2e install:browsers",
     "load": "k6 run e2e/load/catalog.js",
-    "e2e:ui": "pnpm --filter @jecks/e2e e2e:ui"
+    "e2e:ui": "pnpm --filter @jecks/e2e e2e:ui",
+    "test:integration": "pnpm --filter @jecks/api test:integration"
   },
   "devDependencies": {
     "@types/node": "^20.14.10",

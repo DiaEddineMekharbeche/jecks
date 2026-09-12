@@ -181,6 +181,32 @@ jobs:
         env:
           DATABASE_URL: postgresql://jecks:jecks@localhost:5433/jecks_migrate?schema=public
 
+  integration:
+    name: Integration (Testcontainers)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: quality
+
+    env:
+      # Testcontainers starts its own Postgres and Redis; the runner's Docker daemon is
+      # all it needs. No `services:` block, so the suite runs the same way here as on a
+      # laptop rather than against a database only CI has.
+      NODE_ENV: test
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:generate
+
+      - name: Integration tests
+        run: pnpm test:integration
+
   e2e:
     name: End-to-end
     runs-on: ubuntu-latest
@@ -287,7 +313,7 @@ jobs:
     timeout-minutes: 30
     # Images are only worth building for a release.
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [quality, build, e2e]
+    needs: [quality, build, integration, e2e]
 
     strategy:
       matrix:
