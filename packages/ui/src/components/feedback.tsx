@@ -22,7 +22,7 @@ export function Toaster() {
             'group rounded-sm border border-line bg-surface text-ink shadow-card text-sm p-4 flex gap-3 items-start',
           title: 'font-medium',
           description: 'text-muted text-xs mt-0.5',
-          actionButton: 'rounded-xs bg-brass text-base px-2.5 py-1 text-xs font-medium',
+          actionButton: 'rounded-xs bg-brass text-on-brass px-2.5 py-1 text-xs font-medium',
           cancelButton: 'rounded-xs bg-elevated text-muted px-2.5 py-1 text-xs',
           error: 'border-danger/50',
           success: 'border-success/50',

@@ -16,7 +16,7 @@ export const buttonVariants = cva(
   {
     variants: {
       variant: {
-        primary: 'bg-brass text-base hover:bg-brass-soft',
+        primary: 'bg-brass text-on-brass hover:bg-brass-soft',
         secondary: 'bg-elevated text-ink hover:bg-line',
         outline: 'border border-line text-ink hover:border-brass hover:text-brass',
         ghost: 'text-muted hover:bg-elevated hover:text-ink',

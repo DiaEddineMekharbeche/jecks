@@ -252,7 +252,7 @@ function MediaTile({
       )}
 
       {selected ? (
-        <span className="absolute end-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-brass text-base">
+        <span className="absolute end-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-brass text-on-brass">
           <Check className="h-3 w-3" aria-hidden />
         </span>
       ) : null}

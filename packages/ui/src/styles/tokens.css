@@ -9,6 +9,11 @@
  *   brass #D9B36A on base #0F0F10 ......... 9.68:1  (AAA)
  *   brass #D9B36A on surface #1A1A1C ...... 8.98:1  (AAA)
  *   ink #0F0F10 on brass #D9B36A .......... 9.68:1  (AAA, filled buttons)
+ *
+ * Filled brand surfaces take `text-on-brass`, never `text-base`. `text-base` is
+ * Tailwind's font-size utility, so it set the size and left the text inheriting the
+ * light ink — 1.77:1 on gold, on every primary button in the shop and the admin, for as
+ * long as the token table above claimed 9.68:1.
  *   muted #A0A0A6 on base #0F0F10 ......... 7.42:1  (AAA, small text safe)
  */
 

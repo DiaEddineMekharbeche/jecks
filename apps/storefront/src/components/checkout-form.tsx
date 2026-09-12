@@ -525,7 +525,7 @@ function Confirmation({
         </Link>
         <Link
           href={`/${locale}`}
-          className="bg-brass px-5 py-2 text-sm font-semibold uppercase tracking-wider text-base transition-colors hover:bg-brass-soft"
+          className="bg-brass px-5 py-2 text-sm font-semibold uppercase tracking-wider text-on-brass transition-colors hover:bg-brass-soft"
         >
           {dictionary.cart.continue}
         </Link>

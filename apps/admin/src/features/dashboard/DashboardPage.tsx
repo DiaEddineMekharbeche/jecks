@@ -111,7 +111,7 @@ export function DashboardPage() {
               className={cn(
                 'rounded-xs px-3 py-1.5 text-xs font-medium transition-colors',
                 period === option.value
-                  ? 'bg-brass text-base'
+                  ? 'bg-brass text-on-brass'
                   : 'text-muted hover:bg-elevated hover:text-ink',
               )}
             >

@@ -371,7 +371,7 @@ function Labelled({ label, children }: { label: string; children: React.ReactNod
 
 function Stars({ value }: { value: number }) {
   return (
-    <span className="flex" aria-label={`${value} / 5`}>
+    <span className="flex" role="img" aria-label={`${value} / 5`}>
       {[1, 2, 3, 4, 5].map((star) => (
         <Star
           key={star}

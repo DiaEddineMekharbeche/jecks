@@ -15,6 +15,13 @@ module.exports = {
     extend: {
       colors: {
         base: 'rgb(var(--jk-base) / <alpha-value>)',
+        // The same colour as `base`, under a name that is only ever a colour.
+        //
+        // `text-base` is Tailwind's font-size utility, so `bg-brass text-base` set the
+        // size and left the text inheriting `ink` — near-white on gold at 1.77:1, on
+        // every primary button in the shop and the admin. The tokens were right all
+        // along; the utility name was the bug.
+        'on-brass': 'rgb(var(--jk-base) / <alpha-value>)',
         surface: 'rgb(var(--jk-surface) / <alpha-value>)',
         elevated: 'rgb(var(--jk-elevated) / <alpha-value>)',
         line: 'rgb(var(--jk-line) / <alpha-value>)',

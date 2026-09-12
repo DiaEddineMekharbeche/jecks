@@ -26,6 +26,7 @@ export const HOME_SECTION_KINDS = [
   'new_arrivals',
   'best_sellers',
   'promo_countdown',
+  'promo_banner',
   'lookbook',
   'brand_story',
   'testimonials',

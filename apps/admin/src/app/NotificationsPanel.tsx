@@ -89,7 +89,7 @@ export function NotificationsPanel() {
         >
           <Inbox className="h-4 w-4" />
           {unread > 0 ? (
-            <span className="absolute -end-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-brass px-1 text-[10px] font-semibold tabular-nums text-base">
+            <span className="absolute -end-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-brass px-1 text-[10px] font-semibold tabular-nums text-on-brass">
               {unread > 99 ? '99+' : unread}
             </span>
           ) : null}

@@ -108,6 +108,14 @@ jobs:
         if: always()
         run: pnpm audit --audit-level moderate || true
 
+      # This one does block. A key committed by accident is compromised the moment it is
+      # pushed, and the fix is to rotate it — knowing within the minute is the whole
+      # value. The example values in .env.example are allow-listed in .gitleaks.toml.
+      - name: Secrets scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Upload coverage
         if: always()
         uses: actions/upload-artifact@v4
@@ -248,10 +256,10 @@ jobs:
       DATABASE_URL: postgresql://jecks:jecks@localhost:5432/jecks_e2e?schema=public
       NODE_ENV: test
       API_PORT: '4000'
-      API_URL: http://localhost:4000/api/v1
+      API_URL: http://127.0.0.1:4000/api/v1
       API_PUBLIC_URL: http://localhost:4000/api/v1
-      STOREFRONT_URL: http://localhost:3000
-      ADMIN_URL: http://localhost:5174
+      STOREFRONT_URL: http://127.0.0.1:3000
+      ADMIN_URL: http://127.0.0.1:5174
       CORS_ORIGINS: http://localhost:3000,http://localhost:5174
       COOKIE_DOMAIN: localhost
       COOKIE_SECURE: 'false'

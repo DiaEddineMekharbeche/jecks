@@ -1,0 +1,53 @@
+# Secrets scanning — PRD Section 10.9.
+#
+# A key committed by accident is compromised the moment it is pushed, and no amount of
+# rewriting history un-compromises it. The scan blocks the build so the response is to
+# rotate the key, not to argue about whether anyone saw it.
+#
+# The allow-list below is short on purpose. Every entry is a value that is meant to be in
+# the repository and is worthless outside a developer's laptop; anything else gets
+# rotated rather than allow-listed.
+
+title = "Jeck's"
+
+[extend]
+useDefault = true
+
+[[rules]]
+  id = "jecks-jwt-secret"
+  description = "A real JWT secret in a tracked file"
+  regex = '''(?i)JWT_(ACCESS|REFRESH)_SECRET\s*=\s*(?!change-me|ci-)[^\s"']{24,}'''
+  tags = ["jwt", "secret"]
+
+[[rules]]
+  id = "jecks-credentials-key"
+  description = "The AES key that decrypts every courier and payment credential"
+  regex = '''(?i)CREDENTIALS_KEY\s*=\s*(?!ZGV2LW9ubHkt|Y2ktb25seS0)[A-Za-z0-9+/]{20,}={0,2}'''
+  tags = ["crypto", "secret"]
+
+[allowlist]
+  description = "Values that belong in the repository"
+
+  paths = [
+    # The template. Its values are placeholders and two of them say "change-me" out loud.
+    '''^\.env\.example$''',
+    # The compose files for local development, whose passwords are "jecks".
+    '''^infra/docker/docker-compose\.yml$''',
+    # Fixtures and seeds: throwaway passwords for accounts that exist only in a test
+    # database, and the sign-in the seed prints on purpose.
+    '''(^|/)(.*\.spec\.ts|.*\.int-spec\.ts|.*\.test\.tsx?)$''',
+    '''^e2e/fixtures/''',
+    '''^packages/db/prisma/seed/''',
+    '''^apps/api/src/testing/''',
+  ]
+
+  regexes = [
+    # The CI values, which are in the workflow in plain sight and reach nothing.
+    '''ci-(access|refresh)-secret-that-is-long-enough-32''',
+    '''Y2ktb25seS1jaGFuZ2UtbWUtMzItYnl0ZXMta2V5IQ==''',
+    # The development key, base64 of "dev-only-change-me-32-bytes-key!".
+    '''ZGV2LW9ubHktY2hhbmdlLW1lLTMyLWJ5dGVzLWtleSE=''',
+    # The seeded staff password. Every deployment is told to change it, and the runbook
+    # and the security checklist both say so.
+    '''Jecks2026!''',
+  ]

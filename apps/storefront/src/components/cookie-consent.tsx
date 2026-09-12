@@ -82,7 +82,7 @@ export function CookieConsent({
                   setConsent('granted');
                   setState('granted');
                 }}
-                className="bg-brass px-4 py-2 text-xs font-semibold uppercase tracking-wider text-base transition-colors hover:bg-brass-soft"
+                className="bg-brass px-4 py-2 text-xs font-semibold uppercase tracking-wider text-on-brass transition-colors hover:bg-brass-soft"
               >
                 {dictionary.consent.accept}
               </button>

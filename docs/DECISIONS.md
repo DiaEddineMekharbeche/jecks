@@ -1282,3 +1282,38 @@ that exists to satisfy a list.
 Marking read is idempotent — a second call keeps the first moment — and marking somebody
 else's answers 404 rather than 403, because whether another person's notification exists
 is not a question this endpoint should answer.
+
+## D106 — `text-on-brass`, because `text-base` was never a colour (M7)
+
+Filled brand surfaces use `text-on-brass`. The token table has always said ink on brass
+is 9.68:1, and the buttons said `bg-brass text-base` — but `text-base` is Tailwind's
+font-size utility. It set the size and left the text inheriting the light ink: near-white
+on gold at **1.77:1**, against a 4.5:1 requirement, on every primary button, badge and
+checkbox in both the shop and the admin.
+
+The tokens were right the whole time. The utility name was the bug, and it was invisible
+because the class looked like a colour, the design document said the right number, and
+nothing measured the rendered page.
+
+`on-brass` is an alias for the same variable under a name that can only ever be a colour.
+Twelve lines across ten files changed; the fix is the alias, not the discipline of
+remembering which `text-*` means what.
+
+Found by the axe audit added in the same change, which is the argument for having it.
+
+## D107 — Accessibility is measured on the pages a shopper walks through (M6)
+
+`e2e/tests/accessibility.spec.ts` runs axe over the home page, a product page, search,
+checkout and the Arabic home page, plus a keyboard traversal.
+
+**Serious and critical only.** The moderate rules are largely advisory, and a suite that
+complains about every one of them gets skipped — which leaves the critical ones
+unwatched. Passing these is explicitly not the same as being accessible: automated rules
+catch perhaps a third of real barriers. What they do catch is the third that is
+embarrassing and cheap: an unlabelled field, an image with no alternative text, a control
+only a mouse can reach, and text that cannot be read against its background.
+
+It found two real defects on its first run. The contrast above, and `aria-label` on a
+plain `<div>` for the star ratings — which assistive technology ignores entirely, because
+an element with no role has nothing to attach a label to. Both are fixed; `role="img"` is
+what a row of star glyphs is.

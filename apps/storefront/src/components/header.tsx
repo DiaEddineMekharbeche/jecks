@@ -52,7 +52,7 @@ export function Header({
   return (
     <>
       {announcements.length > 0 ? (
-        <div className="bg-brass text-base">
+        <div className="bg-brass text-on-brass">
           <div className="shell flex items-center justify-center gap-2 py-2 text-center text-xs font-medium">
             {announcements[0]?.linkUrl ? (
               <Link href={href(announcements[0].linkUrl)} className="underline-offset-4 hover:underline">
@@ -146,7 +146,7 @@ export function Header({
             >
               <ShoppingBag className="h-5 w-5" />
               {cartCount > 0 ? (
-                <span className="absolute -end-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-brass px-1 text-[10px] font-semibold tabular-nums text-base">
+                <span className="absolute -end-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-brass px-1 text-[10px] font-semibold tabular-nums text-on-brass">
                   {cartCount > 99 ? '99+' : cartCount}
                 </span>
               ) : null}

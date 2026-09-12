@@ -334,7 +334,7 @@ export function CartDrawer({ locale, dictionary }: { locale: Locale; dictionary:
             <Link
               href={`/${locale}/checkout`}
               onClick={() => setOpen(false)}
-              className="mt-4 flex h-12 items-center justify-center bg-brass text-sm font-semibold uppercase tracking-[0.15em] text-base transition-colors hover:bg-brass-soft"
+              className="mt-4 flex h-12 items-center justify-center bg-brass text-sm font-semibold uppercase tracking-[0.15em] text-on-brass transition-colors hover:bg-brass-soft"
             >
               {dictionary.cart.checkout}
             </Link>

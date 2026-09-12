@@ -271,7 +271,8 @@ function SectionDialog({
   const collections = useCollections();
 
   const needsCollection = kind === 'featured_collections' || kind === 'lookbook';
-  const needsMedia = kind === 'hero_3d' || kind === 'lookbook' || kind === 'brand_story';
+  const needsMedia =
+    kind === 'hero_3d' || kind === 'lookbook' || kind === 'brand_story' || kind === 'promo_banner';
 
   async function submit() {
     setBusy(true);

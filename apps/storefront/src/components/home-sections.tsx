@@ -132,7 +132,7 @@ export async function Testimonials({
             <figure key={index} className="flex flex-col gap-3 rounded-sm border border-line p-6">
               <Quote className="h-5 w-5 text-brass" aria-hidden />
               {quote.rating ? (
-                <div className="flex gap-0.5" aria-label={`${quote.rating} / 5`}>
+                <div className="flex gap-0.5" role="img" aria-label={`${quote.rating} / 5`}>
                   {Array.from({ length: 5 }, (_, star) => (
                     <Star
                       key={star}

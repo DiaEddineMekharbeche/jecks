@@ -202,8 +202,8 @@ export const Checkbox = forwardRef<
       ref={ref}
       className={cn(
         'peer h-4 w-4 shrink-0 rounded-xs border border-line',
-        'data-[state=checked]:border-brass data-[state=checked]:bg-brass data-[state=checked]:text-base',
-        'data-[state=indeterminate]:border-brass data-[state=indeterminate]:bg-brass data-[state=indeterminate]:text-base',
+        'data-[state=checked]:border-brass data-[state=checked]:bg-brass data-[state=checked]:text-on-brass',
+        'data-[state=indeterminate]:border-brass data-[state=indeterminate]:bg-brass data-[state=indeterminate]:text-on-brass',
         'disabled:cursor-not-allowed disabled:opacity-50',
         className,
       )}
