@@ -1254,3 +1254,31 @@ any screen needing two permissions to somebody holding one — fails two tests.
 
 Coverage is scoped to those modules and set at 70 %. Screens stay covered by the
 end-to-end suite, which exercises them the way an operator does.
+
+## D105 — The in-app inbox lives under `/me`, without a permission (M7)
+
+The worker had always written in-app notifications: that channel has no transport, so
+the row is the delivery. Nothing ever read them back, which meant every "stock is low"
+and "a delivery failed" was recorded faithfully into a table nobody opened. On a running
+instance the endpoint found two unread the moment it existed.
+
+**Not under `/admin`.** Every admin route names a permission because it reaches a shop
+resource some roles must not see. This one only returns rows addressed to the caller or
+to nobody, so no permission would mean anything here — and forcing one would make an
+agent's own inbox depend on whether they can read orders. `/me/notifications` is behind
+the session guard like everything else, and the permission-surface test tolerates it
+because it is not an admin route.
+
+**A shared alert read once is read for everybody.** Notifications with no `userId` are
+for whoever is minding the shop. Per-person read state on a shared row would need a join
+table and would leave four people each dismissing the same low-stock alert. In a shop
+with a handful of staff, "somebody has dealt with it" is the useful meaning.
+
+**No `InAppNotifier` class.** The plan listed one beside the six transports. There is
+nothing for it to do: the dispatcher already marks an in-app row delivered at the moment
+it writes it, and an adapter whose `send` returns true without doing anything is a class
+that exists to satisfy a list.
+
+Marking read is idempotent — a second call keeps the first moment — and marking somebody
+else's answers 404 rather than 403, because whether another person's notification exists
+is not a question this endpoint should answer.

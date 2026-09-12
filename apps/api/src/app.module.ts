@@ -32,6 +32,7 @@ import { ShippingModule } from './modules/shipping/shipping.module.js';
 import { MaintenanceModule } from './modules/maintenance/maintenance.module.js';
 import { MediaModule } from './modules/media/media.module.js';
 import { LogErrorReporter, SentryErrorReporter } from './modules/ops/error-reporter.js';
+import { NotificationsModule } from './modules/notifications/notifications.module.js';
 import { OpsModule } from './modules/ops/ops.module.js';
 import { OrdersModule } from './modules/orders/orders.module.js';
 import { PaymentsModule } from './modules/payments/payments.module.js';
@@ -66,6 +67,7 @@ import { PrismaModule } from './prisma/prisma.module.js';
     StorageModule,
     SettingsModule,
     HealthModule,
+    NotificationsModule,
     OpsModule,
     AuthModule,
     CatalogModule,

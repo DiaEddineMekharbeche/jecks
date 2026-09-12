@@ -5,6 +5,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useSession } from '@/features/auth/session';
 import { useAdminEventStream, useRealtimeStore } from '@/lib/realtime';
 import { CommandPalette } from './CommandPalette';
+import { NotificationsPanel } from './NotificationsPanel';
 import { NAVIGATION } from './navigation';
 
 /**
@@ -163,6 +164,8 @@ export function AppShell() {
                 )}
               </span>
             </Tooltip>
+
+            <NotificationsPanel />
 
             <Button
               variant="ghost"

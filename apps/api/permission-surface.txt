@@ -354,6 +354,10 @@ POST /internal/maintenance/segments → public
 POST /internal/reports/export → public
 POST /marketing/newsletter → public
 POST /marketing/newsletter/unsubscribe → public
+GET /me/notifications → AUTHENTICATED
+POST /me/notifications/:id/read → AUTHENTICATED
+GET /me/notifications/count → AUTHENTICATED
+POST /me/notifications/read-all → AUTHENTICATED
 GET /media/:key(*) → public
 GET /metrics → public
 POST /orders → public

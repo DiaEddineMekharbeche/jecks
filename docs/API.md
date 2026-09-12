@@ -775,6 +775,30 @@ arrangements go wrong.
 
 ---
 
+## The signed-in user's own things
+
+| Method | Path | Auth | Notes |
+|---|---|---|---|
+| GET | `/me/notifications` | a session | Recent in-app notifications, with the unread count |
+| GET | `/me/notifications/count` | a session | Just the count, for the badge |
+| POST | `/me/notifications/:id/read` | a session | Marks one; re-marking keeps the first moment |
+| POST | `/me/notifications/read-all` | a session | Clears the badge |
+
+**Under `/me` and not `/admin`, with no permission.** Every admin route names one because
+it reaches a shop resource some roles must not see. These only ever return rows addressed
+to the caller or to nobody, so there is no permission that would mean anything — and
+putting them under `/admin` would force a borrowed one, making an agent's own inbox
+depend on whether they can read orders. They are still behind the session guard: signed
+out is a 401 like everywhere else.
+
+**Two kinds arrive.** One names a person. The other has no user at all, because "stock is
+low" is for whoever is minding the shop rather than for an individual; those show to
+everybody, and one person marking it read clears it for all of them. In a shop with a
+handful of staff that is the useful behaviour — once somebody has dealt with it, the
+others do not need to see it again.
+
+---
+
 ## Operations and documents
 
 | Method | Path | Auth | Notes |
