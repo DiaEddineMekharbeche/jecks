@@ -19,6 +19,9 @@ export interface WilayaCell {
   revenueMinor: string;
   /** Delivered against finished, as a percentage. */
   successRate: number;
+  /** Chef-lieu coordinates, so the admin can place this on a map. Null if unknown. */
+  latitude: number | null;
+  longitude: number | null;
 }
 
 export interface HeatCell {
@@ -77,10 +80,24 @@ export class InsightsService {
    * receives rarely is costing money on every parcel, and the volume alone hides that.
    */
   private async byWilaya(from: Date, end: Date): Promise<WilayaCell[]> {
-    const orders = await this.prisma.order.findMany({
-      where: { deletedAt: null, createdAt: { gte: from, lt: end } },
-      select: { wilayaCode: true, wilayaName: true, status: true, total: true },
-    });
+    const [orders, wilayas] = await Promise.all([
+      this.prisma.order.findMany({
+        where: { deletedAt: null, createdAt: { gte: from, lt: end } },
+        select: { wilayaCode: true, wilayaName: true, status: true, total: true },
+      }),
+      // The chef-lieu of each wilaya, so the figures can be placed geographically.
+      this.prisma.wilaya.findMany({ select: { code: true, latitude: true, longitude: true } }),
+    ]);
+
+    const places = new Map(
+      wilayas.map((wilaya) => [
+        wilaya.code,
+        {
+          latitude: wilaya.latitude === null ? null : Number(wilaya.latitude),
+          longitude: wilaya.longitude === null ? null : Number(wilaya.longitude),
+        },
+      ]),
+    );
 
     const cells = new Map<number, { name: string; orders: number; delivered: number; failed: number; revenue: bigint }>();
 
@@ -108,6 +125,8 @@ export class InsightsService {
     return [...cells.entries()]
       .map(([wilayaCode, cell]) => {
         const finished = cell.delivered + cell.failed;
+        const place = places.get(wilayaCode);
+
         return {
           wilayaCode,
           wilayaName: cell.name,
@@ -115,6 +134,8 @@ export class InsightsService {
           delivered: cell.delivered,
           revenueMinor: cell.revenue.toString(),
           successRate: finished === 0 ? 0 : Math.round((cell.delivered / finished) * 1000) / 10,
+          latitude: place?.latitude ?? null,
+          longitude: place?.longitude ?? null,
         };
       })
       .sort((a, b) => b.orders - a.orders);

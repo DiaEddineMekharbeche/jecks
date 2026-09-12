@@ -34,6 +34,7 @@ import { useCollections } from '@/features/catalog/queries';
 import { MediaPickerDialog } from '@/features/catalog/MediaPickerDialog';
 import { dateTimeFormatter, message } from '@/lib/errors';
 import * as content from './api';
+import { HomePreview } from './HomePreview';
 import { SECTION_HINTS, SECTION_LABELS } from './labels';
 
 /**
@@ -224,6 +225,8 @@ export function HomeBuilderPage() {
           ))}
         </ol>
       )}
+
+      <HomePreview />
 
       {editing ? (
         <SectionDialog

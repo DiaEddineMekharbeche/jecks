@@ -84,6 +84,11 @@ is that the row exists, not how the dialog looks.
 | Scheduled promotions with a window | `apps/api/src/modules/promotions/engine/promo-engine.spec.ts`; the simulator on the promotion page runs the same engine the cart does (D57) |
 | Media and 3D upload | The upload pipeline, including the sniffer that refuses a file whose bytes contradict its declared type: `apps/api/src/modules/media/file-sniffer.spec.ts` |
 
+**Manual: the map and the preview.** The wilaya map on the dashboard and the home-page
+preview in the content builder are judged by eye. The projection is checked arithmetically
+— Algiers north of Tamanrasset, Oran west of Annaba, every chef-lieu inside the frame with
+room for its disc — but whether the picture reads well is not something a test decides.
+
 **Manual: the countdown.** A flash sale scheduled to start in five minutes should appear
 on the storefront by itself, with a ticking countdown, and stop by itself at the end.
 Schedule one, watch both edges. Scheduled content filters on read (D83), so nothing has

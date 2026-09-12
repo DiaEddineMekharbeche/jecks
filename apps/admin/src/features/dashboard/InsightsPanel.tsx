@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { dateTimeFormatter, formatDa } from '@/lib/errors';
+import { WilayaMap } from './WilayaMap';
 
 /**
  * The second half of the dashboard — PRD F-AD-02 and F-AD-04.
@@ -20,6 +21,8 @@ interface Insights {
     delivered: number;
     revenueMinor: string;
     successRate: number;
+    latitude: number | null;
+    longitude: number | null;
   }>;
   heatmap: Array<{ weekday: number; hour: number; orders: number }>;
   funnel: Array<{ key: string; label: string; count: number; ofPrevious: number }>;
@@ -96,6 +99,11 @@ export function InsightsPanel({ period }: { period: string }) {
           <CardHeader>
             <CardTitle>Par wilaya</CardTitle>
           </CardHeader>
+          {/* The map answers "where", the table answers "how much". Both, because a
+              disc cannot be read to the dinar and a table cannot be read at a glance. */}
+          <CardBody className="flex flex-col gap-4">
+            <WilayaMap points={data.byWilaya} />
+          </CardBody>
           <CardBody className="p-0">
             <WilayaTable rows={data.byWilaya} />
           </CardBody>

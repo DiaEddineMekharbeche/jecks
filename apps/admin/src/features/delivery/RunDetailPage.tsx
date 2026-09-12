@@ -43,6 +43,7 @@ import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { formatDa, message } from '@/lib/errors';
 import * as delivery from './api';
+import { RunMap } from './RunMap';
 import {
   FAILURE_LABELS,
   RUN_STATUS_LABELS,
@@ -249,6 +250,7 @@ export function RunDetailPage() {
           <CardHeader>
             <CardTitle>Itinéraire</CardTitle>
           </CardHeader>
+          <RunMap stops={data.stops} />
           <CardBody className="p-0">
             <ol className="divide-y divide-line">
               {data.stops.map((stop, index) => (

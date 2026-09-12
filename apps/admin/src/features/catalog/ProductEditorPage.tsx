@@ -183,7 +183,7 @@ function NewProductPage() {
 
           <Field
             label="URL"
-            hint={`/produits/${derivedSlug || '…'}`}
+            hint={`/products/${derivedSlug || '…'}`}
             error={fieldErrors.slug}
             required
           >
@@ -360,7 +360,7 @@ function ExistingProductEditor({ id }: { id: string }) {
             <span className="text-muted">/{form.slug}</span>
             {form.status === ProductStatus.ACTIVE ? (
               <a
-                href={`${STOREFRONT_URL}/fr/produits/${form.slug}`}
+                href={`${STOREFRONT_URL}/fr/products/${form.slug}`}
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center gap-1 text-brass hover:underline"
@@ -547,7 +547,7 @@ function GeneralTab({ form, patch, fieldErrors = {} }: TabProps) {
               <TranslatedInput value={form.name} onChange={(name) => patch({ name })} />
             </Field>
 
-            <Field label="URL" hint={`/produits/${form.slug}`} error={fieldErrors.slug} required>
+            <Field label="URL" hint={`/products/${form.slug}`} error={fieldErrors.slug} required>
               <Input
                 value={form.slug}
                 onChange={(event) => patch({ slug: slugify(event.target.value) })}
@@ -869,7 +869,7 @@ function SeoTab({ form, patch }: TabProps) {
         <CardBody>
           <div className="rounded-xs border border-line p-4">
             <p className="truncate text-xs text-muted">
-              {STOREFRONT_URL.replace(/^https?:\/\//, '')} › produits › {form.slug}
+              {STOREFRONT_URL.replace(/^https?:\/\//, '')} › products › {form.slug}
             </p>
             <p
               className={cn(

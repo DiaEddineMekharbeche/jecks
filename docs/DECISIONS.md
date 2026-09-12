@@ -1085,3 +1085,43 @@ nothing until something checked them. The contract test in
 `apps/api/src/modules/admin-contract.int-spec.ts` enumerates the routes the application
 actually registered and proves every one refuses an anonymous caller; it does not yet
 prove each one demands the right permission, which is the obvious next step.
+
+## D99 — Two maps drawn from coordinates, not from tiles (M7)
+
+The plan asked for a choropleth of the wilayas from a bundled GeoJSON, and a Leaflet map
+over OpenStreetMap on the runs board. Neither is what shipped.
+
+**The wilaya map is a proportional-symbol map.** There is no wilaya boundary set in the
+repository, and an approximation of a country's internal borders drawn from memory would
+be worse than no map at all — it would look authoritative and be wrong. The chef-lieu
+coordinates are real, already in the database, and already what the delivery routing
+measures distance from, so a disc is placed at each one. Area carries the volume and
+colour carries the delivery success rate, because "where do we sell" and "where do
+parcels come back" are two different questions and the second is the expensive one.
+
+Area rather than radius, so a wilaya with twice the orders looks twice the size rather
+than four times.
+
+**The run map is a sketch, not a street map.** A tile layer needs the network, and a
+dispatcher planning tomorrow's rounds on a bad connection gets a grey rectangle. The
+deciding reason is different though: the coordinates behind a stop are often the wilaya's
+chef-lieu rather than the customer's street, because the bundled dataset has no commune
+centroids (D74). Plotting coarse points on a street map claims a precision that is not
+there. The sketch answers what a planner actually asks — does the order of the stops make
+sense, or does it cross the city twice — and says on its face that the distances are as
+the crow flies.
+
+Both fit their own extent rather than a fixed frame, so a round inside one commune and a
+round across three wilayas each fill the drawing.
+
+## D100 — The home preview is an iframe of the real storefront (M6)
+
+Admin › Contenu › Page d'accueil embeds the storefront rather than re-rendering the
+blocks inside the admin. A second renderer is a second set of bugs, and the one that
+matters is the one the customer loads.
+
+It shows what is **published**. The plan asked for a signed `?preview=token` that would
+let the builder see a scheduled block before its start date; that needs the storefront to
+accept the token and bypass the window filter (D83), and is not built. The panel says so
+in as many words, because letting somebody believe they are previewing a draft is worse
+than not offering the preview.
