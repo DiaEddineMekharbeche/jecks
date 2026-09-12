@@ -222,9 +222,35 @@ export class InventoryService {
     return rows.map(toMovementRow);
   }
 
+  /**
+   * Refuses an id that does not exist, before the ledger touches anything.
+   *
+   * Without this the write reached Postgres and came back as a foreign-key violation,
+   * which the filter turns into a 500 — so an operator who pasted a stale variant id
+   * was told the server had broken. It had not; they had made a typo.
+   */
+  private async assertTargets(variantId: string, locationIds: string[]): Promise<void> {
+    const [variant, locations] = await Promise.all([
+      this.prisma.variant.findFirst({ where: { id: variantId, deletedAt: null }, select: { id: true } }),
+      this.prisma.location.findMany({
+        where: { id: { in: [...new Set(locationIds)] } },
+        select: { id: true },
+      }),
+    ]);
+
+    if (!variant) {
+      throw new NotFoundException({ code: 'NOT_FOUND', message: 'Cette variante n’existe pas' });
+    }
+
+    if (locations.length !== new Set(locationIds).size) {
+      throw new NotFoundException({ code: 'NOT_FOUND', message: 'Cet emplacement n’existe pas' });
+    }
+  }
+
   // --- writes ---------------------------------------------------------------
 
   async adjust(input: StockAdjustInput, actorId: string | null): Promise<InventoryRow> {
+    await this.assertTargets(input.variantId, [input.locationId]);
     const delta = await this.resolveDelta(input);
 
     await this.ledger.post({
@@ -268,6 +294,8 @@ export class InventoryService {
   }
 
   async transfer(input: StockTransferInput, actorId: string | null): Promise<InventoryRow> {
+    await this.assertTargets(input.variantId, [input.fromLocationId, input.toLocationId]);
+
     await this.ledger.postMany([
       {
         variantId: input.variantId,

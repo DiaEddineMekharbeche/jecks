@@ -619,6 +619,15 @@ export class DriverController {
 
 // --- cash and settlements ---------------------------------------------------
 
+/**
+ * Everything here needs `delivery.settle`, reads included.
+ *
+ * The screens were already hidden behind that permission and these routes asked only
+ * for `delivery.read`, which every dispatcher and order agent holds so they can see
+ * where a parcel is. Hiding a menu entry is not access control: the day's cash position
+ * per driver was one URL away from anybody who could look up a shipment.
+ */
+
 @ApiTags('admin/cash')
 @ApiBearerAuth()
 @AuditEntity('cod_collection')
@@ -627,14 +636,14 @@ export class CashController {
   constructor(private readonly cash: CashService) {}
 
   @Get('daily')
-  @RequirePermissions('delivery.read')
+  @RequirePermissions('delivery.settle')
   @ApiOperation({ summary: 'Expected against collected cash for a day, per holder' })
   daily(@Query('date') date?: string) {
     return this.cash.daily(date ? new Date(date) : new Date());
   }
 
   @Get('outstanding')
-  @RequirePermissions('delivery.read')
+  @RequirePermissions('delivery.settle')
   @ApiOperation({ summary: 'What one driver or courier is still holding' })
   outstanding(@Query('kind') kind: 'driver' | 'courier', @Query('id') id: string) {
     return this.cash.outstandingFor(kind === 'courier' ? 'courier' : 'driver', id);
@@ -656,14 +665,14 @@ export class SettlementsController {
   constructor(private readonly settlements: SettlementsService) {}
 
   @Get()
-  @RequirePermissions('delivery.read')
+  @RequirePermissions('delivery.settle')
   @ApiOperation({ summary: 'Settlements, newest period first' })
   list(@Query('courierId') courierId?: string, @Query('status') status?: string) {
     return this.settlements.list({ courierId, status: status ? status.split(',') : undefined });
   }
 
   @Get(':id')
-  @RequirePermissions('delivery.read')
+  @RequirePermissions('delivery.settle')
   @ApiOperation({ summary: 'One settlement with every line' })
   get(@Param('id') id: string) {
     return this.settlements.get(id);
@@ -707,7 +716,7 @@ export class DeliveryAnalyticsController {
 
   @Get('analytics')
   @NoAudit()
-  @RequirePermissions('delivery.read')
+  @RequirePermissions('delivery.settle')
   @ApiOperation({ summary: 'Success rate and transit time, per courier and per wilaya' })
   summary(@Query('from') from?: string, @Query('to') to?: string) {
     const end = to ? new Date(to) : new Date();

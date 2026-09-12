@@ -18,6 +18,7 @@ import {
   attributeInputSchema,
   brandInputSchema,
   categoryMoveSchema,
+  categoryCreateSchema,
   categoryPatchSchema,
   categoryReorderSchema,
   collectionInputSchema,
@@ -35,6 +36,7 @@ import {
   type AttributeInput,
   type BrandInput,
   type CategoryMoveInput,
+  type CategoryCreateInput,
   type CategoryPatchInput,
   type CategoryReorderInput,
   type CollectionInput,
@@ -86,7 +88,7 @@ export class CategoriesController {
   @Post()
   @RequirePermissions('catalog.write')
   @ApiOperation({ summary: 'Create a category' })
-  create(@Body(zod(categoryPatchSchema)) body: CategoryPatchInput) {
+  create(@Body(zod(categoryCreateSchema)) body: CategoryCreateInput) {
     return this.categories.create(body);
   }
 

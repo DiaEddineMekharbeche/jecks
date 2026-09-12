@@ -1055,3 +1055,33 @@ test calls the service and never passes the guard:
   had signed in as, and the next write failed on a foreign key that looked like an
   application bug. The keep list is now closed over its own references before anything
   is truncated.
+
+## D98 — What the integration layer found (M7)
+
+Covering the admin controllers at the integration layer turned up four defects, none of
+which any unit test could have seen, because a unit test calls the service and never
+passes through the guard, the pipe or the database.
+
+- **The cash drawer was readable by an order agent.** Admin › Livraison › Caisse and
+  Règlements were hidden behind `delivery.settle`, and the routes behind them asked only
+  for `delivery.read` — which every dispatcher and agent holds so they can see where a
+  parcel is. The day's cash position per driver was one URL away from anybody who could
+  look up a shipment. This is the exact failure acceptance criterion 6 is about: hiding
+  a menu entry is not access control.
+- **Creating a category used the partial update schema.** A create with no name passed
+  validation and failed in the service with a message about a database column. Create
+  and patch are separate schemas now.
+- **Adjusting stock for a variant that does not exist returned 500.** The service posted
+  straight to the ledger, Postgres refused the foreign key, and an operator who pasted a
+  stale id was told the server had broken. It now refuses with a 404 and writes nothing.
+- **One route disagreed with the documented error contract.** Settings are validated in
+  the service rather than by the pipe, because the schema depends on the scope in the
+  path, and it returned 400 for `VALIDATION_FAILED` where `docs/API.md` documents 422.
+
+The pattern behind the first one is worth naming, because it has now happened four
+times: a permission exists in the catalogue, the screen respects it, and the API does
+not. `marketing.read`, `reports.export`, `orders.cancel` and `orders.refund` all granted
+nothing until something checked them. The contract test in
+`apps/api/src/modules/admin-contract.int-spec.ts` enumerates the routes the application
+actually registered and proves every one refuses an anonymous caller; it does not yet
+prove each one demands the right permission, which is the obvious next step.

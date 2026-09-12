@@ -182,11 +182,13 @@ Said plainly, because an acceptance document that claims everything is not one.
   above. Neither is in CI.
 - **Lighthouse ≥ 85 is not enforced in CI.** It is measured by hand before a release. A
   budget in the pipeline is the right next step.
-- **The integration layer covers orders and checkout, not every controller.** The
-  harness exists — Testcontainers starts a Postgres and a Redis, the real migrations
-  apply, and the suite drives the application through its own guards — and the testing
-  contract asks for every `/admin/*` controller. Two modules are done. The rest inherit
-  the harness and the fixtures; they need their three cases written.
+- **The integration layer covers every module, not every route.** Seventy-eight tests
+  across orders, checkout, catalogue, stock, customers, promotions, finance, delivery,
+  content and settings, each with a happy path, a permission refusal and a validation
+  error. A contract test enumerates the routes the application actually registered and
+  proves all of them refuse an anonymous caller. What it does not yet prove is that each
+  one demands the *right* permission — four routes were found asking for too little, and
+  only the ones somebody thought to test were found.
 - **The load target is scripted, not scheduled.** `e2e/load/catalog.js` asserts a p95
   under 200 ms at 200 concurrent readers and reads the cache hit rate back out of
   `/metrics`, but it runs when somebody runs it.

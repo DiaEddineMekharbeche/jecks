@@ -567,6 +567,12 @@ without putting a parcel into their system. A payment gateway is tested with a r
 a one-dinar checkout that would leave a row in the shop's dashboard each time. A
 notification template is tested by sending a real message to a chosen address.
 
+**The cash drawer and the settlements need `delivery.settle`, reads included.** Not
+`delivery.read`, which every dispatcher and order agent holds so they can see where a
+parcel is. The screens were always hidden behind the stricter permission; the routes were
+not, which meant the day's cash position per driver was one URL away from anybody who
+could look up a shipment.
+
 **Backups** are taken by the worker, never in the request. `POST /admin/backups` creates
 a `Job` row and enqueues it; the dump is `pg_dump --format=custom`, stored under
 `backups/`, pruned after 14 days, and the nightly run fires at 02:30 Africa/Algiers.

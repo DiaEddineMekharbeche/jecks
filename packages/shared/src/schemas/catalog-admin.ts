@@ -174,6 +174,16 @@ export const priceScheduleInputSchema = z
 
 // --- categories -------------------------------------------------------------
 
+/**
+ * Creating a category needs the whole thing; editing one may send a single field.
+ *
+ * They were the same schema, which meant a create with no name passed validation and
+ * failed later in the service with a message about a database column.
+ */
+export const categoryCreateSchema = categoryInputSchema.extend({
+  published: z.boolean().optional(),
+});
+
 export const categoryPatchSchema = categoryInputSchema.partial().extend({
   published: z.boolean().optional(),
 });
@@ -643,6 +653,7 @@ export type ProductDuplicateInput = z.infer<typeof productDuplicateSchema>;
 export type VariantGenerateInput = z.infer<typeof variantGenerateSchema>;
 export type VariantsPatchInput = z.infer<typeof variantsPatchSchema>;
 export type PriceScheduleInput = z.infer<typeof priceScheduleInputSchema>;
+export type CategoryCreateInput = z.infer<typeof categoryCreateSchema>;
 export type CategoryPatchInput = z.infer<typeof categoryPatchSchema>;
 export type CategoryMoveInput = z.infer<typeof categoryMoveSchema>;
 export type CategoryReorderInput = z.infer<typeof categoryReorderSchema>;

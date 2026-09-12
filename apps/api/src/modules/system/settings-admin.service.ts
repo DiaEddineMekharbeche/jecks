@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, UnprocessableEntityException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   SECRET_MASK,
@@ -62,7 +62,11 @@ export class SettingsAdminService {
     const schema = settingScopeSchemas[scope].partial();
     const parsed = schema.safeParse(payload);
     if (!parsed.success) {
-      throw new BadRequestException({
+      // 422, like every other rejected payload. This scope is validated here rather
+      // than by the pipe — the schema depends on the scope in the path — and returning
+      // 400 for the same error code made one route disagree with the documented
+      // contract and with the client's error handling.
+      throw new UnprocessableEntityException({
         code: 'VALIDATION_FAILED',
         message: 'Some fields need attention',
         details: parsed.error.issues.map((issue) => ({
