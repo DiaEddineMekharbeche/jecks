@@ -1,6 +1,6 @@
 'use client';
 
-import { Environment, Float, PerspectiveCamera, useGLTF } from '@react-three/drei';
+import { Environment, Float, Lightformer, PerspectiveCamera, useGLTF } from '@react-three/drei';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Suspense, useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
@@ -46,9 +46,40 @@ export default function HeroCanvas({
         >
           {modelUrl ? <UploadedModel url={modelUrl} /> : <ProceduralCap animate={animate} />}
         </Float>
-        <Environment preset="studio" />
+        <StudioEnvironment />
       </Suspense>
     </Canvas>
+  );
+}
+
+/**
+ * The reflections, built in the scene rather than downloaded.
+ *
+ * `<Environment preset="studio" />` fetches an HDR file from a third-party CDN at
+ * runtime. On a good connection that is a megabyte nobody asked for; on a slow Algerian
+ * one it is the hero failing to render, and it threw
+ * "Could not load studio_small_03_1k.hdr" whenever the CDN was unreachable.
+ *
+ * Three emissive planes give the brass something to reflect. Drei renders them once into
+ * a cube map, so the cost is one small render target and no request at all — which also
+ * means the home page makes no third-party call the cookie banner would have to cover.
+ */
+function StudioEnvironment() {
+  return (
+    <Environment resolution={128}>
+      {/* Key light, warm, from the front left — where the brass catches. */}
+      <Lightformer intensity={2.4} color="#FFF3DC" position={[-3, 2, 3]} scale={[6, 6, 1]} />
+      {/* Cool fill from behind, so the crown has an edge against the dark page. */}
+      <Lightformer intensity={1.1} color="#7AA8D1" position={[3, 1, -3]} scale={[5, 5, 1]} />
+      {/* A soft overhead band, which is what makes a curved brim read as curved. */}
+      <Lightformer
+        intensity={0.8}
+        color="#FFFFFF"
+        position={[0, 5, 0]}
+        rotation={[Math.PI / 2, 0, 0]}
+        scale={[8, 2, 1]}
+      />
+    </Environment>
   );
 }
 

@@ -1344,3 +1344,23 @@ so a GLB exported at any scale lands in frame. Without that, "upload and see it"
 
 Verified against a running instance: setting the model wrote the id, and the bootstrap
 came back with the resolved `/media/…glb` URL.
+
+## D109 — The 3D hero fetches nothing from anyone (M7)
+
+`<Environment preset="studio" />` downloaded an HDR map from the drei-assets repository
+on GitHub at runtime. The hero threw "Could not load studio_small_03_1k.hdr" whenever
+that host was slow or unreachable, which for a shop selling in Algeria is a normal
+Tuesday. A megabyte from a third party, on the first screen, to light a hat.
+
+Three emissive planes give the brass something to reflect, rendered once into a small
+cube map. No request, no dependency on GitHub being up, and no third-party call for the
+cookie banner to account for.
+
+`e2e/tests/hero-offline.spec.ts` asserts the home page makes no request off the shop's
+own ports at all. That covers the HDR and, more usefully, whatever somebody adds later
+without thinking about it — a font, an analytics snippet, an icon set. Reverting the fix
+fails it with the exact GitHub URLs named.
+
+The comparison is on the port, not the hostname: `localhost` and `127.0.0.1` are the same
+machine, and the storefront and API URLs are configured independently, so a test that
+compared spellings would fail on a difference that does not exist.

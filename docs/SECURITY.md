@@ -149,6 +149,14 @@ Media uploads are checked by declared type and size, stored under content-addres
 and processed by the worker rather than in the request. An uploaded SVG is served with
 `Content-Security-Policy: default-src 'none'`, so it cannot run script on the API origin.
 
+## Third-party requests
+
+The storefront makes none. An end-to-end test asserts that the home page requests
+nothing off the shop's own origins, which is both a privacy position — nothing to declare
+in the cookie banner that is not the shop's own — and an availability one: the 3D hero
+used to download an HDR map from a GitHub-hosted asset repository and failed whenever
+that host was slow, which on an Algerian connection is often.
+
 ## Headers and transport
 
 Helmet is enabled. The content security policy is set at the edge (Nginx) rather than in
