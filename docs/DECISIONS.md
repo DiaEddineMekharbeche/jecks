@@ -1011,3 +1011,17 @@ sending them through Redis as well would be two copies that can disagree.
 
 The queued path requires `reports.export` rather than `reports.read`. An unbounded export
 is a copy of the shop's numbers leaving the shop, and the job records who asked for it.
+
+## D96 — The packing slip carries no prices (M7)
+
+The invoice shows the totals, the balance due at the door and the shop's RC, NIF and
+tax article. The packing slip shows the items, the quantities and the order note, and
+nothing about money.
+
+They are printed for two different people. The packer needs to know what goes in the
+box; the figures are noise that slows them down. And the slip travels inside the parcel,
+where the customer's neighbour signing for it can read it — a shop that prints the price
+there eventually has a conversation it did not want.
+
+The note goes on the slip rather than the invoice for the same reason: "call before
+coming up, the bell does not work" is an instruction for the person carrying the box.

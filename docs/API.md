@@ -355,6 +355,9 @@ and carry a sentence written for the shopper.
 | POST | `/admin/orders/bulk` | `orders.transition` | One action over a selection; refusals reported per order |
 | PATCH | `/admin/orders/:id` | `orders.write` | Customer and delivery details, before packing only |
 | POST | `/admin/orders/:id/notes` | `orders.write` | Internal note |
+| GET | `/admin/orders/:id/documents/invoice.pdf` | `orders.documents` | The invoice, with the shop's RC and NIF |
+| GET | `/admin/orders/:id/documents/packing-slip.pdf` | `orders.documents` | The picking sheet, with no prices on it |
+| POST | `/admin/orders/documents/batch` | `orders.documents` | Either document for up to 200 orders, one per page |
 | POST | `/admin/orders/:id/call-logs` | `orders.write` | Outcome and any callback time |
 | PATCH | `/admin/orders/:id/tags` | `orders.write` | Replaces the tag set |
 | POST | `/admin/orders/:id/assign` | `orders.write` | Assign to an agent |
@@ -567,6 +570,20 @@ notification template is tested by sending a real message to a chosen address.
 **Backups** are taken by the worker, never in the request. `POST /admin/backups` creates
 a `Job` row and enqueues it; the dump is `pg_dump --format=custom`, stored under
 `backups/`, pruned after 14 days, and the nightly run fires at 02:30 Africa/Algiers.
+
+---
+
+**An invoice and a packing slip are not the same document.** The invoice carries the
+totals, the amount still due at the door, and the shop's trade register, tax number and
+article — the three identifiers that make it an invoice in Algeria. The packing slip
+carries none of them: whoever fills the box does not need the figures, and a slip in the
+parcel showing what it cost is how a shop gets an awkward phone call from a customer's
+neighbour. It carries the order note instead, which is where the delivery instruction
+usually is.
+
+Batch printing is the normal case rather than the exception, so both are generated a
+page per order, in the order asked for, and an empty selection returns a valid one-page
+PDF saying so rather than a file that will not open.
 
 ---
 

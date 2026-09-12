@@ -57,6 +57,7 @@ flow does not count; they are not the customer.
 | Illegal transitions refused by the server | `e2e/tests/order-lifecycle.spec.ts` — "an illegal transition is refused by the server, not hidden by the client", and `apps/api/src/modules/orders/domain/state-machine.spec.ts` |
 | Profit for that order, the same day | `e2e/tests/order-lifecycle.spec.ts` — "a delivered order shows up in the profit and loss" |
 | Labels and the manifest render as real PDFs | `e2e/tests/delivery.spec.ts` — "a run prints a manifest"; the writer itself in `apps/api/src/common/pdf/*.spec.ts` |
+| The invoice and the packing slip | `apps/api/src/common/pdf/order-documents.spec.ts` — including that the slip never prints a price |
 | Cash collected, counted and reconciled | `e2e/tests/delivery.spec.ts` — "the cash drawer keeps its three numbers apart" |
 | The profit arithmetic | `packages/shared/src/finance/pnl.spec.ts`, one definition used by the API and the worker alike (D77) |
 
