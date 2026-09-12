@@ -159,6 +159,7 @@ that renders empty against the seed is a bug in the report.
 | The same refusals through the real guards | `apps/api/src/modules/orders/orders-admin.int-spec.ts` — an agent refused the P&L, a warehouse hand refused a cancellation, against a real database |
 | A driver cannot ask for another driver's run | Same file — every `/driver` route resolves the driver from the session, never from a path parameter |
 | Every route demands the right permission | `apps/api/src/modules/permission-surface.int-spec.ts` and the committed `permission-surface.txt`: no admin route without a permission, no permission in the catalogue that nothing asks for, and the whole surface reviewed line by line |
+| The same gate on the admin side | `apps/admin/src/features/auth/session.test.ts` — an order agent's menu contains orders and customers and never finance or settings, built from the real role catalogue |
 | The permission catalogue itself | `packages/shared/src/enums/permissions.ts`, one list driving the navigation, the route guards and the API |
 
 Hiding a menu entry is not authorization. Every one of these tests asks the API directly,
@@ -198,8 +199,5 @@ Said plainly, because an acceptance document that claims everything is not one.
 - **The load target is scripted, not scheduled.** `e2e/load/catalog.js` asserts a p95
   under 200 ms at 200 concurrent readers and reads the cache hit rate back out of
   `/metrics`, but it runs when somebody runs it.
-- **The admin has no test suite of its own.** The API, the worker, the shared package and
-  the storefront all have one; the admin has none, so its components are covered only
-  through the end-to-end suite.
 - **Arabic right-to-left layout is checked by eye.** The strings are translated and the
   direction switches; whether a specific page looks right in Arabic is a judgement.

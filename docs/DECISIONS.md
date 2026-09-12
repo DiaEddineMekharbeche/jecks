@@ -1223,3 +1223,34 @@ folding them together would give a component whose props half-apply in each mode
 
 An empty rich-text field is `<p></p>`, not `''`. Both the "is this locale filled" tick
 and the value written back treat it as empty, or every untouched tab would show as done.
+
+## D104 — The admin is tested where the logic is, not where the markup is (M7)
+
+The admin had no test runner at all. It has one now, on jsdom, covering four things: the
+permission check every screen is gated on, the request layer and its token refresh, the
+money and error formatting read on every page, and the two hand-written map projections.
+
+**No snapshot tests.** They fail on every design change and pass through every real
+defect, which is the wrong way round. The render tests that exist assert what a drawing
+must contain — one disc per wilaya, a numbered stop per delivery, a sentence when there
+is nothing to draw — not what its markup looks like.
+
+**jsdom, unlike the storefront's node-only suite.** The storefront's decision was right
+for what it tests; here the permission gate and the components genuinely need a DOM.
+
+Two things worth having found:
+
+- The projections were previously checked by a throwaway script. They are now checked by
+  assertions about places — Algiers north of Tamanrasset, Oran west of Annaba, every
+  chef-lieu clear of the frame by a full disc radius. A flipped axis would look plausible
+  on a map of a country the reader is not from.
+- The refresh path is the one users feel. The access token lives fifteen minutes, so a
+  long afternoon on the orders screen hits a 401 on an ordinary click; the tests pin that
+  it refreshes once, replays with the *new* token, collapses two simultaneous 401s into a
+  single refresh, and gives up rather than looping when the refresh is itself refused.
+
+Verified the suite bites: turning the `every` in `can` into a `some` — which would grant
+any screen needing two permissions to somebody holding one — fails two tests.
+
+Coverage is scoped to those modules and set at 70 %. Screens stay covered by the
+end-to-end suite, which exercises them the way an operator does.

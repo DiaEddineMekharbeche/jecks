@@ -77,7 +77,7 @@ generated SQL. CI fails if the schema and the migrations disagree.
 | `pnpm dev` | Every app in watch mode |
 | `pnpm build` | Build everything |
 | `pnpm lint` / `pnpm typecheck` | Across the workspace |
-| `pnpm test` / `pnpm test:cov` | Unit tests, with coverage |
+| `pnpm test` / `pnpm test:cov` | Unit tests across every package, with coverage |
 | `pnpm test:integration` | The API against a real Postgres and Redis; needs Docker |
 | `pnpm db:migrate` / `db:seed` / `db:studio` / `db:reset` | Database |
 | `pnpm --filter @jecks/ui storybook` | Design system on :6006 |
