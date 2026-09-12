@@ -110,6 +110,12 @@ export interface MenuNode {
 
 export interface Bootstrap {
   settings: Record<string, unknown>;
+  /** Theme media, already resolved to URLs. Null where the shop has set none. */
+  theme: {
+    logoUrl: string | null;
+    faviconUrl: string | null;
+    heroModelUrl: string | null;
+  };
   menus: Array<{ slug: string; items: MenuNode[] }>;
   announcements: Announcement[];
 }

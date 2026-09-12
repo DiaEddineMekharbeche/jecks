@@ -1,6 +1,6 @@
 'use client';
 
-import { Environment, Float, PerspectiveCamera } from '@react-three/drei';
+import { Environment, Float, PerspectiveCamera, useGLTF } from '@react-three/drei';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Suspense, useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
@@ -11,12 +11,21 @@ import * as THREE from 'three';
  * Kept in its own module so `hero-3d.tsx` can import it lazily. Nothing here is
  * evaluated, and none of it is downloaded, until the hero scrolls into view.
  *
- * The cap is built from primitives rather than loaded from a GLB, because the seeded
- * catalog has no photographed 3D asset yet. When a real `hero.glb` is uploaded through
- * the admin media library, swap `<ProceduralCap>` for `useGLTF(url)`; nothing else
- * in the hero changes.
+ * Two caps, and the shop chooses. A model uploaded through the media library and picked
+ * in Settings › Thème is loaded; with none, the procedural cap stands in, so a shop that
+ * has never opened Blender still has a hero on its first day.
+ *
+ * The model is the better one when it exists — a real product photographed in 3D sells
+ * better than a good approximation of a cap — but requiring one before the shop can open
+ * would be the wrong trade.
  */
-export default function HeroCanvas({ animate }: { animate: boolean }) {
+export default function HeroCanvas({
+  animate,
+  modelUrl,
+}: {
+  animate: boolean;
+  modelUrl?: string | null;
+}) {
   return (
     <Canvas
       // Cap the pixel ratio: a 3x phone screen triples the fragment cost for no
@@ -35,12 +44,41 @@ export default function HeroCanvas({ animate }: { animate: boolean }) {
           rotationIntensity={animate ? 0.25 : 0}
           floatIntensity={animate ? 0.4 : 0}
         >
-          <ProceduralCap animate={animate} />
+          {modelUrl ? <UploadedModel url={modelUrl} /> : <ProceduralCap animate={animate} />}
         </Float>
         <Environment preset="studio" />
       </Suspense>
     </Canvas>
   );
+}
+
+/**
+ * The shop's own model.
+ *
+ * Scaled to the same box the procedural cap occupies, so swapping one for the other does
+ * not move the camera or the lighting. A GLB exported at any scale therefore lands in
+ * frame, which is the difference between "upload and see it" and "upload and file a bug".
+ */
+function UploadedModel({ url }: { url: string }) {
+  const { scene } = useGLTF(url);
+
+  const model = useMemo(() => {
+    const clone = scene.clone(true);
+    const box = new THREE.Box3().setFromObject(clone);
+    const size = box.getSize(new THREE.Vector3());
+    const centre = box.getCenter(new THREE.Vector3());
+
+    const largest = Math.max(size.x, size.y, size.z) || 1;
+    const scale = 1.6 / largest;
+
+    clone.position.sub(centre);
+    clone.scale.setScalar(scale);
+    clone.position.multiplyScalar(scale);
+
+    return clone;
+  }, [scene]);
+
+  return <primitive object={model} />;
 }
 
 /** A six-panel cap: hemispherical crown, curved brim, button and a brass patch. */

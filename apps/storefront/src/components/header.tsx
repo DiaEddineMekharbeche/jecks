@@ -20,11 +20,16 @@ export function Header({
   dictionary,
   items,
   announcements,
+  logoUrl,
+  storeName,
 }: {
   locale: Locale;
   dictionary: Dictionary;
   items: MenuNode[];
   announcements: Announcement[];
+  /** The shop's own logo, when one is picked in Settings › Thème. */
+  logoUrl?: string | null;
+  storeName?: string;
 }) {
   const pathname = usePathname();
   const cartCount = useCart((state) => state.cart?.itemCount ?? 0);
@@ -77,12 +82,25 @@ export function Header({
             <Menu className="h-5 w-5" />
           </button>
 
+          {/* The wordmark is the fallback, not the default: a shop that uploads its own
+              logo should see it, and one that has not should still have a brand mark. */}
           <Link
             href={`/${locale}`}
             className="font-display text-2xl tracking-[0.22em] text-brass"
-            aria-label="Jeck's"
+            aria-label={storeName ?? "Jeck's"}
           >
-            JECK&apos;S
+            {logoUrl ? (
+              // A plain <img>, not next/image: the URL comes from a setting, so its host
+              // is whatever storage the shop configured and cannot be declared ahead of
+              // time in next.config. The height is fixed, so there is no layout shift.
+              <img
+                src={logoUrl}
+                alt={storeName ?? "Jeck's"}
+                className="h-8 w-auto max-w-40 object-contain"
+              />
+            ) : (
+              (storeName ?? "JECK'S").toUpperCase()
+            )}
           </Link>
 
           <nav className="hidden flex-1 lg:flex" aria-label={dictionary.nav.shop}>

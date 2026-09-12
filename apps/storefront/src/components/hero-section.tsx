@@ -12,11 +12,20 @@ const Hero3D = dynamic(() => import('./hero-3d').then((module) => module.Hero3D)
 });
 
 /** Full-bleed hero with the 3D cap — PRD F-ST-10. */
-export function HeroSection({ section, locale }: { section: HomeSection; locale: Locale }) {
+export function HeroSection({
+  section,
+  locale,
+  modelUrl,
+}: {
+  section: HomeSection;
+  locale: Locale;
+  /** The shop's own GLB, when one is picked in Settings › Thème. */
+  modelUrl?: string | null;
+}) {
   return (
     <section className="relative isolate overflow-hidden border-b border-line">
       <div className="pointer-events-none absolute inset-0 -z-10">
-        <Hero3D className="absolute inset-0" />
+        <Hero3D className="absolute inset-0" modelUrl={modelUrl} />
       </div>
 
       {/* Keeps the headline readable over whatever the canvas renders. */}

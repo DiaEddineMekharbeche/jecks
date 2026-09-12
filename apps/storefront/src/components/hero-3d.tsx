@@ -15,7 +15,7 @@ const HeroCanvas = dynamic(() => import('./hero-canvas'), { ssr: false });
  *   - the renderer only mounts once the hero is on screen, and unmounts nothing
  *     until then, so the page paints without waiting on WebGL
  */
-export function Hero3D({ className }: { className?: string }) {
+export function Hero3D({ className, modelUrl }: { className?: string; modelUrl?: string | null }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
   const reducedMotion = usePrefersReducedMotion();
@@ -44,7 +44,7 @@ export function Hero3D({ className }: { className?: string }) {
 
   return (
     <div ref={containerRef} className={className} aria-hidden>
-      {visible ? <HeroCanvas animate={!reducedMotion} /> : null}
+      {visible ? <HeroCanvas animate={!reducedMotion} modelUrl={modelUrl} /> : null}
     </div>
   );
 }

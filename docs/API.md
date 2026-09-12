@@ -860,6 +860,22 @@ so there is no cookie to forge.
 
 ---
 
+## Theme assets
+
+`GET /storefront/bootstrap` carries a `theme` block beside the settings:
+
+```json
+{ "logoUrl": null, "faviconUrl": null, "heroModelUrl": "https://…/media/hero.glb" }
+```
+
+The settings store media **ids** — an id survives the file moving to a CDN and a URL does
+not — and the bootstrap resolves them once so the storefront does not make three more
+requests. An id pointing at media that has since been deleted resolves to `null`, not to
+a broken link, and every one of the three falls back: no logo shows the wordmark, no
+favicon keeps the static icon, no model keeps the generated cap.
+
+---
+
 ## Health
 
 | Method | Path | Notes |

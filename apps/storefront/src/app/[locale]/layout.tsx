@@ -60,8 +60,19 @@ export async function generateMetadata({
   };
   const copy = titles[locale] ?? titles.fr!;
 
+  // The shop's own favicon when one is picked in Settings › Thème. Fetched here rather
+  // than hardcoded so changing it is a setting, not a deploy; a failure falls through to
+  // the static icon in /public.
+  const bootstrap = await apiGet<Bootstrap>('/storefront/bootstrap', {
+    revalidate: 300,
+    tags: ['bootstrap'],
+  }).catch(() => null);
+
+  const faviconUrl = bootstrap?.theme?.faviconUrl ?? null;
+
   return {
     metadataBase: new URL(SITE_URL),
+    ...(faviconUrl ? { icons: { icon: faviconUrl, apple: faviconUrl } } : {}),
     title: { default: copy.title, template: `%s — Jeck's` },
     description: copy.description,
     // hreflang for every language, so Google serves the right one (PRD F-ST-05).
@@ -126,6 +137,8 @@ export default async function LocaleLayout({
           dictionary={dictionary}
           items={header?.items ?? []}
           announcements={bootstrap?.announcements ?? []}
+          logoUrl={bootstrap?.theme?.logoUrl ?? null}
+          storeName={typeof bootstrap?.settings?.['store.name'] === 'string' ? (bootstrap.settings['store.name'] as string) : undefined}
         />
 
         <main id="main">{children}</main>

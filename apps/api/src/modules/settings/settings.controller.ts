@@ -16,8 +16,9 @@ export class StorefrontController {
   @Get('bootstrap')
   @ApiOperation({ summary: 'Settings, menus and announcements the storefront needs on first paint' })
   async bootstrap() {
-    const [settings, menus, announcements] = await Promise.all([
+    const [settings, theme, menus, announcements] = await Promise.all([
       this.settings.publicSettings(),
+      this.settings.themeAssets(),
       this.prisma.menu.findMany({
         select: {
           slug: true,
@@ -37,7 +38,7 @@ export class StorefrontController {
         select: { id: true, message: true, linkUrl: true, bgColor: true, textColor: true },
       }),
     ]);
-    return { settings, menus, announcements };
+    return { settings, theme, menus, announcements };
   }
 
   @Public()

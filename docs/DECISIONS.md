@@ -1317,3 +1317,30 @@ It found two real defects on its first run. The contrast above, and `aria-label`
 plain `<div>` for the star ratings — which assistive technology ignores entirely, because
 an element with no role has nothing to attach a label to. Both are fixed; `role="img"` is
 what a row of star glyphs is.
+
+## D108 — The theme's logo, favicon and 3D model come from the media library (M6)
+
+`theme.logo_media_id`, `theme.favicon_media_id` and `theme.hero_model_media_id` have
+been in the settings schema and validated since M1. Nothing wrote them and nothing read
+them, so a shop could not change its own logo without a deploy — the seventh instance of
+a key existing, being validated, and controlling nothing.
+
+Settings › Thème now has a media picker for each, and the storefront bootstrap resolves
+the three ids to URLs in one query.
+
+**Ids are stored, URLs are served.** An id survives the file moving to a CDN; a URL does
+not. The bootstrap resolves them so the storefront does not make three more requests, and
+a key pointing at media that has since been deleted resolves to null rather than to a
+broken link.
+
+**Every one falls back.** No logo shows the wordmark, no favicon keeps the static icon,
+no model keeps the procedural cap. A shop that has never opened Blender still has a hero
+on its first day, and one that uploads a real product gets something that sells better.
+Requiring the model before the shop could open would be the wrong trade.
+
+The uploaded model is scaled and centred into the same box the procedural cap occupies,
+so a GLB exported at any scale lands in frame. Without that, "upload and see it" becomes
+"upload and file a bug", and the shop owner has no way to tell which of the two happened.
+
+Verified against a running instance: setting the model wrote the id, and the bootstrap
+came back with the resolved `/media/…glb` URL.

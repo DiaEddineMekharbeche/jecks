@@ -24,6 +24,7 @@ import { message } from '@/lib/errors';
 import { useSession } from '@/features/auth/session';
 import * as settingsApi from './api';
 import { PaymentProvidersPanel } from './PaymentProvidersPanel';
+import { MediaSettingField } from './MediaSettingField';
 import { SETTINGS_FORMS, type SettingField } from './fields';
 import { useSettings, useSettingsInvalidate } from './queries';
 
@@ -241,6 +242,17 @@ function SettingControl({
             placeholder="Choisir"
           />
         </Field>
+      );
+
+    case 'media':
+      return (
+        <MediaSettingField
+          field={field}
+          value={value}
+          error={error}
+          disabled={disabled}
+          onChange={onChange}
+        />
       );
 
     case 'color':

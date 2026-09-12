@@ -20,7 +20,8 @@ export type FieldKind =
   | 'multiselect'
   | 'color'
   | 'secret'
-  | 'list';
+  | 'list'
+  | 'media';
 
 export interface SettingField {
   key: string;
@@ -31,6 +32,8 @@ export interface SettingField {
   /** Only shown when this key is truthy — a provider's credentials, say. */
   showWhen?: string;
   suffix?: string;
+  /** For `media`: restricts the picker, so a hero slot cannot be filled with a JPEG. */
+  mediaKind?: 'IMAGE' | 'MODEL_3D' | 'VIDEO' | 'DOCUMENT';
 }
 
 export interface SettingSection {
@@ -231,6 +234,27 @@ export const SETTINGS_FORMS: Record<SettingScope, SettingSection> = {
       { key: 'theme.primary_color', label: 'Couleur d’accent', kind: 'color' },
       { key: 'theme.base_color', label: 'Fond', kind: 'color' },
       { key: 'theme.surface_color', label: 'Surfaces', kind: 'color' },
+      {
+        key: 'theme.logo_media_id',
+        label: 'Logo',
+        kind: 'media',
+        mediaKind: 'IMAGE',
+        hint: 'Affiché dans l’en-tête. Sans logo, le nom de la boutique est utilisé.',
+      },
+      {
+        key: 'theme.favicon_media_id',
+        label: 'Favicon',
+        kind: 'media',
+        mediaKind: 'IMAGE',
+        hint: 'L’icône de l’onglet. Une image carrée, 512 × 512 de préférence.',
+      },
+      {
+        key: 'theme.hero_model_media_id',
+        label: 'Modèle 3D du héros',
+        kind: 'media',
+        mediaKind: 'MODEL_3D',
+        hint: 'Un fichier GLB. Sans modèle, la vitrine affiche la casquette générée.',
+      },
     ],
   },
 

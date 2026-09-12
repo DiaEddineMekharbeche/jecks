@@ -13,7 +13,7 @@ import {
 import { ProductRail } from '@/components/product-rail';
 import { apiGet } from '@/lib/api';
 import { getDictionary } from '@/lib/dictionary';
-import type { CollectionSummary, HomeSection, ProductCard } from '@/lib/types';
+import type { Bootstrap, CollectionSummary, HomeSection, ProductCard } from '@/lib/types';
 
 /** The home builder of PRD F-AD-23 drives this page; sections come from the database. */
 export const revalidate = 300;
@@ -22,10 +22,18 @@ export default async function HomePage({ params }: { params: { locale: string } 
   const locale = params.locale as Locale;
   const dictionary = getDictionary(locale);
 
-  const sections = await apiGet<HomeSection[]>('/storefront/home', {
-    revalidate: 300,
-    tags: ['home'],
-  }).catch(() => [] as HomeSection[]);
+  const [sections, bootstrap] = await Promise.all([
+    apiGet<HomeSection[]>('/storefront/home', { revalidate: 300, tags: ['home'] }).catch(
+      () => [] as HomeSection[],
+    ),
+    // The layout fetches this too; Next dedupes it within the render, and the tag means
+    // one revalidation clears both.
+    apiGet<Bootstrap>('/storefront/bootstrap', { revalidate: 300, tags: ['bootstrap'] }).catch(
+      () => null,
+    ),
+  ]);
+
+  const heroModelUrl = bootstrap?.theme?.heroModelUrl ?? null;
 
   return (
     <>
@@ -36,6 +44,7 @@ export default async function HomePage({ params }: { params: { locale: string } 
           locale={locale}
           dictionary={dictionary}
           first={index === 0}
+          heroModelUrl={heroModelUrl}
         />
       ))}
     </>
@@ -47,12 +56,13 @@ type SectionProps = {
   locale: Locale;
   dictionary: ReturnType<typeof getDictionary>;
   first: boolean;
+  heroModelUrl: string | null;
 };
 
-function Section({ section, locale, dictionary, first }: SectionProps) {
+function Section({ section, locale, dictionary, first, heroModelUrl }: SectionProps) {
   switch (section.kind) {
     case 'hero_3d':
-      return <HeroSection section={section} locale={locale} />;
+      return <HeroSection section={section} locale={locale} modelUrl={heroModelUrl} />;
 
     case 'featured_collections':
       return (
