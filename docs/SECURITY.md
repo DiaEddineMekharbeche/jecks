@@ -125,6 +125,24 @@ Labels, manifests, backups and exports are private. They are reachable in two wa
 Every document response is `Cache-Control: no-store` and
 `Content-Disposition: attachment`, so a PDF is never rendered on the API's origin.
 
+## Rich text
+
+Page bodies and product descriptions are rendered on the storefront with
+`dangerouslySetInnerHTML`, because a shop needs headings, lists and links in its
+delivery policy. They are sanitised **on the way in**, against an allow-list of tags and
+attributes: no `<script>`, no `<style>`, no `<iframe>`, no event handlers, and no
+`javascript:` or `data:` URL.
+
+Cleaning on write rather than on read is deliberate. Storing something dangerous and
+remembering to neutralise it at each render site is a rule that holds until somebody adds
+another one — and there were already three.
+
+This was a real stored cross-site scripting hole, not a hypothetical one: a `<script>`
+typed into a product description ran on every visitor's browser. It needed
+`content.write` or `catalog.write`, so it was an insider or a stolen staff session
+rather than an anonymous attack, which makes it a privilege-escalation path and not a
+smaller problem.
+
 ## Uploads
 
 Media uploads are checked by declared type and size, stored under content-addressed keys,

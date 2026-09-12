@@ -277,6 +277,46 @@ describe('/admin/content and /admin/marketing', () => {
     expect(JSON.stringify(list.body)).toContain(slug);
   });
 
+  it('strips script out of a page body before storing it', async () => {
+    // The storefront renders this with dangerouslySetInnerHTML. Until the sanitiser
+    // existed, a <script> typed here ran on every visitor's browser.
+    const created = await test.http
+      .post('/api/v1/admin/content/pages')
+      .set('Authorization', owner.bearer)
+      .send({
+        slug: `xss-${Date.now()}`,
+        title: { fr: 'Sonde' },
+        body: {
+          fr: '<h2>Livraison</h2><script>window.pwned=1</script><img src=x onerror=alert(1)>',
+        },
+      })
+      .expect(201);
+
+    const body = created.body.data.body.fr as string;
+
+    expect(body).not.toContain('script');
+    expect(body).not.toContain('onerror');
+    // And the formatting a shop actually writes survives, or the editor is useless.
+    expect(body).toContain('<h2>Livraison</h2>');
+  });
+
+  it('strips script out of a product description too', async () => {
+    const suffix = Math.random().toString(36).slice(2, 8);
+
+    const created = await test.http
+      .post('/api/v1/admin/products')
+      .set('Authorization', owner.bearer)
+      .send({
+        name: { fr: `Casquette ${suffix}` },
+        slug: `xss-${suffix}`,
+        description: { fr: '<p>Belle</p><script>window.pwned=1</script>' },
+        variants: [{ sku: `XSS-${suffix}`.toUpperCase(), price: 350_000 }],
+      })
+      .expect(201);
+
+    expect(JSON.stringify(created.body.data.description)).not.toContain('script');
+  });
+
   it('refuses a page with no slug', async () => {
     const response = await test.http
       .post('/api/v1/admin/content/pages')

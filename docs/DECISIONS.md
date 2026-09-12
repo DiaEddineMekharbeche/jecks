@@ -1162,3 +1162,32 @@ Found by the rules on their first run: **`customers.blacklist` controlled nothin
 Blacklisting was gated by `customers.write`, so any agent who could correct a phone
 number could also refuse a customer's orders for ever. It is its own decision and now
 needs its own permission.
+
+## D102 — Rich text is sanitised on write, with a dependency (M7)
+
+Page bodies and product descriptions are cleaned against an allow-list before they are
+stored. `sanitize-html` does it.
+
+This closed a real stored cross-site scripting hole. The storefront renders both fields
+with `dangerouslySetInnerHTML` and nothing cleaned them: a `<script>` typed into a
+product description ran on every visitor's browser. Verified against a running stack
+before and after — the tag and an `onerror` handler reached the browser verbatim, and
+now do not, while headings and bold survive.
+
+**On the way in, not on the way out.** There were already three render sites and storing
+something dangerous while remembering to neutralise it at each is a rule that lasts until
+somebody adds a fourth.
+
+**A dependency, deliberately.** D88 drew the line at "anything with real algorithmic
+content", and parsing HTML well enough to be a security boundary is squarely past it. A
+hand-rolled sanitiser is how `<scr<script>ipt>` gets through: strip the inner tag once and
+the outer halves join into a working one. The tests assert that exact payload comes out
+as inert text.
+
+The allow-list keeps what a shop owner writes — headings, lists, tables for size guides,
+links, images from the media library, and `dir` so Arabic renders right to left. A
+sanitiser that eats the delivery policy is one that gets switched off.
+
+Still missing: the admin has no rich-text editor, so that HTML is typed by hand into a
+textarea. The plan asked for TipTap and it is not built; the sanitiser makes the field
+safe either way.

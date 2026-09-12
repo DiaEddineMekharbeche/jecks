@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type { Prisma } from '@jecks/db';
+import { sanitizeTranslatedRichText } from '../../../common/html/rich-text.js';
 import {
   CATALOG_ERRORS,
   ProductStatus,
@@ -215,8 +216,10 @@ export class ProductsService {
         data: {
           name: input.name as Prisma.InputJsonValue,
           slug: input.slug,
-          description: (input.description ?? undefined) as Prisma.InputJsonValue | undefined,
-          shortDescription: (input.shortDescription ?? undefined) as
+          // Rendered as HTML on the product page, so it is cleaned before it is stored.
+          description: (sanitizeTranslatedRichText(input.description) ?? undefined) as
+            Prisma.InputJsonValue | undefined,
+          shortDescription: (sanitizeTranslatedRichText(input.shortDescription) ?? undefined) as
             Prisma.InputJsonValue | undefined,
           status: input.status,
           brandId: input.brandId ?? null,
@@ -271,10 +274,12 @@ export class ProductsService {
       if (input.name !== undefined) data.name = input.name as Prisma.InputJsonValue;
       if (input.slug !== undefined) data.slug = input.slug;
       if (input.description !== undefined) {
-        data.description = input.description as Prisma.InputJsonValue;
+        data.description = sanitizeTranslatedRichText(input.description) as Prisma.InputJsonValue;
       }
       if (input.shortDescription !== undefined) {
-        data.shortDescription = input.shortDescription as Prisma.InputJsonValue;
+        data.shortDescription = sanitizeTranslatedRichText(
+          input.shortDescription,
+        ) as Prisma.InputJsonValue;
       }
       if (input.seoTitle !== undefined) data.seoTitle = input.seoTitle as Prisma.InputJsonValue;
       if (input.seoDescription !== undefined) {

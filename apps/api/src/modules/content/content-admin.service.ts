@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { sanitizeTranslatedRichText } from '../../common/html/rich-text.js';
 import type { Prisma } from '@jecks/db';
 import {
   CONTENT_ERRORS,
@@ -327,7 +328,9 @@ export class ContentAdminService {
     return {
       slug: input.slug,
       title: input.title as Prisma.InputJsonValue,
-      body: input.body as Prisma.InputJsonValue,
+      // Cleaned on the way in: the storefront renders this with dangerouslySetInnerHTML,
+      // so a <script> typed here would run on every visitor's browser.
+      body: sanitizeTranslatedRichText(input.body) as Prisma.InputJsonValue,
       excerpt: (input.excerpt ?? undefined) as Prisma.InputJsonValue | undefined,
       heroMediaId: input.heroMediaId ?? null,
       seoTitle: (input.seoTitle ?? undefined) as Prisma.InputJsonValue | undefined,
