@@ -32,8 +32,20 @@ const arabic = Cairo({
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
 
-export function generateStaticParams() {
-  return LOCALES.map((locale) => ({ locale }));
+/**
+ * Deliberately empty. Listing the locales here pre-rendered every page at image build
+ * time, when there is no API to read from, so pages were baked with empty rails and
+ * default branding and served that way to the first visitors and crawlers after each
+ * deploy. The failed fetches left no cache tags either, so an admin publish could not
+ * clear them early.
+ *
+ * An empty list is not the same as no function: Next still treats the route as
+ * cacheable, renders each locale on its first real request and caches it from there on
+ * the `revalidate` of each page. Without the function at all, every request re-renders.
+ * Unknown locales still 404 below.
+ */
+export function generateStaticParams(): Array<{ locale: string }> {
+  return [];
 }
 
 export async function generateMetadata({
@@ -54,8 +66,7 @@ export async function generateMetadata({
     },
     en: {
       title: "Jeck's — Caps and hats",
-      description:
-        'Caps drawn in Algiers, short runs, cash on delivery across all 58 wilayas.',
+      description: 'Caps drawn in Algiers, short runs, cash on delivery across all 58 wilayas.',
     },
   };
   const copy = titles[locale] ?? titles.fr!;
@@ -120,11 +131,13 @@ export default async function LocaleLayout({
       className={`${display.variable} ${body.variable} ${arabic.variable}`}
       // Bridges next/font variables onto the design tokens, so the token file stays
       // the single place fonts are named.
-      style={{
-        ['--jk-font-display']: 'var(--font-display)',
-        ['--jk-font-body']: 'var(--font-body)',
-        ['--jk-font-arabic']: 'var(--font-arabic)',
-      } as CSSProperties}
+      style={
+        {
+          ['--jk-font-display']: 'var(--font-display)',
+          ['--jk-font-body']: 'var(--font-body)',
+          ['--jk-font-arabic']: 'var(--font-arabic)',
+        } as CSSProperties
+      }
       suppressHydrationWarning
     >
       <body className="min-h-screen bg-base text-ink antialiased">
@@ -138,7 +151,11 @@ export default async function LocaleLayout({
           items={header?.items ?? []}
           announcements={bootstrap?.announcements ?? []}
           logoUrl={bootstrap?.theme?.logoUrl ?? null}
-          storeName={typeof bootstrap?.settings?.['store.name'] === 'string' ? (bootstrap.settings['store.name'] as string) : undefined}
+          storeName={
+            typeof bootstrap?.settings?.['store.name'] === 'string'
+              ? (bootstrap.settings['store.name'] as string)
+              : undefined
+          }
         />
 
         <main id="main">{children}</main>
@@ -190,4 +207,3 @@ function OrganizationJsonLd({ locale }: { locale: Locale }) {
     />
   );
 }
-
