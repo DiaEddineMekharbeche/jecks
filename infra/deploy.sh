@@ -17,6 +17,9 @@
 set -Eeuo pipefail
 
 readonly ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# The production file is an overlay on the base file (see its header); passed alone,
+# compose rejects it because the datastores it adjusts have no image.
+readonly COMPOSE_BASE="${ROOT}/infra/docker/docker-compose.yml"
 readonly COMPOSE="${ROOT}/infra/docker/docker-compose.prod.yml"
 readonly ENV_FILE="${ROOT}/.env"
 readonly STAMP="$(date +%Y%m%d-%H%M%S)"
@@ -90,7 +93,7 @@ if [[ $ROLLBACK -eq 1 ]]; then
   [[ -f "${ROOT}/.deploy-previous" ]] || fail "No previous deploy recorded."
   previous="$(cat "${ROOT}/.deploy-previous")"
 
-  IMAGE_TAG="$previous" docker compose -f "$COMPOSE" --env-file "$ENV_FILE" up -d
+  IMAGE_TAG="$previous" docker compose -f "$COMPOSE_BASE" -f "$COMPOSE" --env-file "$ENV_FILE" up -d
   log "Rolled back to $previous"
   exit 0
 fi
@@ -101,8 +104,8 @@ fi
 log "Taking a database backup"
 mkdir -p "${ROOT}/backups"
 
-if docker compose -f "$COMPOSE" --env-file "$ENV_FILE" ps postgres --status running >/dev/null 2>&1; then
-  docker compose -f "$COMPOSE" --env-file "$ENV_FILE" exec -T postgres \
+if docker compose -f "$COMPOSE_BASE" -f "$COMPOSE" --env-file "$ENV_FILE" ps postgres --status running >/dev/null 2>&1; then
+  docker compose -f "$COMPOSE_BASE" -f "$COMPOSE" --env-file "$ENV_FILE" exec -T postgres \
     pg_dump --format=custom --no-owner -U jecks jecks \
     > "${ROOT}/backups/pre-deploy-${STAMP}.dump" \
     || fail "Backup failed. Deploy stopped; nothing has changed."
@@ -117,9 +120,9 @@ fi
 if [[ $BUILD -eq 1 ]]; then
   log "Building images"
   # Recorded before the build so a rollback has somewhere to go.
-  docker compose -f "$COMPOSE" --env-file "$ENV_FILE" images --quiet > "${ROOT}/.deploy-previous" 2>/dev/null || true
+  docker compose -f "$COMPOSE_BASE" -f "$COMPOSE" --env-file "$ENV_FILE" images --quiet > "${ROOT}/.deploy-previous" 2>/dev/null || true
 
-  docker compose -f "$COMPOSE" --env-file "$ENV_FILE" build --pull
+  docker compose -f "$COMPOSE_BASE" -f "$COMPOSE" --env-file "$ENV_FILE" build --pull
 fi
 
 # --- migrate -----------------------------------------------------------------
@@ -127,17 +130,17 @@ fi
 # the deploy rather than leaving the API crash-looping against a schema it cannot read.
 
 log "Applying migrations"
-docker compose -f "$COMPOSE" --env-file "$ENV_FILE" up -d postgres redis
+docker compose -f "$COMPOSE_BASE" -f "$COMPOSE" --env-file "$ENV_FILE" up -d postgres redis
 sleep 3
 
-docker compose -f "$COMPOSE" --env-file "$ENV_FILE" run --rm api \
+docker compose -f "$COMPOSE_BASE" -f "$COMPOSE" --env-file "$ENV_FILE" run --rm api \
   node_modules/.bin/prisma migrate deploy --schema packages/db/prisma/schema.prisma \
   || fail "Migrations failed. The old containers are still running; nothing was restarted."
 
 # --- restart -----------------------------------------------------------------
 
 log "Starting services"
-docker compose -f "$COMPOSE" --env-file "$ENV_FILE" up -d --remove-orphans
+docker compose -f "$COMPOSE_BASE" -f "$COMPOSE" --env-file "$ENV_FILE" up -d --remove-orphans
 
 # --- verify ------------------------------------------------------------------
 # A deploy that finishes without checking anything is a deploy that reports success on
@@ -158,12 +161,12 @@ done
 
 [[ $healthy -eq 1 ]] || {
   echo
-  docker compose -f "$COMPOSE" --env-file "$ENV_FILE" logs --tail 50 api
+  docker compose -f "$COMPOSE_BASE" -f "$COMPOSE" --env-file "$ENV_FILE" logs --tail 50 api
   fail "The API did not become ready. Logs above. Roll back with: ./infra/deploy.sh --rollback"
 }
 
 log "Deployed"
-docker compose -f "$COMPOSE" --env-file "$ENV_FILE" ps
+docker compose -f "$COMPOSE_BASE" -f "$COMPOSE" --env-file "$ENV_FILE" ps
 
 cat <<'NOTES'
 
