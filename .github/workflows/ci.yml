@@ -326,12 +326,15 @@ jobs:
   images:
     name: Docker images
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    # Images are only worth building for a release.
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: [quality, build, integration, e2e]
+    timeout-minutes: 40
+    # Built on every run, not only for a release. Gated on tags, this job could never run
+    # (the workflow does not trigger on tags), and the images had never been built: the
+    # API image could not compile, then could not start, and the deploy's migration step
+    # pointed at a path that does not exist in it. Each smoke step below is one of those.
+    needs: [quality, build]
 
     strategy:
+      fail-fast: false
       matrix:
         app: [api, worker, storefront, admin]
 
@@ -343,6 +346,45 @@ jobs:
           context: .
           file: infra/docker/Dockerfile.${{ matrix.app }}
           push: false
-          tags: jecks/${{ matrix.app }}:${{ github.ref_name }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          load: true
+          tags: jecks/${{ matrix.app }}:ci
+          build-args: |
+            NEXT_PUBLIC_API_URL=http://localhost:4000/api/v1
+            NEXT_PUBLIC_SITE_URL=http://localhost:3000
+            NEXT_PUBLIC_MEDIA_URL=http://localhost:4000/api/v1/media
+            VITE_API_URL=http://localhost:4000/api/v1
+            VITE_MEDIA_URL=http://localhost:4000/api/v1/media
+          cache-from: type=gha,scope=${{ matrix.app }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.app }}
+
+      # A build that compiles can still fail to start: pnpm links an app's workspace
+      # packages into the app's own node_modules, which the runtime stage once left out.
+      - name: Smoke — the server resolves its workspace packages
+        if: matrix.app == 'api' || matrix.app == 'worker'
+        run: >
+          docker run --rm jecks/${{ matrix.app }}:ci
+          node -e "for (const m of ['@jecks/db', '@jecks/shared', '@jecks/storage']) require(m); console.log('resolved')"
+
+      # deploy.sh runs migrations through the API image with exactly this command.
+      - name: Smoke — the deploy's migration command exists in the image
+        if: matrix.app == 'api'
+        run: docker run --rm jecks/api:ci /app/node_modules/.bin/prisma --version
+
+      # The nightly backup shells out to pg_dump, whose major version must match postgres:16.
+      - name: Smoke — the worker can run a backup
+        if: matrix.app == 'worker'
+        run: docker run --rm --entrypoint pg_dump jecks/worker:ci --version | grep -q 'PostgreSQL) 16'
+
+      - name: Smoke — the storefront serves a page
+        if: matrix.app == 'storefront'
+        run: |
+          docker run -d --name web -p 3000:3000 jecks/storefront:ci
+          for i in $(seq 1 30); do curl -sf -o /dev/null http://localhost:3000/robots.txt && exit 0; sleep 1; done
+          docker logs web; exit 1
+
+      - name: Smoke — the admin serves its app on a deep link
+        if: matrix.app == 'admin'
+        run: |
+          docker run -d --name admin -p 8080:80 jecks/admin:ci
+          sleep 2
+          curl -sf http://localhost:8080/catalog/products | grep -q '<div id="root">'

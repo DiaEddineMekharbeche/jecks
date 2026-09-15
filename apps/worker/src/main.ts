@@ -40,6 +40,18 @@ const storage = createStorage(storageConfigFromEnv());
 
 const workers: Worker[] = [];
 
+/**
+ * Where the worker reaches the API's internal routes. Inside a deployment that is the
+ * compose network (`API_INTERNAL_URL`, e.g. `http://api:4000/api/v1`); the public URL is
+ * only the fallback, because it sends every job out through DNS, TLS and the proxy and
+ * fails outright until those exist.
+ */
+function internalApiUrl(): string {
+  return (
+    process.env.API_INTERNAL_URL ?? process.env.API_PUBLIC_URL ?? 'http://localhost:4000/api/v1'
+  );
+}
+
 /** The public storefront origin, used to build tracking links inside messages. */
 function storefrontUrl(): string {
   return (process.env.STOREFRONT_URL ?? 'http://localhost:3000').replace(/\/$/, '');
@@ -52,7 +64,10 @@ function register(queue: string, handler: (job: Job) => Promise<unknown>, concur
       const started = Date.now();
       logger.info({ queue, job: job.name, id: job.id }, 'job started');
       const result = await handler(job);
-      logger.info({ queue, job: job.name, id: job.id, ms: Date.now() - started, result }, 'job done');
+      logger.info(
+        { queue, job: job.name, id: job.id, ms: Date.now() - started, result },
+        'job done',
+      );
       return result;
     },
     { connection, concurrency },
@@ -71,20 +86,24 @@ function register(queue: string, handler: (job: Job) => Promise<unknown>, concur
 async function main(): Promise<void> {
   await prisma.$connect();
 
-  register(QUEUE_NAMES.reports, async (job) => {
-    if (job.name === 'daily-stats') {
-      const days = (job.data as { days?: number }).days;
-      return rebuildDailyStats(prisma, { days });
-    }
-    if (job.name === 'report.export') {
-      const { jobId } = job.data as { jobId?: string };
-      return runReportExport(jobId ?? '', {
-        apiUrl: process.env.API_PUBLIC_URL ?? 'http://localhost:4000/api/v1',
-        token: process.env.INTERNAL_API_TOKEN,
-      });
-    }
-    throw new Error(`Unknown reports job: ${job.name}`);
-  }, 2);
+  register(
+    QUEUE_NAMES.reports,
+    async (job) => {
+      if (job.name === 'daily-stats') {
+        const days = (job.data as { days?: number }).days;
+        return rebuildDailyStats(prisma, { days });
+      }
+      if (job.name === 'report.export') {
+        const { jobId } = job.data as { jobId?: string };
+        return runReportExport(jobId ?? '', {
+          apiUrl: internalApiUrl(),
+          token: process.env.INTERNAL_API_TOKEN,
+        });
+      }
+      throw new Error(`Unknown reports job: ${job.name}`);
+    },
+    2,
+  );
 
   register(QUEUE_NAMES.scheduling, async (job) => {
     switch (job.name) {
@@ -96,7 +115,7 @@ async function main(): Promise<void> {
       case 'segments':
       case 'loyalty-expiry':
         return runMaintenanceTask(job.name as MaintenanceTask, {
-          apiUrl: process.env.API_PUBLIC_URL ?? 'http://localhost:4000/api/v1',
+          apiUrl: internalApiUrl(),
           token: process.env.INTERNAL_API_TOKEN,
         });
       case 'low-stock-alerts': {
@@ -152,7 +171,10 @@ async function main(): Promise<void> {
     async (job) => {
       if (job.name !== 'backup') throw new Error(`Unknown maintenance job: ${job.name}`);
       const { jobId } = job.data as { jobId?: string };
-      return runBackup(prisma, storage, { jobId, retentionDays: Number(process.env.BACKUP_RETENTION_DAYS ?? 14) });
+      return runBackup(prisma, storage, {
+        jobId,
+        retentionDays: Number(process.env.BACKUP_RETENTION_DAYS ?? 14),
+      });
     },
     // One dump at a time: two concurrent pg_dump runs on a single VPS is how a backup
     // takes the site down with it.
@@ -164,7 +186,7 @@ async function main(): Promise<void> {
     async (job) => {
       if (job.name !== 'poll-tracking') throw new Error(`Unknown courier job: ${job.name}`);
       return pollCourierTracking({
-        apiUrl: process.env.API_PUBLIC_URL ?? 'http://localhost:4000/api/v1',
+        apiUrl: internalApiUrl(),
         token: process.env.INTERNAL_API_TOKEN,
         limit: Number(process.env.COURIER_SYNC_LIMIT ?? 200),
       });
@@ -174,10 +196,7 @@ async function main(): Promise<void> {
 
   await registerSchedules();
 
-  logger.info(
-    { queues: Object.values(QUEUE_NAMES) },
-    'worker ready',
-  );
+  logger.info({ queues: Object.values(QUEUE_NAMES) }, 'worker ready');
 }
 
 async function shutdown(signal: string): Promise<void> {

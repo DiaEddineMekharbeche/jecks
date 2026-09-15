@@ -58,6 +58,8 @@ services:
       NODE_ENV: production
       DATABASE_URL: postgresql://${POSTGRES_USER:-jecks}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-jecks}?schema=public
       REDIS_URL: redis://redis:6379
+      # Internal routes (reports, maintenance, courier sync) over the compose network.
+      API_INTERNAL_URL: http://api:4000/api/v1
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }

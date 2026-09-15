@@ -1399,3 +1399,39 @@ stock server-side regardless.
 Verified against a running storefront: a product renamed through the admin API was on its
 rendered page in about 100 ms. With a mismatched token, the control, it was still showing
 the old name after fifteen seconds and the API logged the 401.
+
+## D111 — The production images are built and started in CI (M7)
+
+The deploy path had never produced a running image. Building them turned up, in order:
+
+- **No `.dockerignore`.** The build context was the whole repository: host
+  `node_modules` with Windows binaries, build output, `storage/` with customer media and
+  backups, and `.env` with the production secrets. On Windows BuildKit refused the context
+  outright over pnpm's links. The context is now 2.9 MB.
+- **The API and worker images could not compile.** Both import `@jecks/storage` since M1.1;
+  neither Dockerfile installed or built it.
+- **Then they could not start.** The runtime stage copied the root `node_modules` but not
+  the app's own, which is where pnpm links `@jecks/db` and the other workspace packages.
+- **Migrations could not run.** `deploy.sh` called Prisma by a path relative to `/app`
+  while the image works from `/app/apps/api`. It uses absolute paths now.
+- **Backups could not run.** The worker shells out to `pg_dump` and the image had no
+  PostgreSQL client. It installs the 16 client, matching `postgres:16`; a real dump of the
+  development database was taken from inside the image.
+- **Internal jobs went round the public URL.** Report exports, maintenance tasks and
+  courier sync called the API through `API_PUBLIC_URL`, which fails until DNS and TLS
+  exist. The worker prefers `API_INTERNAL_URL`, set to the compose network in production.
+- **Every deploy served empty pages first.** `generateStaticParams` listed the locales, so
+  the home and collection pages were rendered during the image build, with no API, and
+  cached with empty rails and default branding. The failed fetches left no cache tags, so
+  a publish could not clear them (D110). It now returns an empty list: nothing renders at
+  build, each locale renders on its first real request and is cached from there. Removing
+  the function instead would have made those pages render on every request.
+
+The CI `images` job existed but was gated on release tags, and the workflow does not
+trigger on tags, so it could never run. It now runs on every push and pull request, and
+each image gets a smoke step shaped like the failure it would have caught: resolving the
+workspace packages, the exact migration command, `pg_dump` 16, a served page.
+
+What remains unproven: the whole of `deploy.sh` against a real VPS, including Nginx with
+real certificates. Each step was exercised against the built images here, not in sequence
+on a server.

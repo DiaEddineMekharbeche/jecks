@@ -16,6 +16,7 @@ COPY pnpm-workspace.yaml package.json pnpm-lock.yaml .npmrc ./
 COPY packages/config/package.json packages/config/
 COPY packages/shared/package.json packages/shared/
 COPY packages/db/package.json packages/db/
+COPY packages/storage/package.json packages/storage/
 COPY apps/api/package.json apps/api/
 RUN pnpm install --frozen-lockfile --filter @jecks/api... --filter @jecks/db...
 
@@ -26,6 +27,7 @@ COPY apps/api/ apps/api/
 RUN pnpm --filter @jecks/db exec prisma generate \
  && pnpm --filter @jecks/shared build \
  && pnpm --filter @jecks/db build \
+ && pnpm --filter @jecks/storage build \
  && pnpm --filter @jecks/api build
 
 # Drop everything that only mattered at build time.
@@ -39,6 +41,9 @@ RUN addgroup -S jecks && adduser -S jecks -G jecks
 
 COPY --from=build --chown=jecks:jecks /app/node_modules ./node_modules
 COPY --from=build --chown=jecks:jecks /app/packages ./packages
+# pnpm links an app's own dependencies, workspace packages included, into the app's
+# node_modules; the root one only holds the store they point into. Both are needed.
+COPY --from=build --chown=jecks:jecks /app/apps/api/node_modules ./apps/api/node_modules
 COPY --from=build --chown=jecks:jecks /app/apps/api/dist ./apps/api/dist
 COPY --from=build --chown=jecks:jecks /app/apps/api/package.json ./apps/api/
 

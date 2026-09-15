@@ -4,7 +4,9 @@
 #   docker build -f infra/docker/Dockerfile.worker -t jecks/worker .
 
 FROM node:20-alpine AS base
-RUN corepack enable && apk add --no-cache openssl
+# pg_dump for the nightly backup. Its major version must match the server's
+# (postgres:16 in docker-compose.yml), or it refuses to dump.
+RUN corepack enable && apk add --no-cache openssl postgresql16-client
 WORKDIR /app
 
 FROM base AS deps
@@ -12,6 +14,7 @@ COPY pnpm-workspace.yaml package.json pnpm-lock.yaml .npmrc ./
 COPY packages/config/package.json packages/config/
 COPY packages/shared/package.json packages/shared/
 COPY packages/db/package.json packages/db/
+COPY packages/storage/package.json packages/storage/
 COPY apps/worker/package.json apps/worker/
 RUN pnpm install --frozen-lockfile --filter @jecks/worker... --filter @jecks/db...
 
@@ -21,6 +24,7 @@ COPY apps/worker/ apps/worker/
 RUN pnpm --filter @jecks/db exec prisma generate \
  && pnpm --filter @jecks/shared build \
  && pnpm --filter @jecks/db build \
+ && pnpm --filter @jecks/storage build \
  && pnpm --filter @jecks/worker build
 RUN pnpm prune --prod
 
@@ -30,6 +34,9 @@ RUN addgroup -S jecks && adduser -S jecks -G jecks
 
 COPY --from=build --chown=jecks:jecks /app/node_modules ./node_modules
 COPY --from=build --chown=jecks:jecks /app/packages ./packages
+# pnpm links an app's own dependencies, workspace packages included, into the app's
+# node_modules; the root one only holds the store they point into. Both are needed.
+COPY --from=build --chown=jecks:jecks /app/apps/worker/node_modules ./apps/worker/node_modules
 COPY --from=build --chown=jecks:jecks /app/apps/worker/dist ./apps/worker/dist
 COPY --from=build --chown=jecks:jecks /app/apps/worker/package.json ./apps/worker/
 

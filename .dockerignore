@@ -1,0 +1,36 @@
+# Build context for every image in infra/docker. Each Dockerfile installs dependencies
+# and builds inside the image, so nothing produced on the host belongs in the context:
+#
+# - node_modules holds host-native binaries (Prisma engines, sharp) for the wrong OS, and
+#   pnpm's links in it make BuildKit refuse the whole context on Windows.
+# - build output would shadow what the image compiles for itself.
+# - .env holds production secrets, and anything sent as context can end up in a layer or
+#   in the build cache.
+# - storage/ is uploaded media and backups: large, and customer data.
+
+**/node_modules
+**/dist
+**/.next
+**/.turbo
+**/coverage
+**/storybook-static
+**/*.tsbuildinfo
+
+.git
+.github
+.claude
+.vscode
+.idea
+
+.env
+.env.*
+!.env.example
+
+storage
+backups
+e2e/test-results
+e2e/playwright-report
+.deploy-previous
+
+npm-debug.log*
+pnpm-debug.log*

@@ -137,8 +137,9 @@ log "Applying migrations"
 docker compose -f "$COMPOSE_BASE" -f "$COMPOSE" --env-file "$ENV_FILE" up -d postgres redis
 sleep 3
 
+# Absolute paths: the image works from /app/apps/api, where neither exists relatively.
 docker compose -f "$COMPOSE_BASE" -f "$COMPOSE" --env-file "$ENV_FILE" run --rm api \
-  node_modules/.bin/prisma migrate deploy --schema packages/db/prisma/schema.prisma \
+  /app/node_modules/.bin/prisma migrate deploy --schema /app/packages/db/prisma/schema.prisma \
   || fail "Migrations failed. The old containers are still running; nothing was restarted."
 
 # --- restart -----------------------------------------------------------------

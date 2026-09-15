@@ -176,8 +176,8 @@ because that is what an attacker does.
 | Lint, types, unit tests and coverage | CI job `quality`, with per-package coverage thresholds |
 | Every app builds | CI job `build`, including Storybook |
 | The seams hold | CI job `e2e`, which seeds demo data, starts the real stack and runs Playwright |
-| Images build | CI job `images`, on a release tag |
-| Deploy | `infra/deploy.sh`, which refuses on a bad environment, backs up before migrating, and verifies readiness before reporting success (D93) |
+| Images build and start | CI job `images`, on every run: each image is built and loaded, the API and worker resolve their workspace packages, the migration command the deploy uses exists, the worker has `pg_dump` 16, and the storefront and admin serve a page (D111) |
+| Deploy | `infra/deploy.sh`, which refuses on a bad environment, backs up before migrating, and verifies readiness before reporting success (D93). Its individual steps were run against the built images; the full script has not been run against a VPS (see below) |
 
 ---
 
@@ -192,10 +192,13 @@ Said plainly, because an acceptance document that claims everything is not one.
 - **The integration layer covers every module, not every route.** Seventy-eight tests
   across orders, checkout, catalogue, stock, customers, promotions, finance, delivery,
   content and settings, each with a happy path, a permission refusal and a validation
-  error. A contract test enumerates the routes the application actually registered and
-  proves all of them refuse an anonymous caller. What it does not yet prove is that each
-  one demands the *right* permission — four routes were found asking for too little, and
-  only the ones somebody thought to test were found.
+  error. Which permission each route demands is pinned separately, by the committed
+  permission surface in criterion 6.
+- **The deploy script has not been run end to end.** Until D111 it could not have been:
+  it passed the production overlay without its base file, the API image did not build,
+  and the migration step pointed at a path missing from the image. Each image is now
+  built and started in CI and the migration and backup commands were run inside them,
+  but nobody has yet taken a clean VPS from nothing to a live shop with it.
 - **The load target is scripted, not scheduled.** `e2e/load/catalog.js` asserts a p95
   under 200 ms at 200 concurrent readers and reads the cache hit rate back out of
   `/metrics`, but it runs when somebody runs it.
