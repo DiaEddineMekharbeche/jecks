@@ -86,7 +86,10 @@ describe('CacheInvalidationInterceptor', () => {
   async function run(method: string, path: string) {
     const invalidate = vi.fn().mockResolvedValue(0);
     const cache = { invalidate } as unknown as CacheService;
-    const interceptor = new CacheInvalidationInterceptor(cache);
+    // The storefront has its own cache in its own process; the interceptor tells it too.
+    const revalidate = vi.fn();
+    const storefront = { revalidate, enabled: true } as never;
+    const interceptor = new CacheInvalidationInterceptor(cache, storefront);
 
     const context = {
       switchToHttp: () => ({ getRequest: () => ({ method, path }) }),
@@ -98,7 +101,7 @@ describe('CacheInvalidationInterceptor', () => {
     // The invalidation is fired without being awaited, so let the microtasks drain.
     await Promise.resolve();
 
-    return { invalidate };
+    return { invalidate, revalidate };
   }
 
   it('ignores reads', async () => {
@@ -135,16 +138,50 @@ describe('CacheInvalidationInterceptor', () => {
   it('leaves the cache alone when the write fails', async () => {
     const invalidate = vi.fn().mockResolvedValue(0);
     const cache = { invalidate } as unknown as CacheService;
-    const interceptor = new CacheInvalidationInterceptor(cache);
+    // The storefront has its own cache in its own process; the interceptor tells it too.
+    const revalidate = vi.fn();
+    const storefront = { revalidate, enabled: true } as never;
+    const interceptor = new CacheInvalidationInterceptor(cache, storefront);
 
     const context = {
-      switchToHttp: () => ({ getRequest: () => ({ method: 'POST', path: '/api/v1/admin/catalog/products' }) }),
+      switchToHttp: () => ({
+        getRequest: () => ({ method: 'POST', path: '/api/v1/admin/catalog/products' }),
+      }),
     } as never;
     const handler = { handle: () => throwError(() => new Error('rejected')) } as never;
 
-    await expect(firstValueFrom(interceptor.intercept(context, handler))).rejects.toThrow('rejected');
+    await expect(firstValueFrom(interceptor.intercept(context, handler))).rejects.toThrow(
+      'rejected',
+    );
     await Promise.resolve();
 
     expect(invalidate).not.toHaveBeenCalled();
+  });
+
+  it('tells the storefront which of its tags went stale', async () => {
+    // Clearing the API's own Redis cache does nothing for the page a shopper loads: the
+    // storefront is a separate process holding rendered pages for minutes.
+    const { revalidate } = await run('POST', '/api/v1/admin/products');
+
+    expect(revalidate).toHaveBeenCalledOnce();
+    expect(revalidate.mock.calls[0]![0]).toContain('products');
+  });
+
+  it('names the home page when content or settings change', async () => {
+    const { revalidate } = await run('PATCH', '/api/v1/admin/content/home/abc');
+
+    expect(revalidate.mock.calls[0]![0]).toContain('home');
+  });
+
+  it('does not touch the storefront for a read', async () => {
+    const { revalidate } = await run('GET', '/api/v1/admin/products');
+
+    expect(revalidate).not.toHaveBeenCalled();
+  });
+
+  it('does not touch it for a route that changes nothing a shopper sees', async () => {
+    const { revalidate } = await run('POST', '/api/v1/admin/users');
+
+    expect(revalidate).not.toHaveBeenCalled();
   });
 });

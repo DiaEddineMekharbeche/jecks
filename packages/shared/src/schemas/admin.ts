@@ -134,3 +134,23 @@ export interface GlobalSearchHit {
   /** Admin route to open, e.g. `/orders/{id}`. */
   href: string;
 }
+
+// --- Storefront cache -------------------------------------------------------
+
+/**
+ * Cache tags the storefront fetches with, and the only ones its `/api/revalidate` route
+ * will act on. The API sends these after an admin write. Kept here because the two sides
+ * run in different processes and a tag spelled differently on one of them fails silently:
+ * the page simply keeps its old content until its timer runs out.
+ */
+export const STOREFRONT_CACHE_TAGS = [
+  'products',
+  'collections',
+  'home',
+  'bootstrap',
+  'reviews',
+  'sitemap',
+  'pages',
+] as const;
+
+export type StorefrontCacheTag = (typeof STOREFRONT_CACHE_TAGS)[number];

@@ -40,6 +40,8 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-jecks}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-jecks}?schema=public
       REDIS_URL: redis://redis:6379
       S3_ENDPOINT: http://minio:9000
+      # Revalidation goes straight to the storefront container, not round the public URL.
+      STOREFRONT_INTERNAL_URL: http://web:3000
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
@@ -75,6 +77,8 @@ services:
       # Server-side rendering talks to the API over the compose network, not the
       # public URL, so it works before DNS and TLS are in place.
       API_INTERNAL_URL: http://api:4000/api/v1
+      # Must equal the API's, or /api/revalidate refuses and pages lag by minutes.
+      REVALIDATE_TOKEN: ${REVALIDATE_TOKEN:-}
     depends_on: [api]
     expose: ['3000']
 

@@ -78,6 +78,7 @@ pnpm db:generate
 | `MINIO_ROOT_PASSWORD` / `S3_SECRET_KEY` | |
 | `SEED_OWNER_PASSWORD` | Or delete the seeded owner and invite a real one. |
 | `INTERNAL_API_TOKEN` | Presented by the worker on internal routes and by Prometheus on `/metrics`. Unset, those routes return 404 rather than opening. |
+| `REVALIDATE_TOKEN` | Lets the API clear the storefront's cached pages after an admin write. Compose passes it to both containers. Unset, publishing still works but a change reaches the shop only when its cache expires, up to five minutes. |
 
 Generate one: `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`
 

@@ -86,6 +86,10 @@ if ! grep -qE '^INTERNAL_API_TOKEN=.+' "$ENV_FILE"; then
   echo "  ! INTERNAL_API_TOKEN is unset: courier polling and the nightly jobs will not run."
 fi
 
+if ! grep -qE '^REVALIDATE_TOKEN=.+' "$ENV_FILE" || grep -qE '^REVALIDATE_TOKEN=change-me' "$ENV_FILE"; then
+  echo "  ! REVALIDATE_TOKEN is unset or the example value: admin changes reach the shop only when its cache expires."
+fi
+
 # --- rollback ----------------------------------------------------------------
 
 if [[ $ROLLBACK -eq 1 ]]; then

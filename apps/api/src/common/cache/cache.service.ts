@@ -61,7 +61,12 @@ export class CacheService implements OnModuleDestroy {
    * Serialisation goes through the caller's own JSON, so a value holding a bigint has
    * to arrive already stringified — which is what every DTO in this codebase does.
    */
-  async wrap<T>(prefix: CachePrefix, key: string, ttlSeconds: number, compute: () => Promise<T>): Promise<T> {
+  async wrap<T>(
+    prefix: CachePrefix,
+    key: string,
+    ttlSeconds: number,
+    compute: () => Promise<T>,
+  ): Promise<T> {
     const full = `${prefix}:${key}`;
 
     if (this.redis) {
@@ -145,6 +150,9 @@ export function cacheKey(parts: Record<string, unknown>): string {
   return Object.entries(parts)
     .filter(([, value]) => value !== undefined && value !== null && value !== '')
     .sort(([a], [b]) => (a < b ? -1 : 1))
-    .map(([key, value]) => `${key}=${Array.isArray(value) ? [...value].sort().join('|') : String(value)}`)
+    .map(
+      ([key, value]) =>
+        `${key}=${Array.isArray(value) ? [...value].sort().join('|') : String(value)}`,
+    )
     .join('&');
 }

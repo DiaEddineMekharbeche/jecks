@@ -48,6 +48,14 @@ const envSchema = z.object({
    * than opening an unauthenticated endpoint.
    */
   INTERNAL_API_TOKEN: z.string().min(16).optional(),
+  /** Shared with the storefront so an admin write can clear its cached pages. */
+  REVALIDATE_TOKEN: z.string().min(8).optional(),
+  /**
+   * Where the API reaches the storefront from inside the deployment, e.g.
+   * `http://web:3000`. Falls back to `STOREFRONT_URL`, which is the public address and
+   * would send every revalidation out through DNS, TLS and the proxy and back.
+   */
+  STOREFRONT_INTERNAL_URL: z.string().url().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

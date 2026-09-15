@@ -1364,3 +1364,38 @@ fails it with the exact GitHub URLs named.
 The comparison is on the port, not the hostname: `localhost` and `127.0.0.1` are the same
 machine, and the storefront and API URLs are configured independently, so a test that
 compared spellings would fail on a difference that does not exist.
+
+## D110 — An admin write clears the storefront's own cache, by tag (M7)
+
+D87 made the API drop its Redis namespace after a write. That never reached the page a
+shopper loads: the storefront is a separate process holding rendered fetches for two to
+five minutes. An owner published a product, opened the shop, saw nothing, and concluded
+the save had failed.
+
+After a successful admin write, the same interceptor now posts the affected tags to the
+storefront's `/api/revalidate`, which calls `revalidateTag` for each. The tags are the ones
+the pages already fetch with, and the list lives in `STOREFRONT_CACHE_TAGS` in
+`@jecks/shared`, because the two sides run in different processes and a tag spelled
+differently on one of them fails silently: the page just keeps its old content.
+
+The route is guarded by `REVALIDATE_TOKEN`, a shared secret, not a session: the caller is
+the API and has no user. Unset, the route refuses everything, since an open revalidation
+endpoint lets anyone make the shop recompute its home page on demand. The call is fire
+and forget with a three-second timeout. A shop whose storefront is restarting must still
+be able to publish; its pages catch up on their own timer, which is the old behaviour and
+an acceptable floor. In production the API reaches the storefront over the compose
+network (`STOREFRONT_INTERNAL_URL`), not round the public URL.
+
+Writing it exposed routes that had never invalidated anything, in Redis or on the page:
+review moderation, brands, tags, attributes, size guides, search synonyms, purchase
+receipts, applied stock counts and locations. They have rules now, and every rule match
+stops at a path segment so `/admin/tagsomething` is not `/admin/tags`.
+
+Order transitions still do not revalidate, although confirming an order moves stock
+(D20). At trading volume that would clear the product cache on every confirmation; a
+stock badge that lags by up to five minutes is the better trade, and checkout re-reads
+stock server-side regardless.
+
+Verified against a running storefront: a product renamed through the admin API was on its
+rendered page in about 100 ms. With a mismatched token, the control, it was still showing
+the old name after fifteen seconds and the API logged the 401.
