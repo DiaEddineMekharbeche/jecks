@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm --filter @jecks/db exec prisma migrate reset:*)",
+      "Bash(pnpm db:seed:*)",
+      "Bash(SEED_SCOPE=minimal pnpm db:seed:*)"
+    ]
+  }
+}
