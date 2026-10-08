@@ -22,21 +22,21 @@ import { useSession } from '@/lib/session-store';
  * server, and the figure shown is the figure the driver will ask for.
  */
 
-interface Wilaya {
+export interface Wilaya {
   code: number;
   name: Record<string, string>;
 }
-interface Commune {
+export interface Commune {
   id: string;
   name: Record<string, string>;
 }
-interface PickupPoint {
+export interface PickupPoint {
   id: string;
   name: string;
   address: string | null;
 }
 
-interface PlacedOrder {
+export interface PlacedOrder {
   orderId: string;
   number: string;
   totalMinor: string;
@@ -468,7 +468,7 @@ export function CheckoutForm({ locale, dictionary }: { locale: Locale; dictionar
   );
 }
 
-function Confirmation({
+export function Confirmation({
   order,
   locale,
   dictionary,
@@ -513,7 +513,7 @@ function Confirmation({
   );
 }
 
-function DeliveryChoice({
+export function DeliveryChoice({
   active,
   icon,
   label,
@@ -544,7 +544,7 @@ function DeliveryChoice({
   );
 }
 
-function Field({
+export function Field({
   label,
   hint,
   error,

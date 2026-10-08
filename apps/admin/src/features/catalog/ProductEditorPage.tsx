@@ -401,6 +401,21 @@ function ExistingProductEditor({ id }: { id: string }) {
                 <ExternalLink className="h-3 w-3" aria-hidden />
               </a>
             ) : null}
+            {form.status === ProductStatus.ACTIVE ? (
+              <button
+                type="button"
+                className="inline-flex items-center gap-1 text-brass hover:underline"
+                title="Page de commande directe, à utiliser comme lien de publicité Facebook / Instagram"
+                onClick={() => {
+                  const link = `${STOREFRONT_URL}/fr/offer/${form.slug}?utm_source=facebook&utm_medium=paid`;
+                  void navigator.clipboard?.writeText(link);
+                  notify.success('Lien publicitaire copié');
+                }}
+              >
+                Copier le lien pub
+                <Copy className="h-3 w-3" aria-hidden />
+              </button>
+            ) : null}
           </span>
         }
         actions={

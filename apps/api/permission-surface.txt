@@ -361,6 +361,7 @@ POST /me/notifications/read-all → AUTHENTICATED
 GET /media/:key(*) → public
 GET /metrics → public
 POST /orders → public
+POST /orders/quick → public
 POST /orders/track → public
 POST /reviews → public
 POST /reviews/:id/helpful → public

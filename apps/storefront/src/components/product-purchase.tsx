@@ -2,7 +2,7 @@
 
 import { discountPercent, format, money, t, type Locale } from '@jecks/shared';
 import { Badge, cn } from '@jecks/ui';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { DeliveryEstimator } from './delivery-estimator';
 import { ProductActions } from './product-actions';
 import { ProductGallery } from './product-gallery';
@@ -22,10 +22,24 @@ export function ProductPurchase({
   product,
   locale,
   dictionary,
+  heading: Heading = 'h1',
+  renderActions,
 }: {
   product: ProductDetail;
   locale: Locale;
   dictionary: Dictionary;
+  /** A page listing several products keeps a single h1 of its own. */
+  heading?: 'h1' | 'h2';
+  /**
+   * Replaces the add-to-cart buttons and the delivery estimate — the advert page puts
+   * its order form there.
+   */
+  renderActions?: (choice: {
+    variantId: string | null;
+    inStock: boolean;
+    available: number;
+    unitPriceMinor: string;
+  }) => ReactNode;
 }) {
   const media = product.media.map((entry) => entry.media);
 
@@ -103,7 +117,7 @@ export function ProductPurchase({
       <div className="flex flex-col gap-6">
         <div>
           {product.styleLabel ? <p className="eyebrow">{product.styleLabel}</p> : null}
-          <h1 className="mt-2 text-hero">{t(product.name, locale)}</h1>
+          <Heading className="mt-2 text-hero">{t(product.name, locale)}</Heading>
 
           <div className="mt-4 flex items-center gap-3">
             <span className={cn('text-2xl tabular-nums', discount > 0 && 'text-brass')}>
@@ -194,21 +208,32 @@ export function ProductPurchase({
           ) : null}
         </div>
 
-        <ProductActions
-          productId={product.id}
-          variantId={selectedVariant?.id ?? null}
-          inStock={inStock}
-          priceMinor={price.amount.toString()}
-          dictionary={dictionary}
-          locale={locale}
-        />
+        {renderActions ? (
+          renderActions({
+            variantId: selectedVariant?.id ?? null,
+            inStock,
+            available,
+            unitPriceMinor: price.amount.toString(),
+          })
+        ) : (
+          <>
+            <ProductActions
+              productId={product.id}
+              variantId={selectedVariant?.id ?? null}
+              inStock={inStock}
+              priceMinor={price.amount.toString()}
+              dictionary={dictionary}
+              locale={locale}
+            />
 
-        <DeliveryEstimator
-          dictionary={dictionary}
-          locale={locale}
-          weightGrams={selectedVariant?.weightGrams ?? 180}
-          subtotal={price.amount.toString()}
-        />
+            <DeliveryEstimator
+              dictionary={dictionary}
+              locale={locale}
+              weightGrams={selectedVariant?.weightGrams ?? 180}
+              subtotal={price.amount.toString()}
+            />
+          </>
+        )}
       </div>
     </div>
   );

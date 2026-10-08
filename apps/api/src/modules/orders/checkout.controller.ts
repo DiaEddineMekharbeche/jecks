@@ -1,7 +1,12 @@
 import { Body, Controller, Post, Req } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import { checkoutSchema, type CheckoutInput } from '@jecks/shared';
+import {
+  checkoutSchema,
+  quickOrderSchema,
+  type CheckoutInput,
+  type QuickOrderInput,
+} from '@jecks/shared';
 import type { Request } from 'express';
 import { Public, type RequestWithUser } from '../../common/decorators/auth.decorators.js';
 import { Idempotent, headerKey } from '../../common/idempotency/idempotency.guard.js';
@@ -30,6 +35,26 @@ export class CheckoutController {
     const user = (request as RequestWithUser).user;
 
     return this.checkout.place(body, {
+      ip: request.ip ?? null,
+      userAgent: request.headers['user-agent'] ?? null,
+      customerId: user?.type === 'CUSTOMER' ? user.id : null,
+      idempotencyKey: headerKey(request as never),
+    });
+  }
+
+  /**
+   * The same order from a single page: a variant, a quantity and the delivery details.
+   * What an advert's landing page posts, with no cart to build first.
+   */
+  @Post('quick')
+  @Public()
+  @Idempotent()
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
+  @ApiOperation({ summary: 'Place a cash-on-delivery order for one variant, with no cart' })
+  placeQuick(@Body(zod(quickOrderSchema)) body: QuickOrderInput, @Req() request: Request) {
+    const user = (request as RequestWithUser).user;
+
+    return this.checkout.placeQuick(body, {
       ip: request.ip ?? null,
       userAgent: request.headers['user-agent'] ?? null,
       customerId: user?.type === 'CUSTOMER' ? user.id : null,

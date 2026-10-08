@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, Injectable, Logger } from '@nes
 import { ConfigService } from '@nestjs/config';
 import type { Prisma } from '@jecks/db';
 import {
+  type QuickOrderInput,
   DeliveryType,
   OrderStatus,
   PaymentMethod,
@@ -71,6 +72,41 @@ export class CheckoutService {
     private readonly realtime: RealtimeService,
     private readonly config: ConfigService,
   ) {}
+
+  /**
+   * Places an order for one variant without a cart on the caller's side — the landing
+   * page an advert points at.
+   *
+   * A fresh cart is made for the single line and the ordinary checkout runs over it, so
+   * stock, price, shipping, promotions and risk scoring are exactly the cart path's and
+   * cannot drift from it. Reusing the visitor's own cart would be wrong twice: whatever
+   * they had added earlier would ride along, and a retry would double the quantity.
+   *
+   * The replay check comes first. A shopper on a poor mobile connection taps twice; the
+   * second request must find the first order, not build a second cart for nothing.
+   */
+  async placeQuick(input: QuickOrderInput, context: CheckoutContext): Promise<CheckoutResult> {
+    const replay = await this.findReplay(context.idempotencyKey);
+    if (replay) return replay;
+
+    const { variantId, quantity, ...rest } = input;
+    const cart = await this.cart.addItem(undefined, { variantId, quantity }, context.customerId);
+
+    // The cart lowers a quantity to what is in stock rather than refusing it, which is
+    // right in a drawer where the shopper watches the number change. Here nobody sees the
+    // cart: ordering five and quietly receiving an order for two is the wrong outcome, so
+    // a shortfall is refused and the page can say how many are left.
+    const line = cart.items.find((item) => item.variantId === variantId);
+    if (!line || line.quantity < quantity) {
+      throw new BadRequestException({
+        code: 'NOT_ENOUGH_STOCK',
+        message: line ? `Only ${line.quantity} left in stock` : 'That item just sold out',
+        details: { available: line?.quantity ?? 0 },
+      });
+    }
+
+    return this.place({ ...rest, cartToken: cart.token, loyaltyPointsToRedeem: 0 }, context);
+  }
 
   async place(input: CheckoutInput, context: CheckoutContext): Promise<CheckoutResult> {
     // An idempotent replay must return the original order, not a second one. A shopper
@@ -356,7 +392,14 @@ export class CheckoutService {
 
     const existing = await this.prisma.order.findUnique({
       where: { idempotencyKey: key },
-      select: { id: true, number: true, total: true, status: true, paymentMethod: true, riskScore: true },
+      select: {
+        id: true,
+        number: true,
+        total: true,
+        status: true,
+        paymentMethod: true,
+        riskScore: true,
+      },
     });
     if (!existing) return null;
 
@@ -401,14 +444,17 @@ export class CheckoutService {
   private async assess(
     input: CheckoutInput,
     context: CheckoutContext,
-    customer: { id: string; blacklisted: boolean; deliveredCount: number; failedCount: number; cancelledCount: number } | null,
+    customer: {
+      id: string;
+      blacklisted: boolean;
+      deliveredCount: number;
+      failedCount: number;
+      cancelledCount: number;
+    } | null,
     orderTotalMinor: bigint,
   ) {
     const since = new Date(Date.now() - 24 * 3_600_000);
-    const duplicateWindow = await this.settings.get<number>(
-      'orders.duplicate_window_minutes',
-      30,
-    );
+    const duplicateWindow = await this.settings.get<number>('orders.duplicate_window_minutes', 30);
 
     const [ordersToday, duplicate, fromIp, average] = await Promise.all([
       this.prisma.order.count({
@@ -524,6 +570,9 @@ export class CheckoutService {
   }
 
   private storefrontUrl(): string {
-    return (this.config.get<string>('STOREFRONT_URL') ?? 'http://localhost:3000').replace(/\/$/, '');
+    return (this.config.get<string>('STOREFRONT_URL') ?? 'http://localhost:3000').replace(
+      /\/$/,
+      '',
+    );
   }
 }

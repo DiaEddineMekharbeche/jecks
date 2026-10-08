@@ -71,7 +71,11 @@ describe('POST /orders', () => {
     const cart = await cartWithItem(test.prisma, product, 2);
     const commune = await someCommune(test.prisma);
 
-    await checkout({ cartToken: cart.token, communeId: commune.id, wilayaCode: commune.wilayaCode });
+    await checkout({
+      cartToken: cart.token,
+      communeId: commune.id,
+      wilayaCode: commune.wilayaCode,
+    });
 
     const order = await test.prisma.order.findFirstOrThrow({ include: { items: true } });
     expect(order.items).toHaveLength(1);
@@ -103,7 +107,11 @@ describe('POST /orders', () => {
     const cart = await cartWithItem(test.prisma, product, 3);
     const commune = await someCommune(test.prisma);
 
-    await checkout({ cartToken: cart.token, communeId: commune.id, wilayaCode: commune.wilayaCode });
+    await checkout({
+      cartToken: cart.token,
+      communeId: commune.id,
+      wilayaCode: commune.wilayaCode,
+    });
 
     const level = await test.prisma.inventoryLevel.findFirstOrThrow({
       where: { variantId: product.variantId },
@@ -198,5 +206,151 @@ describe('POST /webhooks/couriers/:provider', () => {
       .send({ anything: true });
 
     expect(response.status).toBeLessThan(500);
+  });
+});
+
+/**
+ * The one-page order an advert's landing page posts — a variant and the delivery details,
+ * with no cart to build first. It has to be the cart checkout's twin, not a second
+ * implementation, so these tests lean on what that path already guarantees.
+ */
+describe('POST /orders/quick', () => {
+  function quick(
+    variantId: string,
+    commune: { id: string; wilayaCode: number },
+    overrides: Record<string, unknown> = {},
+    key = `quick-${Date.now()}-${Math.random()}`,
+  ) {
+    return test.http
+      .post('/api/v1/orders/quick')
+      .set('Idempotency-Key', key)
+      .send({
+        variantId,
+        quantity: 1,
+        customer: { fullName: 'Amel Zidane', phone: '0661 22 33 44' },
+        shipping: {
+          wilayaCode: commune.wilayaCode,
+          communeId: commune.id,
+          deliveryType: 'HOME',
+          address: 'Cité 1000 logements, bâtiment B',
+          note: 'Appeler avant de passer',
+        },
+        payment: { method: 'COD' },
+        ...overrides,
+      });
+  }
+
+  it('places an order from nothing but a variant and the form', async () => {
+    const product = await sellableProduct(test.prisma, { price: 420_000n });
+    const commune = await someCommune(test.prisma);
+
+    const response = await quick(product.variantId, commune, { quantity: 2 });
+
+    expect(response.status, JSON.stringify(response.body)).toBe(201);
+    expect(response.body.data.number).toMatch(/^JK-/);
+
+    const order = await test.prisma.order.findFirstOrThrow({ include: { items: true } });
+    expect(order.items).toHaveLength(1);
+    expect(order.items[0]!.quantity).toBe(2);
+    expect(order.itemsSubtotal).toBe(840_000n);
+    expect(order.customerPhone).toBe('+213661223344');
+    expect(order.note).toBe('Appeler avant de passer');
+  });
+
+  it('reserves stock exactly as the cart checkout does', async () => {
+    const product = await sellableProduct(test.prisma, { onHand: 10 });
+    const commune = await someCommune(test.prisma);
+
+    await quick(product.variantId, commune, { quantity: 3 });
+
+    const level = await test.prisma.inventoryLevel.findFirstOrThrow({
+      where: { variantId: product.variantId },
+    });
+    expect(level.reserved).toBe(3);
+  });
+
+  it('prices the line from the database, whatever the browser claims', async () => {
+    const product = await sellableProduct(test.prisma, { price: 500_000n });
+    const commune = await someCommune(test.prisma);
+
+    // Extra keys are not part of the contract; a price in the body must change nothing.
+    const response = await quick(product.variantId, commune, { price: '1', unitPrice: '1' });
+
+    expect(response.status).toBe(201);
+    const order = await test.prisma.order.findFirstOrThrow({ include: { items: true } });
+    expect(order.items[0]!.unitPrice).toBe(500_000n);
+  });
+
+  it('returns the same order when the request is repeated, and makes no second one', async () => {
+    const product = await sellableProduct(test.prisma, { onHand: 10 });
+    const commune = await someCommune(test.prisma);
+
+    const first = await quick(product.variantId, commune, {}, 'tap-twice');
+    const second = await quick(product.variantId, commune, {}, 'tap-twice');
+
+    expect(second.status).toBeLessThan(300);
+    expect(second.body.data.number).toBe(first.body.data.number);
+    expect(await test.prisma.order.count()).toBe(1);
+    // One cart for one order: the replay must not have built another.
+    expect(await test.prisma.cart.count()).toBe(1);
+    const level = await test.prisma.inventoryLevel.findFirstOrThrow({
+      where: { variantId: product.variantId },
+    });
+    expect(level.reserved).toBe(1);
+  });
+
+  it('leaves the visitor’s own cart out of the order', async () => {
+    const other = await sellableProduct(test.prisma);
+    const wanted = await sellableProduct(test.prisma);
+    const commune = await someCommune(test.prisma);
+    const theirCart = await cartWithItem(test.prisma, other, 1);
+
+    const response = await quick(wanted.variantId, commune).set(
+      'Cookie',
+      `jk_cart=${theirCart.token}`,
+    );
+
+    expect(response.status).toBe(201);
+    const order = await test.prisma.order.findFirstOrThrow({ include: { items: true } });
+    expect(order.items.map((item) => item.variantId)).toEqual([wanted.variantId]);
+  });
+
+  it('refuses a variant that does not exist, without creating an order', async () => {
+    const commune = await someCommune(test.prisma);
+
+    const response = await quick('00000000-0000-4000-8000-000000000000', commune);
+
+    expect(response.status).toBeGreaterThanOrEqual(400);
+    expect(await test.prisma.order.count()).toBe(0);
+  });
+
+  it('refuses more than the stock on hand', async () => {
+    const product = await sellableProduct(test.prisma, { onHand: 2 });
+    const commune = await someCommune(test.prisma);
+
+    const response = await quick(product.variantId, commune, { quantity: 5 });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe('NOT_ENOUGH_STOCK');
+    expect(response.body.error.details.available).toBe(2);
+    expect(await test.prisma.order.count()).toBe(0);
+    // Nothing was reserved for an order that was not placed.
+    const level = await test.prisma.inventoryLevel.findFirstOrThrow({
+      where: { variantId: product.variantId },
+    });
+    expect(level.reserved).toBe(0);
+  });
+
+  it('records where an advert sent the shopper from', async () => {
+    const product = await sellableProduct(test.prisma);
+    const commune = await someCommune(test.prisma);
+
+    await quick(product.variantId, commune, {
+      source: 'INSTAGRAM',
+      utm: { source: 'instagram', medium: 'paid', campaign: 'caps-octobre' },
+    });
+
+    const order = await test.prisma.order.findFirstOrThrow();
+    expect(order.source).toBe('INSTAGRAM');
   });
 });

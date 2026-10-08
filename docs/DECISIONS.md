@@ -1476,3 +1476,11 @@ setting, because that is what an owner changes.
 
 Not verified against a live provider: no Gmail account was available, so the encrypted
 paths are proven against the fake server and the protocol, not against Google.
+
+## D113 — Adverts land on a page that orders in place (M7)
+
+**Context.** Sponsored Facebook and Instagram ads send shoppers from a phone feed. Every step between the tap and the order — product page, cart, checkout — loses a share of them, and a cash-on-delivery shop gains nothing from those steps.
+
+**Decision.** `/[locale]/offer` shows every product and `/[locale]/offer/[slug]` one product, each with its gallery, options and an order form that opens in place under the buy button. The form posts to `POST /orders/quick` (variant, quantity, name, one phone, wilaya, commune, address or pickup point, optional note). The server makes a fresh cart for the one line and runs the ordinary checkout over it, so stock, price, shipping, promotions and risk scoring are the cart path's and cannot drift from it. The visitor's own cart is never used: it would carry items they did not mean to order, and a retry would double the quantity. A quantity above stock is refused with `NOT_ENOUGH_STOCK` instead of being lowered, because nobody sees a cart to notice the change. The ad URL's `utm_source` sets the order's source (INSTAGRAM, FACEBOOK, TIKTOK) and the `utm_*` values are stored. The pages are `noindex`. The admin product editor copies the link with `utm_source=facebook` filled in.
+
+**Consequence.** The shipping fee is not shown before ordering (the cart path re-quotes after the wilaya is chosen); the page says it is calculated at order and the confirmation shows the total. Showing it up front is a quote endpoint away.

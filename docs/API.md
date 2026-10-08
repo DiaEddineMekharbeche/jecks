@@ -349,6 +349,7 @@ and carry a sentence written for the shopper.
 | Method | Path | Auth | Notes |
 |---|---|---|---|
 | POST | `/orders` | public | Places a cash-on-delivery order from the current cart |
+| POST | `/orders/quick` | public | The same order from one variant, a quantity and the form — no cart; the advert landing page's endpoint. Refuses a quantity above stock with `NOT_ENOUGH_STOCK` |
 | GET | `/admin/orders` | `orders.read` | List and export; `/counts` for the tabs |
 | GET | `/admin/orders/:id` | `orders.read` | Items, timeline, notes, calls, risk, margin |
 | POST | `/admin/orders/:id/transition` | `orders.transition` | The only way a status ever changes |
