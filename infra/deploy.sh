@@ -162,11 +162,13 @@ docker compose -f "$COMPOSE_BASE" -f "$COMPOSE" --env-file "$ENV_FILE" up -d --r
 
 log "Waiting for the API"
 
-api_url="$(grep -E '^API_PUBLIC_URL=' "$ENV_FILE" | cut -d= -f2- || echo 'http://localhost:4000/api/v1')"
 healthy=0
 
+# Asked from inside the API container. The public URL is the wrong thing to probe from the
+# host: the API port is not published there, and DNS and TLS may not exist yet, so a
+# healthy API read as dead and a good deploy was reported as failed.
 for attempt in $(seq 1 30); do
-  if curl -fsS "${api_url}/health/ready" >/dev/null 2>&1; then
+  if docker compose -f "$COMPOSE_BASE" -f "$COMPOSE" --env-file "$ENV_FILE" exec -T api     wget -qO- http://localhost:4000/api/v1/health/ready >/dev/null 2>&1; then
     healthy=1
     break
   fi
