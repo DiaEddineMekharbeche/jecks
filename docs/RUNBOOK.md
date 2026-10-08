@@ -180,6 +180,35 @@ Then every deploy is: wait for the green **Publish images** run on GitHub, then 
 `git pull && ./infra/deploy.sh`. Without `IMAGE_PREFIX` the script builds locally as before.
 If the repository is public, step 2 and 3 are not needed.
 
+### Your own domain, with HTTPS, on the VPS
+
+Three addresses, one certificate: `jecks-co.com` (shop), `admin.jecks-co.com`,
+`api.jecks-co.com`. Replace the name if the domain differs (`infra/nginx/jecks-co.conf`).
+
+1. **DNS**, at the registrar: four *A* records pointing at the VPS: `@`, `www`, `admin`,
+   `api` -> `5.196.100.199`. Wait until `nslookup api.jecks-co.com` shows that address.
+2. **Certificate.** Nginx has to answer Let's Encrypt on port 80 first:
+
+   ```bash
+   C="docker compose -f infra/docker/docker-compose.yml -f infra/docker/docker-compose.prod.yml --env-file .env"
+   sed -i '/^NGINX_CONF=/d' .env && echo 'NGINX_CONF=jecks-acme.conf' >> .env
+   $C up -d nginx
+   $C run --rm --entrypoint certbot certbot certonly --webroot -w /var/www/certbot      -d jecks-co.com -d www.jecks-co.com -d admin.jecks-co.com -d api.jecks-co.com      --email you@example.com --agree-tos --no-eff-email
+   ```
+3. **Addresses baked into the images.** In GitHub > Settings > Variables set
+   `PUBLIC_API_URL=https://api.jecks-co.com/api/v1`, `PUBLIC_SITE_URL=https://jecks-co.com`,
+   `PUBLIC_MEDIA_URL=https://api.jecks-co.com/api/v1/media`; run **Publish images** and wait for it.
+4. **VPS `.env`**: `NGINX_CONF=jecks-co.conf`, `COMPOSE_PROFILES=tls-only` (starts the
+   certificate renewal), `COOKIE_DOMAIN=jecks-co.com`, `COOKIE_SECURE=true`,
+   `CORS_ORIGINS=https://jecks-co.com,https://www.jecks-co.com,https://admin.jecks-co.com`,
+   `API_PUBLIC_URL=https://api.jecks-co.com/api/v1`, `STOREFRONT_URL=https://jecks-co.com`,
+   `ADMIN_URL=https://admin.jecks-co.com`, `NEXT_PUBLIC_SITE_URL=https://jecks-co.com`,
+   `NEXT_PUBLIC_API_URL=https://api.jecks-co.com/api/v1`, `NEXT_PUBLIC_MEDIA_URL=https://api.jecks-co.com/api/v1/media`,
+   `VITE_API_URL=https://api.jecks-co.com/api/v1`, `VITE_MEDIA_URL=https://api.jecks-co.com/api/v1/media`,
+   `VITE_STOREFRONT_URL=https://jecks-co.com`, `TRUST_PROXY_HOPS=1`, then `./infra/deploy.sh`.
+
+`NGINX_CONF=jecks-ip.conf` keeps the address-only setup (ports 80, 8080, 8081).
+
 ### Storefront on Vercel, API on the VPS
 
 Vercel gives the shop a free `https://<name>.vercel.app` address. The API, database,
