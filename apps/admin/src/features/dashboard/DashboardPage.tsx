@@ -161,12 +161,12 @@ export function DashboardPage() {
                     tickLine={false}
                   />
                   <YAxis
-                    tickFormatter={(value: number) => compactDzd(value)}
+                    tickFormatter={(value: number) => axisDzd(value)}
                     stroke="rgb(var(--jk-muted))"
                     fontSize={11}
                     tickLine={false}
                     axisLine={false}
-                    width={56}
+                    width={80}
                   />
                   <Tooltip content={<MoneyTooltip />} />
                   <Area
@@ -229,7 +229,13 @@ export function DashboardPage() {
                   fontSize={11}
                   tickLine={false}
                 />
-                <YAxis stroke="rgb(var(--jk-muted))" fontSize={11} tickLine={false} axisLine={false} width={32} />
+                <YAxis
+                  stroke="rgb(var(--jk-muted))"
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={false}
+                  width={32}
+                />
                 <Tooltip />
                 <Line
                   type="monotone"
@@ -264,7 +270,7 @@ function KpiCard({ tile }: { tile: Tile }) {
   const isMoney = MONEY_TILES.has(tile.key);
   const isRate = tile.key === 'deliveryRate';
   const value = isMoney
-    ? format(toMoney(tile.value), { compact: true })
+    ? format(toMoney(tile.value))
     : isRate
       ? `${Number(tile.value)} %`
       : String(tile.value);
@@ -309,7 +315,11 @@ function MoneyTooltip({
     <div className="rounded-sm border border-line bg-surface p-3 text-xs shadow-lift">
       <p className="mb-1 font-medium">{label ? shortDay(label) : ''}</p>
       {payload.map((entry) => (
-        <p key={entry.name} className="flex items-center gap-2 tabular-nums" style={{ color: entry.color }}>
+        <p
+          key={entry.name}
+          className="flex items-center gap-2 tabular-nums"
+          style={{ color: entry.color }}
+        >
           <span className="text-muted">{entry.name}</span>
           <span>{format(money(BigInt(Math.round(entry.value ?? 0))))}</span>
         </p>
@@ -322,8 +332,11 @@ function toMoney(value: string | number): Money {
   return money(BigInt(typeof value === 'string' ? value : Math.round(value)));
 }
 
-function compactDzd(value: number): string {
-  return format(money(BigInt(Math.round(value))), { compact: true, withSymbol: false });
+/** The full amount in dinars, no abbreviation: 32 000, not 32 K. */
+const AXIS_FORMAT = new Intl.NumberFormat('fr-DZ', { maximumFractionDigits: 0 });
+
+function axisDzd(valueMinor: number): string {
+  return AXIS_FORMAT.format(Math.round(valueMinor / 100));
 }
 
 function shortDay(value: string): string {
