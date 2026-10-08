@@ -25,6 +25,14 @@ const ORDER_CONTEXT = [
   'customerPhone',
   'productName',
   'reviewUrl',
+  // The owner's new-order alert, which has to be actionable without opening the admin.
+  'customerFullName',
+  'commune',
+  'deliveryLine',
+  'items',
+  'shipping',
+  'noteBlock',
+  'orderLink',
 ];
 
 /** Variables it builds for a product or variant event. */

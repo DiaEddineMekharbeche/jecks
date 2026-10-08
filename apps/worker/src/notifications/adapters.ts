@@ -9,6 +9,9 @@ import {
   type Notifier,
   type OutgoingMessage,
 } from './notifier.js';
+import { sendOverSmtp, type SmtpConfig } from './smtp.js';
+
+export type { SmtpConfig } from './smtp.js';
 
 /**
  * The transports — PRD Section 6.1.
@@ -31,7 +34,9 @@ export class LogNotifier implements Notifier {
   readonly key = 'log';
   readonly channels: Channel[] = ['SMS', 'EMAIL', 'WHATSAPP', 'TELEGRAM', 'IN_APP'];
 
-  constructor(private readonly write: (line: string, message: OutgoingMessage) => void = () => {}) {}
+  constructor(
+    private readonly write: (line: string, message: OutgoingMessage) => void = () => {},
+  ) {}
 
   isConfigured(): boolean {
     return true;
@@ -49,21 +54,11 @@ export class LogNotifier implements Notifier {
 
 // --- SMTP -------------------------------------------------------------------
 
-export interface SmtpConfig {
-  host: string;
-  port: number;
-  from: string;
-  user?: string;
-  password?: string;
-  secure?: boolean;
-}
-
 /**
- * E-mail over SMTP, spoken directly.
+ * E-mail over SMTP, spoken directly (see `smtp.ts` for the protocol).
  *
- * A mail library would be four hundred kilobytes of dependency for one verb against
- * Mailpit in development and one relay in production. The conversation is a dozen
- * lines, and writing it here means the adapter has no supply chain of its own.
+ * A mail library would be four hundred kilobytes of dependency for one verb. The client
+ * is a few hundred lines with a test suite, and has no supply chain of its own.
  */
 export class SmtpNotifier implements Notifier {
   readonly key = 'smtp';
@@ -72,7 +67,10 @@ export class SmtpNotifier implements Notifier {
   constructor(
     private readonly config: SmtpConfig,
     /** Injected in tests; the real one opens a socket. */
-    private readonly transport: (config: SmtpConfig, message: OutgoingMessage) => Promise<string> = sendOverSmtp,
+    private readonly transport: (
+      config: SmtpConfig,
+      message: OutgoingMessage,
+    ) => Promise<string> = sendOverSmtp,
   ) {}
 
   isConfigured(): boolean {
@@ -89,93 +87,6 @@ export class SmtpNotifier implements Notifier {
       return { delivered: false, reference: null, error: String(error) };
     }
   }
-}
-
-/**
- * Minimal ESMTP over a plain socket.
- *
- * Deliberately small: EHLO, optional AUTH LOGIN, MAIL FROM, RCPT TO, DATA. Enough for
- * Mailpit and for a relay that accepts a plain login, which is what a single-VPS shop
- * actually has.
- */
-async function sendOverSmtp(config: SmtpConfig, message: OutgoingMessage): Promise<string> {
-  const net = await import('node:net');
-
-  return new Promise<string>((resolve, reject) => {
-    const socket = net.createConnection({ host: config.host, port: config.port });
-    const steps: string[] = [`EHLO jecks`];
-
-    if (config.user && config.password) {
-      steps.push(
-        'AUTH LOGIN',
-        Buffer.from(config.user).toString('base64'),
-        Buffer.from(config.password).toString('base64'),
-      );
-    }
-
-    steps.push(
-      `MAIL FROM:<${addressOf(config.from)}>`,
-      `RCPT TO:<${message.recipient}>`,
-      'DATA',
-      [
-        `From: ${config.from}`,
-        `To: ${message.recipient}`,
-        `Subject: ${encodeHeader(message.subject ?? '')}`,
-        'MIME-Version: 1.0',
-        'Content-Type: text/plain; charset=utf-8',
-        'Content-Transfer-Encoding: base64',
-        '',
-        Buffer.from(message.body, 'utf8').toString('base64'),
-        '.',
-      ].join('\r\n'),
-      'QUIT',
-    );
-
-    let index = -1;
-    let settled = false;
-
-    const fail = (error: Error) => {
-      if (settled) return;
-      settled = true;
-      socket.destroy();
-      reject(error);
-    };
-
-    socket.setTimeout(15_000, () => fail(new Error('SMTP timed out')));
-    socket.on('error', fail);
-
-    socket.on('data', (chunk: Buffer) => {
-      const reply = chunk.toString();
-      // 4xx and 5xx are refusals; anything else is the server inviting the next step.
-      if (/^[45]\d\d/.test(reply)) {
-        fail(new Error(`SMTP refused: ${reply.trim().slice(0, 200)}`));
-        return;
-      }
-
-      index += 1;
-      const next = steps[index];
-      if (next === undefined) {
-        if (settled) return;
-        settled = true;
-        socket.end();
-        resolve(`smtp-${Date.now()}`);
-        return;
-      }
-      socket.write(`${next}\r\n`);
-    });
-  });
-}
-
-function addressOf(from: string): string {
-  const match = /<([^>]+)>/.exec(from);
-  return match?.[1] ?? from;
-}
-
-/** RFC 2047 for a subject that is not plain ASCII, which any French one is not. */
-function encodeHeader(value: string): string {
-  // eslint-disable-next-line no-control-regex
-  if (/^[\x00-\x7F]*$/.test(value)) return value;
-  return `=?UTF-8?B?${Buffer.from(value, 'utf8').toString('base64')}?=`;
 }
 
 // --- Twilio -----------------------------------------------------------------
@@ -195,7 +106,9 @@ export class TwilioSmsNotifier implements Notifier {
 
   async send(message: OutgoingMessage): Promise<DeliveryResult> {
     const url = `https://api.twilio.com/2010-04-01/Accounts/${this.config.accountSid}/Messages.json`;
-    const auth = Buffer.from(`${this.config.accountSid}:${this.config.authToken}`).toString('base64');
+    const auth = Buffer.from(`${this.config.accountSid}:${this.config.authToken}`).toString(
+      'base64',
+    );
 
     const response = await this.http(url, {
       method: 'POST',
@@ -213,7 +126,11 @@ export class TwilioSmsNotifier implements Notifier {
 
     const text = await response.text();
     if (!response.ok) {
-      return { delivered: false, reference: null, error: `${response.status}: ${text.slice(0, 200)}` };
+      return {
+        delivered: false,
+        reference: null,
+        error: `${response.status}: ${text.slice(0, 200)}`,
+      };
     }
 
     const parsed = JSON.parse(text) as { sid?: string };
@@ -255,9 +172,10 @@ export class HttpSmsNotifier implements Notifier {
   }
 
   async send(message: OutgoingMessage): Promise<DeliveryResult> {
-    const phone = this.config.localFormat === false
-      ? toE164Dz(message.recipient)
-      : toLocalDz(message.recipient);
+    const phone =
+      this.config.localFormat === false
+        ? toE164Dz(message.recipient)
+        : toLocalDz(message.recipient);
 
     const fill = (template: string) =>
       template
@@ -321,7 +239,11 @@ export class WhatsAppCloudNotifier implements Notifier {
 
     const text = await response.text();
     if (!response.ok) {
-      return { delivered: false, reference: null, error: `${response.status}: ${text.slice(0, 200)}` };
+      return {
+        delivered: false,
+        reference: null,
+        error: `${response.status}: ${text.slice(0, 200)}`,
+      };
     }
 
     const parsed = JSON.parse(text) as { messages?: Array<{ id: string }> };
@@ -368,7 +290,11 @@ export class TelegramNotifier implements Notifier {
 
     const text = await response.text();
     if (!response.ok) {
-      return { delivered: false, reference: null, error: `${response.status}: ${text.slice(0, 200)}` };
+      return {
+        delivered: false,
+        reference: null,
+        error: `${response.status}: ${text.slice(0, 200)}`,
+      };
     }
 
     const parsed = JSON.parse(text) as { result?: { message_id?: number } };

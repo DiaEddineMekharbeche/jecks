@@ -72,7 +72,8 @@ export const SETTINGS_FORMS: Record<SettingScope, SettingSection> = {
 
   localisation: {
     title: 'Langues et fuseau',
-    description: 'Ce que voient les visiteurs par défaut, et l’heure sur laquelle tout est calculé.',
+    description:
+      'Ce que voient les visiteurs par défaut, et l’heure sur laquelle tout est calculé.',
     fields: [
       {
         key: 'store.timezone',
@@ -173,7 +174,8 @@ export const SETTINGS_FORMS: Record<SettingScope, SettingSection> = {
 
   checkout: {
     title: 'Ligne de caisse',
-    description: 'Ce que le client remplit, et à partir de quel montant il ne paie plus la livraison.',
+    description:
+      'Ce que le client remplit, et à partir de quel montant il ne paie plus la livraison.',
     fields: [
       {
         key: 'checkout.free_shipping_threshold',
@@ -229,7 +231,8 @@ export const SETTINGS_FORMS: Record<SettingScope, SettingSection> = {
 
   theme: {
     title: 'Thème',
-    description: 'Les couleurs de la vitrine. Le laiton sur fond sombre est l’identité de la marque.',
+    description:
+      'Les couleurs de la vitrine. Le laiton sur fond sombre est l’identité de la marque.',
     fields: [
       { key: 'theme.primary_color', label: 'Couleur d’accent', kind: 'color' },
       { key: 'theme.base_color', label: 'Fond', kind: 'color' },
@@ -262,7 +265,12 @@ export const SETTINGS_FORMS: Record<SettingScope, SettingSection> = {
     title: 'Pixels et analytics',
     description: 'Identifiants injectés dans la vitrine, sous réserve du consentement du visiteur.',
     fields: [
-      { key: 'integrations.ga4_id', label: 'Google Analytics 4', kind: 'text', hint: 'G-XXXXXXXXXX' },
+      {
+        key: 'integrations.ga4_id',
+        label: 'Google Analytics 4',
+        kind: 'text',
+        hint: 'G-XXXXXXXXXX',
+      },
       { key: 'integrations.meta_pixel_id', label: 'Pixel Meta', kind: 'text' },
       { key: 'integrations.tiktok_pixel_id', label: 'Pixel TikTok', kind: 'text' },
       {
@@ -304,6 +312,12 @@ export const SETTINGS_FORMS: Record<SettingScope, SettingSection> = {
           { value: 'log', label: 'Journal' },
           { value: 'smtp', label: 'SMTP' },
         ],
+      },
+      {
+        key: 'notifications.owner_email',
+        label: 'E-mail pour les nouvelles commandes',
+        kind: 'text',
+        hint: 'Chaque commande passée sur la boutique est envoyée à cette adresse. Laissez vide pour désactiver. Le compte d’envoi se règle sur le serveur (SMTP_HOST, SMTP_USER, SMTP_PASSWORD).',
       },
       { key: 'notifications.telegram_enabled', label: 'Alertes Telegram', kind: 'switch' },
       { key: 'notifications.telegram_token', label: 'Jeton du bot Telegram', kind: 'secret' },

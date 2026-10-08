@@ -33,6 +33,8 @@ export interface DispatchJob {
   variantId?: string;
   /** Overrides the resolved recipient — used by the "test send" button. */
   recipient?: string;
+  /** Forces one channel instead of letting the active templates choose. */
+  channel?: Channel;
   locale?: string;
   /** Extra template variables the caller already knows. */
   variables?: Record<string, string>;
@@ -57,31 +59,64 @@ export interface DispatchResult {
 /** Events the shop sends to the owner rather than to a customer. */
 const OWNER_EVENTS = new Set(['owner.new_order', 'inventory.low', 'delivery.failed']);
 
+/**
+ * Sends one event.
+ *
+ * An owner alert goes out on the channel the shop prefers (Telegram, else the in-app
+ * bell) and, when the shop has given an address, by e-mail as well. The two are
+ * independent: an e-mail that fails must not hide the bell, and a shop with no Telegram
+ * still wants the message in its inbox.
+ */
 export async function dispatchNotification(
   job: DispatchJob,
   deps: DispatchDeps,
 ): Promise<DispatchResult> {
+  const primary = await dispatchOne(job, deps);
+  if (!OWNER_EVENTS.has(job.event) || job.channel || job.test) return primary;
+
+  const settings = await readSettings(deps.prisma);
+  if (!ownerEmailOf(settings)) return primary;
+
+  const email = await dispatchOne({ ...job, channel: 'EMAIL' }, deps);
+  return {
+    sent: primary.sent + email.sent,
+    skipped: primary.skipped + email.skipped,
+    failed: primary.failed + email.failed,
+    reason: email.reason ?? primary.reason,
+  };
+}
+
+async function dispatchOne(job: DispatchJob, deps: DispatchDeps): Promise<DispatchResult> {
   const settings = await readSettings(deps.prisma);
   const locale = job.locale ?? 'fr';
 
   const context = await buildContext(job, deps);
   if (!context) return { sent: 0, skipped: 1, failed: 0, reason: 'nothing to notify about' };
 
-  const channel = await pickChannel(deps.prisma, job.event, settings, OWNER_EVENTS.has(job.event));
+  const channel =
+    job.channel ??
+    (await pickChannel(deps.prisma, job.event, settings, OWNER_EVENTS.has(job.event)));
   if (!channel) return { sent: 0, skipped: 1, failed: 0, reason: 'no active template' };
 
-  const recipient = job.recipient ?? recipientFor(channel, context, settings);
+  const recipient =
+    job.recipient ?? recipientFor(channel, context, settings, OWNER_EVENTS.has(job.event));
   if (!recipient) return { sent: 0, skipped: 1, failed: 0, reason: 'no recipient' };
 
-  const template = await deps.prisma.notificationTemplate.findUnique({
+  const stored = await deps.prisma.notificationTemplate.findUnique({
     where: { event_channel: { event: job.event, channel } },
   });
+  // A shop that never ran the template seed still gets the owner's e-mail. A template
+  // the owner switched off is respected: only a *missing* row falls back.
+  const template = stored ?? builtInTemplate(job.event, channel);
   if (!template || !template.active) {
     return { sent: 0, skipped: 1, failed: 0, reason: 'no active template' };
   }
 
   const variables = { ...context.variables, ...(job.variables ?? {}) };
-  const body = render(pick(template.body as Record<string, string>, context.locale ?? locale), variables);
+  const body = render(
+    pick(template.body as Record<string, string>, context.locale ?? locale),
+    variables,
+  );
   const subject = template.subject
     ? render(pick(template.subject as Record<string, string>, context.locale ?? locale), variables)
     : null;
@@ -102,7 +137,7 @@ export async function dispatchNotification(
     }
   }
 
-  const notifier = await resolveNotifier(channel, settings, deps);
+  const notifier = await resolveNotifier(channel, settings, deps, OWNER_EVENTS.has(job.event));
   const message: OutgoingMessage = {
     channel,
     recipient,
@@ -191,10 +226,15 @@ async function buildContext(job: DispatchJob, deps: DispatchDeps): Promise<Conte
           take: 1,
           select: { trackingNumber: true, courier: { select: { name: true } } },
         },
-        items: { take: 1, select: { productName: true } },
+        items: {
+          orderBy: { createdAt: 'asc' },
+          select: { productName: true, variantName: true, quantity: true, lineTotal: true },
+        },
       },
     });
     if (!order) return null;
+
+    const adminUrl = (process.env.ADMIN_URL ?? '').replace(/\/$/, '');
 
     const shipment = order.shipments[0];
     return {
@@ -214,6 +254,23 @@ async function buildContext(job: DispatchJob, deps: DispatchDeps): Promise<Conte
         customerPhone: order.customerPhone,
         productName: nameOf(order.items[0]?.productName),
         reviewUrl: `${deps.storefrontUrl}/fr/account/orders/${order.number}`,
+
+        // What the owner needs in order to act on a new order without opening the admin.
+        customerFullName: order.customerName,
+        commune: order.communeName ?? '',
+        deliveryLine:
+          order.deliveryType === 'HOME'
+            ? `Livraison à domicile : ${order.address ?? ''}`.trim()
+            : 'Livraison : point de retrait',
+        items: order.items
+          .map(
+            (item) =>
+              `- ${item.quantity} × ${nameOf(item.productName)}${item.variantName ? ` (${item.variantName})` : ''} — ${formatDa(item.lineTotal)}`,
+          )
+          .join('\n'),
+        shipping: formatDa(order.shippingTotal),
+        noteBlock: order.note ? `\nNote du client : ${order.note}` : '',
+        orderLink: adminUrl ? `\nOuvrir la commande : ${adminUrl}/orders/${order.id}` : '',
       },
     };
   }
@@ -289,9 +346,13 @@ function recipientFor(
   channel: Channel,
   context: Context,
   settings: Record<string, unknown>,
+  ownerAlert = false,
 ): string | null {
-  if (channel === 'EMAIL') return context.email;
-  if (channel === 'TELEGRAM') return String(settings['notifications.telegram_chat_id'] ?? '') || 'owner';
+  // An owner alert about an order must reach the owner, not the customer whose address
+  // happens to be on that order.
+  if (channel === 'EMAIL') return ownerAlert ? ownerEmailOf(settings) : context.email;
+  if (channel === 'TELEGRAM')
+    return String(settings['notifications.telegram_chat_id'] ?? '') || 'owner';
   if (channel === 'IN_APP') return context.userId ?? 'admin';
   return context.phone;
 }
@@ -331,15 +392,27 @@ async function resolveNotifier(
   channel: Channel,
   settings: Record<string, unknown>,
   deps: DispatchDeps,
+  ownerAlert = false,
 ): Promise<Notifier> {
   const fallback = new LogNotifier((line) => deps.log?.(line));
 
   if (channel === 'EMAIL') {
-    if (settings['notifications.email_driver'] !== 'smtp') return fallback;
+    // Filling in the owner's address is an instruction to send. Real mail credentials on
+    // the server are the proof the shop meant it, so an owner alert does not also need the
+    // driver switched: left on "log" it would be recorded as sent and never leave the
+    // building, which is the failure nobody notices until an order is missed.
+    const wantsSmtp =
+      settings['notifications.email_driver'] === 'smtp' ||
+      (ownerAlert && Boolean(process.env.SMTP_USER));
+    if (!wantsSmtp) return fallback;
     const smtp = new SmtpNotifier({
       host: process.env.SMTP_HOST ?? 'localhost',
       port: Number(process.env.SMTP_PORT ?? 1025),
       from: process.env.MAIL_FROM ?? "Jeck's <no-reply@jecks.dz>",
+      // These were never passed: the transport could connect but never log in.
+      user: process.env.SMTP_USER || undefined,
+      password: process.env.SMTP_PASSWORD || undefined,
+      secure: process.env.SMTP_SECURE === 'true',
     });
     return smtp.isConfigured() ? smtp : fallback;
   }
@@ -435,6 +508,46 @@ async function upsertNotification(
     create: { ...data, dedupeKey: input.dedupeKey },
     update: { status: 'queued', error: null },
   });
+}
+
+/** Where the owner's alerts are e-mailed, or null when none is set. */
+function ownerEmailOf(settings: Record<string, unknown>): string | null {
+  const value = String(settings['notifications.owner_email'] ?? '').trim();
+  return value.includes('@') ? value : null;
+}
+
+/**
+ * Templates that exist in code, for an event the shop has not customised.
+ *
+ * The seeded templates live in the database, so they can be edited in the admin, but a
+ * database that was set up without them would otherwise send nothing at all.
+ */
+function builtInTemplate(
+  event: string,
+  channel: Channel,
+): { active: boolean; subject: Record<string, string>; body: Record<string, string> } | null {
+  if (event !== 'owner.new_order' || channel !== 'EMAIL') return null;
+
+  const subject = 'Nouvelle commande {{orderNumber}} — {{total}}';
+  const body = [
+    'Nouvelle commande {{orderNumber}}',
+    '',
+    'Client : {{customerFullName}}',
+    'Téléphone : {{customerPhone}}',
+    'Wilaya : {{wilaya}}',
+    'Commune : {{commune}}',
+    '{{deliveryLine}}',
+    '',
+    'Articles :',
+    '{{items}}',
+    '',
+    'Livraison : {{shipping}}',
+    'Total à encaisser : {{total}}',
+    '{{noteBlock}}',
+    '{{orderLink}}',
+  ].join('\n');
+
+  return { active: true, subject: { fr: subject }, body: { fr: body } };
 }
 
 async function readSettings(prisma: PrismaClient): Promise<Record<string, unknown>> {

@@ -88,6 +88,45 @@ payment credential, because the old ciphertext is unreadable.
 
 ---
 
+### Receive every new order by e-mail
+
+Two parts: the server needs a mail account to send from, and the admin needs to know
+where to send to.
+
+1. In `.env` on the server, set the mail account (Gmail shown; any SMTP provider works):
+
+   ```
+   SMTP_HOST=smtp.gmail.com
+   SMTP_PORT=465
+   SMTP_SECURE=true
+   SMTP_USER=you@gmail.com
+   SMTP_PASSWORD=<app password>
+   MAIL_FROM="Jeck's <you@gmail.com>"
+   ADMIN_URL=http://<your-server>:8080
+   ```
+
+   Gmail refuses the account password; create an *app password* (needs 2-step
+   verification on) and use that. `ADMIN_URL` is what makes the "open the order" link in
+   the e-mail point at your admin rather than at `localhost`.
+
+2. Restart the worker, which is what sends: `docker compose -f infra/docker/docker-compose.yml -f infra/docker/docker-compose.prod.yml --env-file .env up -d worker`.
+
+3. In the admin, **Réglages › Notifications**: fill in *E-mail pour les nouvelles
+   commandes* and save.
+
+Every order placed on the shop is then e-mailed to that address with the customer, phone,
+wilaya, commune, address, items, total and note. With `SMTP_USER` set on the server, that
+is all it takes. To also send customers their confirmation e-mail (when they gave an
+address at checkout), set *Envoi des e-mails* to **SMTP** on the same screen.
+
+If nothing arrives, read the worker log (`docker compose ... logs worker`): the job line
+for `notification.dispatch` ends with `failed: 1` and the reason. A wrong password reads
+`SMTP refused AUTH`; `SMTP_SECURE` left off on port 465 reads as `SMTP timed out`. The
+attempt is also kept in the `notifications` table with `status = 'failed'` and its error.
+A new order is never held back by a failed e-mail.
+
+---
+
 ## 3. Deploy to the VPS
 
 Target is a single machine running Docker Compose behind Nginx with Let's Encrypt

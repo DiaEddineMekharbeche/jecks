@@ -1,6 +1,29 @@
 import { tr } from './util.js';
 
 /**
+ * What the owner receives for each new order: enough to phone the customer and prepare
+ * the parcel without opening the admin. The worker keeps a copy as a fallback for a
+ * database that was never seeded; keep the two in step.
+ */
+const OWNER_ORDER_EMAIL = [
+  'Nouvelle commande {{orderNumber}}',
+  '',
+  'Client : {{customerFullName}}',
+  'Téléphone : {{customerPhone}}',
+  'Wilaya : {{wilaya}}',
+  'Commune : {{commune}}',
+  '{{deliveryLine}}',
+  '',
+  'Articles :',
+  '{{items}}',
+  '',
+  'Livraison : {{shipping}}',
+  'Total à encaisser : {{total}}',
+  '{{noteBlock}}',
+  '{{orderLink}}',
+].join('\n');
+
+/**
  * Notification templates — PRD Section 6.1.
  *
  * Variables are camelCase and must match `TEMPLATE_VARIABLES` in
@@ -161,6 +184,19 @@ export const NOTIFICATION_TEMPLATES: SeedTemplate[] = [
       '{{orderNumber}} — {{total}} — {{wilaya}} — {{customerPhone}}',
       '{{orderNumber}} — {{total}} — {{wilaya}} — {{customerPhone}}',
     ),
+  },
+  {
+    event: 'owner.new_order',
+    channel: 'EMAIL',
+    // The owner reads French; the same text in the other two keeps the template valid in
+    // the editor. A copy of this lives in the worker as a fallback for a database that
+    // was never seeded.
+    subject: tr(
+      'Nouvelle commande {{orderNumber}} — {{total}}',
+      'Nouvelle commande {{orderNumber}} — {{total}}',
+      'Nouvelle commande {{orderNumber}} — {{total}}',
+    ),
+    body: tr(OWNER_ORDER_EMAIL, OWNER_ORDER_EMAIL, OWNER_ORDER_EMAIL),
   },
   {
     event: 'owner.new_order',

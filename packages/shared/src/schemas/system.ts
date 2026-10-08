@@ -118,6 +118,10 @@ export const settingScopeSchemas = {
     'notifications.sms_endpoint': z.string().trim().max(400).optional(),
     'notifications.sms_credentials': z.string().max(2000).optional(),
     'notifications.email_driver': z.enum(['log', 'smtp']),
+    /** Where a new order is e-mailed to the shop. Empty switches it off. */
+    'notifications.owner_email': z
+      .union([z.literal(''), z.string().trim().email().max(255)])
+      .optional(),
     'notifications.telegram_enabled': z.boolean(),
     'notifications.telegram_token': z.string().max(200).optional(),
     'notifications.telegram_chat_id': z.string().max(64).optional(),
@@ -193,7 +197,11 @@ export const notificationTemplateSchema = z.object({
     NotificationChannel.IN_APP,
   ]),
   subject: z
-    .object({ fr: z.string().max(200), ar: z.string().max(200).optional(), en: z.string().max(200).optional() })
+    .object({
+      fr: z.string().max(200),
+      ar: z.string().max(200).optional(),
+      en: z.string().max(200).optional(),
+    })
     .optional(),
   body: z.object({
     fr: z.string().min(1).max(4000),
@@ -236,7 +244,19 @@ export const TEMPLATE_VARIABLES: Record<string, string[]> = {
   'cart.abandoned': ['customerName', 'cartUrl', 'total', 'promoCode'],
   'review.request': ['customerName', 'orderNumber', 'productName', 'reviewUrl'],
   'inventory.low': ['productName', 'sku', 'available', 'locationName'],
-  'owner.new_order': ['orderNumber', 'total', 'wilaya', 'customerPhone'],
+  'owner.new_order': [
+    'orderNumber',
+    'total',
+    'wilaya',
+    'customerPhone',
+    'customerFullName',
+    'commune',
+    'deliveryLine',
+    'items',
+    'shipping',
+    'noteBlock',
+    'orderLink',
+  ],
   'auth.otp': ['code', 'storeName', 'minutes'],
 };
 

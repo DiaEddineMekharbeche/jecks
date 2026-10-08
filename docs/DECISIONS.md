@@ -1435,3 +1435,44 @@ workspace packages, the exact migration command, `pg_dump` 16, a served page.
 What remains unproven: the whole of `deploy.sh` against a real VPS, including Nginx with
 real certificates. Each step was exercised against the built images here, not in sequence
 on a server.
+
+## D112 — The owner is e-mailed every new order, and the SMTP client is real (M7)
+
+The `owner.new_order` event existed and was queued at checkout, but nothing could ever
+reach an inbox: there was no e-mail template for it, its e-mail recipient would have been
+the *customer's* address on the order, and the SMTP client could not talk to a real
+provider. That client wrote the next command whenever any bytes arrived, so a multi-line
+EHLO reply knocked it out of step; it had no TLS at all, which Gmail, Brevo and every
+other relay require; and the username and password from the environment were never
+passed to it. It worked against Mailpit and nothing else.
+
+`notifications/smtp.ts` replaces it. A reply ends at the line whose fourth character is a
+space, not at the end of a network chunk. Port 465 is encrypted from the first byte
+(`SMTP_SECURE=true`); port 587 upgrades with STARTTLS when offered. AUTH PLAIN, falling
+back to LOGIN. Credentials are refused on an unencrypted connection to any machine but
+this one, with an error naming the fix, because the alternative is a password on the wire
+after one forgotten setting. Header values lose their line breaks, so a product name
+cannot add a `Bcc:`. Tested against a fake server speaking the protocol, including real
+TLS with a certificate generated at test time (skipped where `openssl` is missing).
+
+An owner alert now goes out on the channel the shop prefers *and* by e-mail when
+`notifications.owner_email` is set. They are independent sends with their own dedupe
+keys, so a failing mail server cannot hide the in-app bell and a retry cannot mail twice.
+The recipient for an owner event is the owner's address, never the order's.
+
+The body carries what is needed to act without opening the admin: customer, phone, wilaya,
+commune, address, items, shipping, total, note and a link. The template is editable in
+the admin; a copy lives in the worker for a database that was never seeded, used only
+when the row is *missing* — a template the owner switched off stays off.
+
+The owner's e-mail does not wait for the "Envoi des e-mails" driver to be switched to
+SMTP: with `SMTP_USER` set on the server, an owner alert uses SMTP regardless. Otherwise a
+shop that typed its address and left the driver on "log" would have every order recorded
+as sent and none delivered. The driver switch still governs customer e-mails.
+
+Settings: the transport stays in the environment (`SMTP_*`, `MAIL_FROM`), because it
+holds a password and the worker already reads its environment. Only the destination is a
+setting, because that is what an owner changes.
+
+Not verified against a live provider: no Gmail account was available, so the encrypted
+paths are proven against the fake server and the protocol, not against Google.
