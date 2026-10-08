@@ -78,7 +78,11 @@ export class ShippingService {
     const rows = await this.prisma.shippingRate.findMany({
       where: {
         deliveryType,
-        OR: [{ wilayaCode }, ...(zone ? [{ zoneId: zone.id }] : [])],
+        // A zone's own rate is a fallback for its wilayas. A row that names a wilaya belongs
+        // to that wilaya even when it also carries the zone it sits in (the seed does): without
+        // `wilayaCode: null` here, Alger competed with every wilaya of its zone and was quoted
+        // the cheapest fee among them, whatever was set for Alger.
+        OR: [{ wilayaCode }, ...(zone ? [{ zoneId: zone.id, wilayaCode: null }] : [])],
       },
       include: { courier: { select: { id: true, name: true, active: true } } },
     });

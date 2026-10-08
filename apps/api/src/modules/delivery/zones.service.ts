@@ -144,7 +144,9 @@ export class ZonesService {
 
   // --- rates ----------------------------------------------------------------
 
-  async listRates(filters: { zoneId?: string; courierId?: string } = {}): Promise<ShippingRateDto[]> {
+  async listRates(
+    filters: { zoneId?: string; courierId?: string } = {},
+  ): Promise<ShippingRateDto[]> {
     const rates = await this.prisma.shippingRate.findMany({
       where: {
         ...(filters.zoneId ? { zoneId: filters.zoneId } : {}),
@@ -210,7 +212,10 @@ export class ZonesService {
           id: { not: id },
           active: true,
           deliveryType: rate.deliveryType,
-          OR: [{ wilayaCode: rate.wilayaCode }, ...(zone ? [{ zoneId: zone.id }] : [])],
+          OR: [
+            { wilayaCode: rate.wilayaCode },
+            ...(zone ? [{ zoneId: zone.id, wilayaCode: null }] : []),
+          ],
         },
       });
 
@@ -235,7 +240,10 @@ export class ZonesService {
    */
   async matrix(courierId?: string): Promise<RateMatrixRow[]> {
     const [wilayas, zones, rates] = await Promise.all([
-      this.prisma.wilaya.findMany({ orderBy: { code: 'asc' }, select: { code: true, nameAscii: true } }),
+      this.prisma.wilaya.findMany({
+        orderBy: { code: 'asc' },
+        select: { code: true, nameAscii: true },
+      }),
       this.prisma.shippingZone.findMany({ select: { id: true, name: true, wilayaCodes: true } }),
       this.prisma.shippingRate.findMany({
         where: courierId ? { OR: [{ courierId }, { courierId: null }] } : {},
@@ -260,14 +268,22 @@ export class ZonesService {
     }
 
     const pick = (wilayaCode: number, type: DeliveryType): RateMatrixCell | null => {
-      const specific = rates.find(
+      const own = rates.filter(
         (rate) => rate.wilayaCode === wilayaCode && rate.deliveryType === type,
       );
+      // Showing what a shopper would be charged: with a courier chosen, that courier's row,
+      // otherwise the cheapest, which is the one checkout picks.
+      const specific =
+        (courierId ? own.find((rate) => rate.courierId === courierId) : undefined) ??
+        [...own].sort((a, b) => (a.price < b.price ? -1 : a.price > b.price ? 1 : 0))[0];
       if (specific) return cellOf(specific, false);
 
       const zone = zoneOf.get(wilayaCode);
       const inherited = zone
-        ? rates.find((rate) => rate.zoneId === zone.id && rate.deliveryType === type)
+        ? rates.find(
+            (rate) =>
+              rate.zoneId === zone.id && rate.wilayaCode === null && rate.deliveryType === type,
+          )
         : undefined;
 
       return inherited ? cellOf(inherited, true) : null;
@@ -294,6 +310,42 @@ export class ZonesService {
       let count = 0;
 
       for (const cell of input.cells) {
+        // The grid's default view sets what the shopper pays in a wilaya. A courier's own row
+        // for that wilaya would otherwise keep winning (the cheapest specific rate is chosen),
+        // and the shop owner would save a fee that changes nothing at checkout. So the fee is
+        // written onto every courier's row, whose cost — what the courier charges us — stays
+        // as it was, and the courier-less row is dropped: it carries no cost, and on a tie it
+        // would be picked and book the delivery as free to us.
+        if (cell.courierId == null) {
+          const courierRows = await tx.shippingRate.findMany({
+            where: {
+              wilayaCode: cell.wilayaCode,
+              deliveryType: cell.deliveryType,
+              courierId: { not: null },
+            },
+            select: { id: true },
+          });
+
+          if (courierRows.length > 0) {
+            await tx.shippingRate.updateMany({
+              where: { id: { in: courierRows.map((row) => row.id) } },
+              data: {
+                price: cell.price,
+                ...(cell.active === undefined ? {} : { active: cell.active }),
+              },
+            });
+            await tx.shippingRate.deleteMany({
+              where: {
+                wilayaCode: cell.wilayaCode,
+                deliveryType: cell.deliveryType,
+                courierId: null,
+              },
+            });
+            count += 1;
+            continue;
+          }
+        }
+
         const existing = await tx.shippingRate.findFirst({
           where: {
             wilayaCode: cell.wilayaCode,
