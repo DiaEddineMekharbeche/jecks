@@ -44,6 +44,7 @@ export function OfferOrderForm({
   inStock,
   available,
   unitPriceMinor,
+  startOpen = false,
   locale,
   dictionary,
 }: {
@@ -51,10 +52,12 @@ export function OfferOrderForm({
   inStock: boolean;
   available: number;
   unitPriceMinor: string;
+  /** Show the fields at once instead of behind the buy button. */
+  startOpen?: boolean;
   locale: Locale;
   dictionary: Dictionary;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(startOpen);
   const [wilayas, setWilayas] = useState<Wilaya[]>([]);
   const [communes, setCommunes] = useState<Commune[]>([]);
   const [pickupPoints, setPickupPoints] = useState<PickupPoint[]>([]);

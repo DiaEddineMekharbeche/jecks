@@ -23,6 +23,7 @@ export function ProductPurchase({
   locale,
   dictionary,
   heading: Heading = 'h1',
+  hideGallery = false,
   renderActions,
 }: {
   product: ProductDetail;
@@ -30,6 +31,8 @@ export function ProductPurchase({
   dictionary: Dictionary;
   /** A page listing several products keeps a single h1 of its own. */
   heading?: 'h1' | 'h2';
+  /** The page shows the pictures itself (the advert carousel); only details and actions here. */
+  hideGallery?: boolean;
   /**
    * Replaces the add-to-cart buttons and the delivery estimate — the advert page puts
    * its order form there.
@@ -105,14 +108,16 @@ export function ProductPurchase({
   }
 
   return (
-    <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_26rem] lg:gap-16">
-      <ProductGallery
-        media={media}
-        locale={locale}
-        title={t(product.name, locale)}
-        activeIndex={galleryIndex}
-        onSelect={setGalleryIndex}
-      />
+    <div className={cn(!hideGallery && 'grid gap-10 lg:grid-cols-[minmax(0,1fr)_26rem] lg:gap-16')}>
+      {hideGallery ? null : (
+        <ProductGallery
+          media={media}
+          locale={locale}
+          title={t(product.name, locale)}
+          activeIndex={galleryIndex}
+          onSelect={setGalleryIndex}
+        />
+      )}
 
       <div className="flex flex-col gap-6">
         <div>

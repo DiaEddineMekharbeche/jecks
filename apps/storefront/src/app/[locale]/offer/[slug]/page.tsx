@@ -47,7 +47,7 @@ export default async function OfferProductPage({
 
   return (
     <div className="shell py-8">
-      <OfferProduct product={product} locale={locale} dictionary={getDictionary(locale)} single />
+      <OfferProduct product={product} locale={locale} dictionary={getDictionary(locale)} />
     </div>
   );
 }

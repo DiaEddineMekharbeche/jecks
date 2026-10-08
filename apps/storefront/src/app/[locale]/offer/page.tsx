@@ -1,13 +1,15 @@
 import type { Locale } from '@jecks/shared';
 import type { Metadata } from 'next';
 import { OfferProduct } from '@/components/offer-product';
+import { OfferShowcase } from '@/components/offer-showcase';
 import { apiGet } from '@/lib/api';
 import { getDictionary } from '@/lib/dictionary';
 import type { ProductCard, ProductDetail } from '@/lib/types';
 
 /**
- * The page a sponsored advert points at: every product, each with its order form, on
- * one screen. Nothing to browse to and no cart — a shopper picks, fills in, orders.
+ * The page a sponsored advert points at: a swipeable picture of every product, a strip of
+ * thumbnails to jump between them, and the order form already open underneath. Nothing
+ * to browse to and no cart — a shopper picks, fills in, orders.
  *
  * It is kept out of search results: it duplicates the product pages and exists for paid
  * traffic only.
@@ -37,17 +39,15 @@ export default async function OfferPage({ params }: { params: { locale: string }
     )
   ).filter((product): product is ProductDetail => product !== null);
 
+  if (products.length === 0) return null;
+
   return (
-    <div className="shell flex flex-col gap-16 py-8">
-      {products.map((product) => (
-        <OfferProduct
-          key={product.id}
-          product={product}
-          locale={locale}
-          dictionary={dictionary}
-          single={products.length === 1}
-        />
-      ))}
+    <div className="shell py-6">
+      {products.length === 1 ? (
+        <OfferProduct product={products[0]!} locale={locale} dictionary={dictionary} />
+      ) : (
+        <OfferShowcase products={products} locale={locale} dictionary={dictionary} />
+      )}
     </div>
   );
 }
