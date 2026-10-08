@@ -36,7 +36,7 @@ const nextConfig = {
   async rewrites() {
     const target = process.env.API_PROXY_TARGET;
     if (!target) return [];
-    return [{ source: '/api/v1/:path*', destination: `${target.replace(//$/, '')}/:path*` }];
+    return [{ source: '/api/v1/:path*', destination: `${target.replace(/\/$/, '')}/:path*` }];
   },
   async headers() {
     return [

@@ -2,7 +2,7 @@
 
 import { t, type Locale } from '@jecks/shared';
 import { cn } from '@jecks/ui';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { MediaImage } from './media-image';
 import { OfferOrderForm } from './offer-order-form';
 import { ProductPurchase } from './product-purchase';
@@ -10,12 +10,12 @@ import type { Dictionary } from '@/lib/dictionary';
 import type { ProductDetail } from '@/lib/types';
 
 /**
- * The advert page for a shop with several products.
+ * The shop on one screen, for a shop with several products.
  *
- * One big picture that swipes left and right through the products, a row of small
- * pictures under it (one per product, tap to jump), and under that the chosen product's
- * options and the order form already open. Swiping and tapping a thumbnail both change
- * the chosen product, so what the shopper sees is always what the form will order.
+ * One big picture that swipes left and right through every picture of every product, in
+ * product order; a row of small pictures under it (one per product, tap to jump to it);
+ * and under that the chosen product's options and the order form already open. Whichever
+ * product's picture is on screen is the product the form orders.
  */
 export function OfferShowcase({
   products,
@@ -26,10 +26,30 @@ export function OfferShowcase({
   locale: Locale;
   dictionary: Dictionary;
 }) {
-  const [index, setIndex] = useState(0);
-  const slides = useRef<Array<HTMLDivElement | null>>([]);
+  // Every picture of every product, in one strip. A product with none keeps one empty
+  // slide, so it can still be chosen.
+  const slides = useMemo(
+    () =>
+      products.flatMap((product, productIndex) => {
+        const pictures = product.media.map((entry) => entry.media);
+        return (pictures.length > 0 ? pictures : [undefined]).map((media, position) => ({
+          key: `${product.id}:${position}`,
+          productIndex,
+          position,
+          count: Math.max(pictures.length, 1),
+          media,
+        }));
+      }),
+    [products],
+  );
+
+  const [slideIndex, setSlideIndex] = useState(0);
+  const slideRefs = useRef<Array<HTMLDivElement | null>>([]);
   const thumbs = useRef<Array<HTMLButtonElement | null>>([]);
   const track = useRef<HTMLDivElement | null>(null);
+
+  const current = slides[slideIndex] ?? slides[0];
+  const index = current?.productIndex ?? 0;
 
   // The slide that is mostly in view is the chosen one. An observer rather than
   // scrollLeft arithmetic, so it also holds in a right-to-left (Arabic) layout.
@@ -40,25 +60,27 @@ export function OfferShowcase({
       (entries) => {
         for (const entry of entries) {
           if (entry.isIntersecting && entry.intersectionRatio >= 0.6) {
-            const found = slides.current.indexOf(entry.target as HTMLDivElement);
-            if (found >= 0) setIndex(found);
+            const found = slideRefs.current.indexOf(entry.target as HTMLDivElement);
+            if (found >= 0) setSlideIndex(found);
           }
         }
       },
       { root, threshold: [0.6] },
     );
-    for (const slide of slides.current) if (slide) observer.observe(slide);
+    for (const slide of slideRefs.current) if (slide) observer.observe(slide);
     return () => observer.disconnect();
-  }, [products.length]);
+  }, [slides.length]);
 
-  // Keep the chosen thumbnail visible in its strip, without moving the page.
+  // Keep the chosen product's thumbnail visible in its strip, without moving the page.
   useEffect(() => {
     thumbs.current[index]?.scrollIntoView({ block: 'nearest', inline: 'center' });
   }, [index]);
 
-  function choose(next: number) {
-    setIndex(next);
-    slides.current[next]?.scrollIntoView({
+  function chooseProduct(productIndex: number) {
+    const first = slides.findIndex((slide) => slide.productIndex === productIndex);
+    if (first < 0) return;
+    setSlideIndex(first);
+    slideRefs.current[first]?.scrollIntoView({
       behavior: 'smooth',
       block: 'nearest',
       inline: 'center',
@@ -66,34 +88,53 @@ export function OfferShowcase({
   }
 
   const product = products[index] ?? products[0];
-  if (!product) return null;
+  if (!product || !current) return null;
 
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-4">
-      <div
-        ref={track}
-        className="no-scrollbar flex snap-x snap-mandatory overflow-x-auto rounded-sm"
-        aria-roledescription="carousel"
-      >
-        {products.map((item, position) => (
+      <div className="relative">
+        <div
+          ref={track}
+          className="no-scrollbar flex snap-x snap-mandatory overflow-x-auto rounded-sm"
+          aria-roledescription="carousel"
+        >
+          {slides.map((slide, position) => (
+            <div
+              key={slide.key}
+              ref={(element) => {
+                slideRefs.current[position] = element;
+              }}
+              className="relative aspect-[4/5] w-full shrink-0 snap-center bg-surface"
+            >
+              <MediaImage
+                media={slide.media}
+                locale={locale}
+                fallbackAlt={t(products[slide.productIndex]!.name, locale)}
+                sizes="(max-width: 640px) 100vw, 36rem"
+                minWidth={1000}
+                priority={position === 0}
+                className="absolute inset-0 h-full w-full"
+              />
+            </div>
+          ))}
+        </div>
+
+        {current.count > 1 ? (
           <div
-            key={item.id}
-            ref={(element) => {
-              slides.current[position] = element;
-            }}
-            className="relative aspect-[4/5] w-full shrink-0 snap-center bg-surface"
+            className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center gap-1.5"
+            aria-hidden
           >
-            <MediaImage
-              media={item.media[0]?.media}
-              locale={locale}
-              fallbackAlt={t(item.name, locale)}
-              sizes="(max-width: 640px) 100vw, 36rem"
-              minWidth={1000}
-              priority={position === 0}
-              className="absolute inset-0 h-full w-full"
-            />
+            {Array.from({ length: current.count }, (_, dot) => (
+              <span
+                key={dot}
+                className={cn(
+                  'h-1.5 w-1.5 rounded-full bg-white/50',
+                  dot === current.position && 'w-4 bg-white',
+                )}
+              />
+            ))}
           </div>
-        ))}
+        ) : null}
       </div>
 
       <ul className="no-scrollbar flex gap-2 overflow-x-auto" aria-label="Produits">
@@ -104,7 +145,7 @@ export function OfferShowcase({
               ref={(element) => {
                 thumbs.current[position] = element;
               }}
-              onClick={() => choose(position)}
+              onClick={() => chooseProduct(position)}
               aria-current={position === index ? 'true' : undefined}
               aria-label={t(item.name, locale)}
               className={cn(
