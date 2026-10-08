@@ -21,7 +21,14 @@ const envSchema = z.object({
   JWT_REFRESH_SECRET: z.string().min(32, 'JWT_REFRESH_SECRET must be at least 32 characters'),
   JWT_ACCESS_TTL: z.string().default('15m'),
   JWT_REFRESH_TTL: z.string().default('30d'),
+  /** Empty = host-only cookies, required when the storefront proxies the API (D114). */
   COOKIE_DOMAIN: z.string().default('localhost'),
+  /**
+   * Reverse proxies in front of the API whose X-Forwarded-For is believed. Without it every
+   * visitor arrives as the proxy's address and shares one rate limit and one risk score.
+   * 1 behind nginx; 2 when the storefront on Vercel proxies through nginx.
+   */
+  TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(5).default(0),
   COOKIE_SECURE: z
     .enum(['true', 'false'])
     .default('false')

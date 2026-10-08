@@ -182,7 +182,7 @@ export class AuthController {
     const csrfToken = issueCsrfToken(
       response,
       this.config.get<boolean>('COOKIE_SECURE') ?? false,
-      this.config.get<string>('COOKIE_DOMAIN') ?? 'localhost',
+      this.config.get<string>('COOKIE_DOMAIN') || undefined,
     );
 
     return { data: { ...issued.tokens, csrfToken, user: issued.user } };
@@ -193,7 +193,7 @@ export class AuthController {
       httpOnly: true,
       secure: this.config.get<boolean>('COOKIE_SECURE') ?? false,
       sameSite: 'lax' as const,
-      domain: this.config.get<string>('COOKIE_DOMAIN'),
+      domain: this.config.get<string>('COOKIE_DOMAIN') || undefined,
       path: '/',
     };
   }

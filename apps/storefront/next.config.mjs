@@ -30,6 +30,14 @@ const nextConfig = {
     // Only the icons actually used are bundled, which matters for the LCP budget.
     optimizePackageImports: ['lucide-react', '@react-three/drei'],
   },
+  // Set on Vercel, where the browser must reach the API over HTTPS but the API is an HTTP
+  // address on the VPS. The storefront forwards /api/v1/* itself, so the browser only ever
+  // talks to its own origin: no mixed content, no CORS, first-party cookies (D114).
+  async rewrites() {
+    const target = process.env.API_PROXY_TARGET;
+    if (!target) return [];
+    return [{ source: '/api/v1/:path*', destination: `${target.replace(//$/, '')}/:path*` }];
+  },
   async headers() {
     return [
       {

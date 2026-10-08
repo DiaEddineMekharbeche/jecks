@@ -64,7 +64,8 @@ async function refreshSession(): Promise<boolean> {
 export async function clientApi<T>(path: string, options: ClientRequest = {}): Promise<T> {
   const { body, query, headers, skipRefresh, ...rest } = options;
 
-  const url = new URL(`${BASE}${path}`);
+  // BASE is relative (`/api/v1`) when the storefront proxies the API on its own origin.
+  const url = new URL(`${BASE}${path}`, window.location.origin);
   for (const [key, value] of Object.entries(query ?? {})) {
     if (value === undefined || value === null || value === '') continue;
     url.searchParams.set(key, String(value));

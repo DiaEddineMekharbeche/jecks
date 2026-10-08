@@ -60,7 +60,11 @@ export class CsrfGuard implements CanActivate {
 }
 
 /** Issues a token and sets the cookie the header has to match. */
-export function issueCsrfToken(response: Response, secure: boolean, domain: string): string {
+export function issueCsrfToken(
+  response: Response,
+  secure: boolean,
+  domain: string | undefined,
+): string {
   const token = randomBytes(24).toString('base64url');
 
   response.cookie(CSRF_COOKIE, token, {
@@ -70,7 +74,9 @@ export function issueCsrfToken(response: Response, secure: boolean, domain: stri
     httpOnly: false,
     sameSite: 'lax',
     secure,
-    domain,
+    // Empty means no Domain attribute: a host-only cookie, which is what a storefront
+    // reaching the API through its own proxy needs (see D114).
+    domain: domain || undefined,
     path: '/',
     maxAge: 7 * 24 * 3600 * 1000,
   });

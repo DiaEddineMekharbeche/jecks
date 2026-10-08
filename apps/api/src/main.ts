@@ -16,6 +16,9 @@ async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, { bufferLogs: false, rawBody: true });
   const config: ConfigService<Env, true> = app.get(ConfigService);
 
+  // Before anything reads request.ip: the throttler, the risk score and the audit log do.
+  app.getHttpAdapter().getInstance().set('trust proxy', config.get('TRUST_PROXY_HOPS', { infer: true }));
+
   app.setGlobalPrefix('api/v1');
   app.use(cookieParser());
   app.use(compression());

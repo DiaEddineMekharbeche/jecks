@@ -180,6 +180,46 @@ Then every deploy is: wait for the green **Publish images** run on GitHub, then 
 `git pull && ./infra/deploy.sh`. Without `IMAGE_PREFIX` the script builds locally as before.
 If the repository is public, step 2 and 3 are not needed.
 
+### Storefront on Vercel, API on the VPS
+
+Vercel gives the shop a free `https://<name>.vercel.app` address. The API, database,
+worker and admin stay on the VPS. The browser never talks to the VPS directly: the
+storefront forwards `/api/v1/*` to it (`API_PROXY_TARGET`), so there is no mixed-content
+block (an HTTPS page cannot call an HTTP API), no CORS, and cookies belong to the shop's
+own address.
+
+1. vercel.com > Add New > Project > import the GitHub repo. **Root Directory:**
+   `apps/storefront`. Leave "Include source files outside of the Root Directory" on. The
+   install and build commands come from `apps/storefront/vercel.json`.
+2. Environment variables (Production):
+
+   | Name | Value |
+   | --- | --- |
+   | `API_PROXY_TARGET` | `http://5.196.100.199:8081/api/v1` |
+   | `API_INTERNAL_URL` | `http://5.196.100.199:8081/api/v1` |
+   | `NEXT_PUBLIC_API_URL` | `/api/v1` |
+   | `NEXT_PUBLIC_MEDIA_URL` | `/api/v1/media` |
+   | `NEXT_PUBLIC_SITE_URL` | `https://<name>.vercel.app` (set after the first deploy, then redeploy) |
+   | `REVALIDATE_TOKEN` | the same value as on the VPS |
+
+3. On the VPS `.env`:
+
+   ```
+   COOKIE_DOMAIN=
+   TRUST_PROXY_HOPS=2
+   STOREFRONT_INTERNAL_URL=https://<name>.vercel.app
+   ```
+
+   Then `./infra/deploy.sh`. An empty `COOKIE_DOMAIN` makes the cookies host-only, which
+   the proxy needs. `TRUST_PROXY_HOPS=2` (Vercel, then nginx) makes the API see each
+   shopper's own address: without it every visitor shares one rate limit. `STOREFRONT_INTERNAL_URL`
+   is where the API tells the storefront to refresh its pages after an admin edit.
+4. The VPS storefront on port 80 can stay as a fallback, or be stopped.
+
+**Vercel's free plan (Hobby) is for non-commercial use** in its terms; a shop that takes
+orders is commercial use, so the account can be suspended. Pro is the paid plan. A free
+domain with HTTPS on the VPS itself (no Vercel) avoids that.
+
 ### First deploy on a clean machine
 
 ```bash
