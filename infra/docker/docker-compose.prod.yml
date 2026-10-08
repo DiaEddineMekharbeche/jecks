@@ -32,7 +32,7 @@ services:
     build:
       context: ../..
       dockerfile: infra/docker/Dockerfile.api
-    image: jecks/api:${TAG:-latest}
+    image: ${IMAGE_PREFIX:-jecks}/api:${TAG:-latest}
     restart: unless-stopped
     env_file: ../../.env
     environment:
@@ -51,7 +51,7 @@ services:
     build:
       context: ../..
       dockerfile: infra/docker/Dockerfile.worker
-    image: jecks/worker:${TAG:-latest}
+    image: ${IMAGE_PREFIX:-jecks}/worker:${TAG:-latest}
     restart: unless-stopped
     env_file: ../../.env
     environment:
@@ -72,7 +72,7 @@ services:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
         NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}
         NEXT_PUBLIC_MEDIA_URL: ${NEXT_PUBLIC_MEDIA_URL}
-    image: jecks/storefront:${TAG:-latest}
+    image: ${IMAGE_PREFIX:-jecks}/storefront:${TAG:-latest}
     restart: unless-stopped
     environment:
       NODE_ENV: production
@@ -91,7 +91,8 @@ services:
       args:
         VITE_API_URL: ${VITE_API_URL}
         VITE_MEDIA_URL: ${VITE_MEDIA_URL}
-    image: jecks/admin:${TAG:-latest}
+        VITE_STOREFRONT_URL: ${VITE_STOREFRONT_URL:-}
+    image: ${IMAGE_PREFIX:-jecks}/admin:${TAG:-latest}
     restart: unless-stopped
     depends_on: [api]
     expose: ['80']

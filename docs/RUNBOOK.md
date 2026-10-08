@@ -159,6 +159,27 @@ The script does the whole sequence and refuses to start if any of it is not safe
 A migration that has to be undone needs a new forward migration. Do not hand-edit
 `_prisma_migrations`.
 
+### Fast deploys: images built on GitHub, not on the VPS
+
+Building the images on the 1.9 GB VPS is slow and can run out of memory. The **Publish
+images** workflow (`.github/workflows/publish.yml`) builds them on GitHub on every push to
+`main` and pushes them to `ghcr.io`; the VPS only downloads them (about a minute).
+
+One-time setup:
+
+1. GitHub repo > Settings > Secrets and variables > Actions > **Variables**: add
+   `PUBLIC_API_URL`, `PUBLIC_SITE_URL`, `PUBLIC_MEDIA_URL` (and optionally
+   `PUBLIC_STOREFRONT_URL`). They are baked into the storefront and admin, so they must be the
+   addresses shoppers' browsers use, e.g. `http://5.196.100.199:8081/api/v1`.
+2. GitHub > Settings > Developer settings > Personal access tokens (classic) > a token with
+   only **read:packages**.
+3. On the VPS: `echo <token> | docker login ghcr.io -u <github-username> --password-stdin`
+4. In the VPS `.env`: `IMAGE_PREFIX=ghcr.io/diaeddinemekharbeche/jecks`
+
+Then every deploy is: wait for the green **Publish images** run on GitHub, then on the VPS
+`git pull && ./infra/deploy.sh`. Without `IMAGE_PREFIX` the script builds locally as before.
+If the repository is public, step 2 and 3 are not needed.
+
 ### First deploy on a clean machine
 
 ```bash

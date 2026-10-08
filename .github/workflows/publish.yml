@@ -1,0 +1,78 @@
+name: Publish images
+
+# Builds the four production images on GitHub's runners and pushes them to the GitHub
+# container registry, so the VPS only downloads them (`./infra/deploy.sh` pulls when
+# IMAGE_PREFIX is set). The VPS has 1.9 GB of RAM; a Next.js build there takes many
+# minutes and sometimes does not finish.
+#
+# The storefront and admin bake their public URLs in at build time, so those come from
+# repository variables (Settings > Secrets and variables > Actions > Variables):
+#   PUBLIC_API_URL        e.g. http://5.196.100.199:8081/api/v1
+#   PUBLIC_SITE_URL       e.g. http://5.196.100.199
+#   PUBLIC_MEDIA_URL      e.g. http://5.196.100.199:8081/api/v1/media
+#   PUBLIC_STOREFRONT_URL the admin's "view on the shop" links; usually = PUBLIC_SITE_URL
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [api, worker, storefront, admin]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: The public URLs are set
+        if: matrix.app == 'storefront' || matrix.app == 'admin'
+        env:
+          API: ${{ vars.PUBLIC_API_URL }}
+          SITE: ${{ vars.PUBLIC_SITE_URL }}
+          MEDIA: ${{ vars.PUBLIC_MEDIA_URL }}
+        run: |
+          # An image built with the localhost defaults starts fine and calls the wrong API.
+          [ -n "$API" ] && [ -n "$SITE" ] && [ -n "$MEDIA" ] || {
+            echo "Set PUBLIC_API_URL, PUBLIC_SITE_URL and PUBLIC_MEDIA_URL as repository variables."; exit 1; }
+
+      - name: Image name
+        id: name
+        run: echo "image=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/jecks/${{ matrix.app == 'storefront' && 'storefront' || matrix.app }}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/docker/Dockerfile.${{ matrix.app }}
+          push: true
+          tags: |
+            ${{ steps.name.outputs.image }}:latest
+            ${{ steps.name.outputs.image }}:${{ github.sha }}
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ vars.PUBLIC_API_URL }}
+            NEXT_PUBLIC_SITE_URL=${{ vars.PUBLIC_SITE_URL }}
+            NEXT_PUBLIC_MEDIA_URL=${{ vars.PUBLIC_MEDIA_URL }}
+            VITE_API_URL=${{ vars.PUBLIC_API_URL }}
+            VITE_MEDIA_URL=${{ vars.PUBLIC_MEDIA_URL }}
+            VITE_STOREFRONT_URL=${{ vars.PUBLIC_STOREFRONT_URL || vars.PUBLIC_SITE_URL }}
+          cache-from: type=gha,scope=publish-${{ matrix.app }}
+          cache-to: type=gha,mode=max,scope=publish-${{ matrix.app }}

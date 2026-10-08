@@ -16,6 +16,7 @@ RUN pnpm install --frozen-lockfile --filter @jecks/admin...
 
 ARG VITE_API_URL
 ARG VITE_MEDIA_URL
+ARG VITE_STOREFRONT_URL
 COPY packages/ packages/
 COPY apps/admin/ apps/admin/
 RUN pnpm --filter @jecks/shared build && pnpm --filter @jecks/admin build
