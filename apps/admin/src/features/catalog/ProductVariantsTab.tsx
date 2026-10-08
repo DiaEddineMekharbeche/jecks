@@ -120,7 +120,7 @@ export function ProductVariantsTab({
   async function save() {
     setSaving(true);
     try {
-      await catalog.saveVariants(
+      const saved = await catalog.saveVariants(
         product.id,
         rows.map((row, position) => ({
           ...(row.id ? { id: row.id } : {}),
@@ -136,6 +136,19 @@ export function ProductVariantsTab({
           active: row.active,
         })),
       );
+      // Stock goes through the ledger after the variants exist, so a variant added in
+      // this same save can be given its quantity too (matched by SKU, which is unique).
+      const known = new Map(product.variants.map((variant) => [variant.id, variant.stock]));
+      const idBySku = new Map(saved.variants.map((variant) => [variant.sku, variant.id]));
+      await catalog.setVariantStock(
+        rows.flatMap((row) => {
+          const variantId = row.id ?? idBySku.get(row.sku.trim());
+          return variantId
+            ? [{ variantId, current: row.id ? (known.get(row.id) ?? 0) : 0, target: row.stock }]
+            : [];
+        }),
+      );
+
       notify.success('Variantes enregistrées');
       setDirty(false);
       onSaved();
@@ -365,7 +378,18 @@ function VariantRow({
           aria-label={`Poids de ${label}`}
         />
       </td>
-      <td className="px-3 py-2 text-end tabular-nums text-muted">{row.id ? row.stock : '—'}</td>
+      <td className="px-3 py-2">
+        <Input
+          type="number"
+          min={0}
+          className="h-9 w-24 text-end"
+          value={row.stock}
+          onChange={(event) =>
+            onChange({ stock: Math.max(0, Math.trunc(Number(event.target.value) || 0)) })
+          }
+          aria-label={`Stock de ${label}`}
+        />
+      </td>
       <td className="px-3 py-2 text-center">
         <Switch
           checked={row.active}

@@ -31,6 +31,7 @@ import type {
   VariantGenerateInput,
 } from '@jecks/shared';
 import { api, getAccessToken } from '@/lib/api';
+import { adjustStock, listLocations } from '@/features/inventory/api';
 
 /**
  * Every call the catalogue screens make — PRD F-AD-10 to F-AD-13.
@@ -134,6 +135,41 @@ export function importTemplateUrl(format: 'csv' | 'xlsx'): string {
 /** Product lookup for the pickers: related products, collection members, merchandising. */
 export const searchProducts = (q: string) =>
   api<ProductRow[]>('/admin/products', { query: { q, pageSize: 20, sort: 'updatedAt' } });
+
+// --- stock ------------------------------------------------------------------
+
+/**
+ * Brings each variant's available stock to a typed number, without a purchase order.
+ *
+ * A shop with one warehouse and no supplier workflow should be able to write "40" in the
+ * product form. The ledger still records it: each change is a movement at the default
+ * location, so the history stays complete. The movement is the *difference*, not an
+ * overwrite, so stock held at a second location is left alone and the total ends up at
+ * the number the operator typed.
+ */
+export async function setVariantStock(
+  targets: Array<{ variantId: string; current: number; target: number }>,
+): Promise<void> {
+  const changes = targets.filter((item) => item.target !== item.current);
+  if (changes.length === 0) return;
+
+  const locations = await listLocations();
+  const location =
+    locations.find((item) => item.isDefault && item.active) ??
+    locations.find((item) => item.active);
+  if (!location) throw new Error("Aucun emplacement de stock n'est configuré");
+
+  for (const change of changes) {
+    await adjustStock({
+      variantId: change.variantId,
+      locationId: location.id,
+      quantity: change.target - change.current,
+      mode: 'delta',
+      reason: 'ADJUSTMENT',
+      note: 'Saisi depuis la fiche produit',
+    });
+  }
+}
 
 // --- categories -------------------------------------------------------------
 

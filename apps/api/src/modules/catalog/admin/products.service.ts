@@ -228,7 +228,10 @@ export class ProductsService {
           styleLabel: input.styleLabel ?? null,
           seoTitle: (input.seoTitle ?? undefined) as Prisma.InputJsonValue | undefined,
           seoDescription: (input.seoDescription ?? undefined) as Prisma.InputJsonValue | undefined,
-          publishedAt: input.publishedAt ?? null,
+          // Created live and left undated, a product would pass every check in the admin
+          // and never appear: the storefront shows only what is published at or before now.
+          publishedAt:
+            input.publishedAt ?? (input.status === ProductStatus.ACTIVE ? new Date() : null),
           lowStockThreshold: input.lowStockThreshold,
           allowBackorder: input.allowBackorder,
           trackInventory: input.trackInventory,

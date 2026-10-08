@@ -6,15 +6,15 @@ import { useSession } from '@/features/auth/session';
 /**
  * Sub-navigation for the stock module — PRD Section 5.6.
  *
- * Purchasing sits behind its own permission, so a warehouse hand who may count stock
- * but not commit money to a supplier simply does not see those tabs.
+ * Suppliers and purchase orders are not linked from here. Stock is set directly on the
+ * product, which is all a shop with one warehouse needs. The screens and their routes
+ * still exist (`/inventory/suppliers`, `/inventory/purchase-orders`) for the day a shop
+ * buys from suppliers on account and wants the weighted-average cost they maintain.
  */
 const TABS: Array<{ to: string; label: string; end?: boolean; permission?: Permission }> = [
   { to: '/inventory', label: 'Stock', end: true },
   { to: '/inventory/movements', label: 'Mouvements' },
   { to: '/inventory/counts', label: 'Inventaires' },
-  { to: '/inventory/purchase-orders', label: 'Commandes fournisseur', permission: 'purchasing.read' },
-  { to: '/inventory/suppliers', label: 'Fournisseurs', permission: 'purchasing.read' },
   { to: '/inventory/locations', label: 'Emplacements' },
 ];
 

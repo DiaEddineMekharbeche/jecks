@@ -105,6 +105,8 @@ function NewProductPage() {
   const [sku, setSku] = useState('');
   const [skuTouched, setSkuTouched] = useState(false);
   const [price, setPrice] = useState<string>('');
+  const [stock, setStock] = useState<string>('');
+  const [live, setLive] = useState(true);
   const [saving, setSaving] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
@@ -127,7 +129,7 @@ function NewProductPage() {
           ...(name.en ? { en: name.en } : {}),
         },
         slug: derivedSlug,
-        status: ProductStatus.DRAFT,
+        status: live ? ProductStatus.ACTIVE : ProductStatus.DRAFT,
         variants: [
           {
             sku: derivedSku,
@@ -141,7 +143,21 @@ function NewProductPage() {
           },
         ],
       });
-      notify.success('Produit créé');
+      // Stock is set straight away, with no purchase order or supplier in between. If it
+      // fails the product still exists, so say so rather than losing the whole save.
+      const quantity = Math.max(0, Math.trunc(Number(stock) || 0));
+      const first = created.variants[0];
+      if (first && quantity > 0) {
+        try {
+          await catalog.setVariantStock([{ variantId: first.id, current: 0, target: quantity }]);
+        } catch (stockError) {
+          notify.error(
+            `Produit créé, mais le stock n'a pas été enregistré : ${message(stockError, 'erreur')}`,
+          );
+        }
+      }
+
+      notify.success(live ? 'Produit créé et en ligne' : 'Produit créé en brouillon');
       invalidate();
       navigate(`/catalog/products/${created.id}`, { replace: true });
     } catch (error) {
@@ -163,7 +179,7 @@ function NewProductPage() {
     <div className="flex flex-col gap-5">
       <PageHeader
         title="Nouveau produit"
-        description="Le nom, l’URL, un premier SKU et un prix. Le reste s’ajoute ensuite."
+        description="Le nom, le prix et la quantité en stock. Le reste s’ajoute ensuite."
         actions={
           <Button variant="ghost" size="sm" onClick={() => history.back()}>
             <ArrowLeft className="h-4 w-4" />
@@ -224,17 +240,32 @@ function NewProductPage() {
                 placeholder="2900"
               />
             </Field>
+
+            <Field label="Quantité en stock">
+              <Input
+                type="number"
+                min={0}
+                step="1"
+                value={stock}
+                onChange={(event) => setStock(event.target.value)}
+                placeholder="0"
+              />
+            </Field>
           </div>
+
+          <SwitchField
+            label="Mettre en ligne tout de suite"
+            description="Le produit apparaît aussitôt sur la boutique. Désactivez pour le préparer d’abord en brouillon."
+            checked={live}
+            onCheckedChange={setLive}
+          />
         </CardBody>
       </Card>
 
       <div className="flex items-center gap-2">
         <Button loading={saving} disabled={!ready} onClick={() => void submit()}>
-          Créer le brouillon
+          {live ? 'Créer et mettre en ligne' : 'Créer le brouillon'}
         </Button>
-        <span className="text-sm text-muted">
-          Le produit est créé en brouillon; il n’apparaît pas sur la boutique.
-        </span>
       </div>
     </div>
   );
