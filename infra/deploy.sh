@@ -156,6 +156,10 @@ docker compose -f "$COMPOSE_BASE" -f "$COMPOSE" --env-file "$ENV_FILE" run --rm 
 log "Starting services"
 docker compose -f "$COMPOSE_BASE" -f "$COMPOSE" --env-file "$ENV_FILE" up -d --remove-orphans
 
+# Nginx resolves its upstreams once, when it starts. Recreated containers get new
+# addresses, and the old ones answer 502 until nginx is restarted.
+docker compose -f "$COMPOSE_BASE" -f "$COMPOSE" --env-file "$ENV_FILE" restart nginx
+
 # --- verify ------------------------------------------------------------------
 # A deploy that finishes without checking anything is a deploy that reports success on
 # a site that is down.

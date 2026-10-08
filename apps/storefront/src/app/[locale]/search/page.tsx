@@ -7,6 +7,15 @@ import { apiGet } from '@/lib/api';
 import { fill, getDictionary } from '@/lib/dictionary';
 import type { CollectionSummary, ProductCard } from '@/lib/types';
 
+/**
+ * Reads `searchParams` (filters, sort, page, query), so it is rendered per request. A page
+ * that is also cached with `revalidate` cannot do both: a production build answers the
+ * first filtered request with "Page changed from static to dynamic at runtime" and a 500.
+ * The data is still cached — `apiGet` revalidates and tags each fetch — so a request
+ * costs a render, not an API round trip.
+ */
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   // A search results page has no business in an index.
   robots: { index: false, follow: true },

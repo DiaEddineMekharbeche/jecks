@@ -15,7 +15,14 @@ import type { Facets, ProductCard } from '@/lib/types';
  * configured those sections, and a product published in the admin appeared nowhere. The
  * grid needs no setup: publish a product and it is on this page.
  */
-export const revalidate = 120;
+/**
+ * Reads `searchParams` (filters, sort, page, query), so it is rendered per request. A page
+ * that is also cached with `revalidate` cannot do both: a production build answers the
+ * first filtered request with "Page changed from static to dynamic at runtime" and a 500.
+ * The data is still cached — `apiGet` revalidates and tags each fetch — so a request
+ * costs a render, not an API round trip.
+ */
+export const dynamic = 'force-dynamic';
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
