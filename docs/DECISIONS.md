@@ -1492,3 +1492,11 @@ paths are proven against the fake server and the protocol, not against Google.
 **Decision.** With `API_PROXY_TARGET` set, the storefront rewrites `/api/v1/*` to the VPS, and the browser uses the relative `/api/v1`. Cookies become host-only (`COOKIE_DOMAIN` empty now means no Domain attribute, for the auth, CSRF and cart cookies alike). The API trusts `TRUST_PROXY_HOPS` proxies' X-Forwarded-For: it had trusted none, so behind nginx every visitor was one address to the per-IP throttle and the risk score. Docker defaults it to 1; Vercel in front makes it 2. Server-side fetches go straight to `API_INTERNAL_URL`.
 
 **Consequence.** An API call costs an extra hop through Vercel. The VPS stays the only place that holds data. Vercel's Hobby plan forbids commercial use. Unset `API_PROXY_TARGET` and the behaviour is exactly as before.
+
+## D115 — Opening the dashboard brings its day rows up to date (M7)
+
+**Context.** The tiles and the chart read `daily_stats`, rebuilt by the worker at 00:20. An order placed in the morning appeared nowhere until the next night, and a new shop saw empty tiles on its first day: the dashboard looked unconnected to the shop.
+
+**Decision.** `rebuildDailyStats` moved from the worker into `@jecks/db` and both processes run it. `DashboardService.summary` first backfills the whole window when any day has no row, otherwise recomputes the last three days at most every 30 seconds (one rebuild shared by concurrent visits). A failed refresh is logged and the stored figures are shown.
+
+**Consequence.** The first dashboard visit after a long gap scans that window's orders once. Revenue is still booked on the delivery date (F-AD-70), so a shop whose parcels are not yet delivered sees orders but no revenue.

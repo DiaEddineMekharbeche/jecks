@@ -395,7 +395,12 @@ move mean the worker is not draining the queue, which is the next section.
 
 ### The dashboard shows yesterday's numbers
 
-`daily_stats` is rebuilt nightly at 00:20 Africa/Algiers. Force it:
+Opening the dashboard refreshes the last three days itself (at most every 30 seconds), so a
+new order shows within half a minute, and a window with missing days is backfilled on the
+first visit. *Revenue and profit* still count a parcel only on the day it is **delivered**;
+an order that is only confirmed or shipped appears under *Commandes*, not under revenue.
+
+`daily_stats` is also rebuilt nightly at 00:20 Africa/Algiers. Force a wider rebuild:
 
 ```bash
 docker compose exec worker node -e "

@@ -1,6 +1,6 @@
 import type { PrismaClient } from '@jecks/db';
 import { describe, expect, it, vi } from 'vitest';
-import { rebuildDailyStats } from './daily-stats.js';
+import { rebuildDailyStats } from '@jecks/db';
 
 /**
  * The P&L arithmetic of PRD F-AD-70, tested without a database.

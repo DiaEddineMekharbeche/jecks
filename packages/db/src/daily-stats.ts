@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@jecks/db';
+import type { PrismaClient } from '@prisma/client';
 import { computePnl } from '@jecks/shared';
 
 /**
@@ -7,6 +7,9 @@ import { computePnl } from '@jecks/shared';
  * Revenue is booked on the delivery date, not the order date: a COD order is not
  * revenue until the customer has the parcel and the driver has the cash. Costs follow
  * the same day so a day's margin is internally consistent.
+ *
+ * Lives here, next to the schema, because two processes run it: the worker nightly, and the
+ * API when the dashboard is opened, so the figures on screen are never a night behind.
  *
  * Default window is 3 days rather than 1, because a delivery can be marked late and a
  * refund can land after the fact; recomputing recent days is cheap and self-healing.

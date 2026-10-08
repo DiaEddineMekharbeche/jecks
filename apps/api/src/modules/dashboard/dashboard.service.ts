@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
+import { rebuildDailyStats } from '@jecks/db';
 import { PrismaService } from '../../prisma/prisma.service.js';
 
 export type DashboardPeriod = '7d' | '30d' | '90d' | 'mtd' | 'ytd';
@@ -14,13 +15,24 @@ export interface KpiTile {
 /**
  * Reads the pre-aggregated `daily_stats` table rather than scanning orders, so the
  * dashboard stays under the 1.5 s budget of PRD Section 1.3 as volume grows.
+ *
+ * That table is rebuilt by the worker at 00:20, which on its own left the dashboard a night
+ * behind: an order placed this morning showed nowhere until tomorrow, and a new shop saw
+ * empty tiles for its first day. So opening the dashboard first brings the table up to date
+ * (see `ensureFresh`).
  */
 @Injectable()
 export class DashboardService {
+  private readonly logger = new Logger(DashboardService.name);
+  private refreshing: Promise<void> | null = null;
+  private lastRefresh = 0;
+
   constructor(private readonly prisma: PrismaService) {}
 
   async summary(period: DashboardPeriod) {
     const { from, to, previousFrom, previousTo } = resolveWindow(period);
+
+    await this.ensureFresh(previousFrom, to);
 
     const [current, previous, attention] = await Promise.all([
       this.aggregate(from, to),
@@ -55,6 +67,40 @@ export class DashboardService {
     });
 
     return { period, from, to, tiles, series, attention };
+  }
+
+  /**
+   * Makes the day rows current before they are read.
+   *
+   * Two cases. A day in the window with no row at all (a shop's first days, or a window
+   * wider than anything computed so far) is backfilled across the whole window, once: the
+   * rebuild writes a row for every day, so the next visit finds none missing. Otherwise the
+   * last three days are recomputed, at most every 30 seconds, which is what carries today's
+   * orders and a late delivery into the figures. Concurrent visits share one rebuild.
+   *
+   * A failure is logged and the dashboard shows what is stored: a stale tile beats an error.
+   */
+  private async ensureFresh(oldest: Date, today: Date): Promise<void> {
+    const wanted = Math.round((today.getTime() - oldest.getTime()) / 86_400_000) + 1;
+    const have = await this.prisma.dailyStat.count({ where: { day: { gte: oldest, lte: today } } });
+    const backfill = have < wanted;
+
+    if (!backfill && Date.now() - this.lastRefresh < REFRESH_EVERY_MS) return;
+
+    this.refreshing ??= rebuildDailyStats(this.prisma, {
+      days: backfill ? Math.min(wanted, MAX_BACKFILL_DAYS) : 3,
+    })
+      .then(() => {
+        this.lastRefresh = Date.now();
+      })
+      .catch((error: unknown) => {
+        this.logger.warn(`daily_stats refresh failed: ${String(error)}`);
+      })
+      .finally(() => {
+        this.refreshing = null;
+      });
+
+    await this.refreshing;
   }
 
   private async aggregate(from: Date, to: Date) {
@@ -100,15 +146,21 @@ export class DashboardService {
 
   /** The "needs attention" widgets of PRD F-AD-03. */
   private async needsAttention() {
-    const [pendingConfirmation, failedDeliveries, lowStock, pendingReviews, unreadMessages, abandonedCarts] =
-      await Promise.all([
-        this.prisma.order.count({ where: { status: 'PENDING' } }),
-        this.prisma.order.count({ where: { status: 'FAILED' } }),
-        this.prisma.product.count({ where: { status: 'ACTIVE', totalStock: { lte: 5 } } }),
-        this.prisma.review.count({ where: { status: 'PENDING' } }),
-        this.prisma.contactMessage.count({ where: { readAt: null } }),
-        this.prisma.abandonedCart.count({ where: { contactedAt: null, recoveredOrderId: null } }),
-      ]);
+    const [
+      pendingConfirmation,
+      failedDeliveries,
+      lowStock,
+      pendingReviews,
+      unreadMessages,
+      abandonedCarts,
+    ] = await Promise.all([
+      this.prisma.order.count({ where: { status: 'PENDING' } }),
+      this.prisma.order.count({ where: { status: 'FAILED' } }),
+      this.prisma.product.count({ where: { status: 'ACTIVE', totalStock: { lte: 5 } } }),
+      this.prisma.review.count({ where: { status: 'PENDING' } }),
+      this.prisma.contactMessage.count({ where: { readAt: null } }),
+      this.prisma.abandonedCart.count({ where: { contactedAt: null, recoveredOrderId: null } }),
+    ]);
 
     return {
       pendingConfirmation,
@@ -120,6 +172,12 @@ export class DashboardService {
     };
   }
 }
+
+/** How long a rebuild of the last days is trusted before the next dashboard visit repeats it. */
+const REFRESH_EVERY_MS = 30_000;
+
+/** A year-to-date window of a young shop is small; this only stops a runaway scan. */
+const MAX_BACKFILL_DAYS = 800;
 
 function tile(key: string, value: bigint | number, previous: bigint | number): KpiTile {
   return { key, value, previous, changePercent: change(value, previous) };

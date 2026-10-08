@@ -1,6 +1,6 @@
 // Must come first: it populates process.env before any other module reads it.
 import './lib/env.js';
-import { PrismaClient } from '@jecks/db';
+import { PrismaClient, rebuildDailyStats } from '@jecks/db';
 import { Worker, type Job } from 'bullmq';
 import pino from 'pino';
 import { runBackup } from './jobs/backup.js';
@@ -8,7 +8,6 @@ import { pollCourierTracking } from './jobs/courier-sync.js';
 import { runMaintenanceTask, type MaintenanceTask } from './jobs/maintenance-tasks.js';
 import { dispatchNotification } from './notifications/dispatcher.js';
 import { readSecret } from './lib/secrets.js';
-import { rebuildDailyStats } from './jobs/daily-stats.js';
 import { processMedia } from './jobs/media-process.js';
 import { runReportExport } from './jobs/report-export.js';
 import {

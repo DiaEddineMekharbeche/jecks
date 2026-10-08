@@ -99,7 +99,10 @@ export class InsightsService {
       ]),
     );
 
-    const cells = new Map<number, { name: string; orders: number; delivered: number; failed: number; revenue: bigint }>();
+    const cells = new Map<
+      number,
+      { name: string; orders: number; delivered: number; failed: number; revenue: bigint }
+    >();
 
     for (const order of orders) {
       const cell = cells.get(order.wilayaCode) ?? {
@@ -193,7 +196,11 @@ export class InsightsService {
       }),
       this.prisma.order.count({ where: { deletedAt: null, createdAt: { gte: from, lt: end } } }),
       this.prisma.order.count({
-        where: { deletedAt: null, status: OrderStatus.DELIVERED, deliveredAt: { gte: from, lt: end } },
+        where: {
+          deletedAt: null,
+          status: OrderStatus.DELIVERED,
+          deliveredAt: { gte: from, lt: end },
+        },
       }),
     ]);
 

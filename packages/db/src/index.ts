@@ -1,6 +1,7 @@
 import { Prisma, PrismaClient } from '@prisma/client';
 
 export * from '@prisma/client';
+export { rebuildDailyStats, type DailyStatsOptions } from './daily-stats.js';
 export { Prisma, PrismaClient };
 
 /**
