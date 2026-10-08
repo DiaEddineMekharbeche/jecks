@@ -1,13 +1,6 @@
 'use client';
 
-import {
-  DeliveryType,
-  format,
-  isValidDzPhone,
-  money,
-  t,
-  type Locale,
-} from '@jecks/shared';
+import { DeliveryType, format, isValidDzPhone, money, t, type Locale } from '@jecks/shared';
 import { Button, cn } from '@jecks/ui';
 import { AlertCircle, Building2, Home, Loader2, ShieldCheck, Truck } from 'lucide-react';
 import Link from 'next/link';
@@ -65,7 +58,6 @@ export function CheckoutForm({ locale, dictionary }: { locale: Locale; dictionar
   const [form, setForm] = useState({
     fullName: '',
     phone: '',
-    altPhone: '',
     email: '',
     wilayaCode: 0,
     communeId: '',
@@ -163,7 +155,6 @@ export function CheckoutForm({ locale, dictionary }: { locale: Locale; dictionar
           customer: {
             fullName: form.fullName.trim(),
             phone: form.phone.trim(),
-            altPhone: form.altPhone.trim() || undefined,
             email: form.email.trim() || undefined,
           },
           shipping: {
@@ -243,35 +234,19 @@ export function CheckoutForm({ locale, dictionary }: { locale: Locale; dictionar
             />
           </Field>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label={dictionary.contact.phone} error={fieldErrors['customer.phone']} required>
-              <input
-                required
-                type="tel"
-                inputMode="tel"
-                dir="ltr"
-                autoComplete="tel"
-                placeholder="0550 11 22 33"
-                value={form.phone}
-                onChange={(event) => setForm({ ...form, phone: event.target.value })}
-                className="input-line"
-              />
-            </Field>
-            <Field
-              label={`${dictionary.contact.phone} 2`}
-              hint="Améliore nettement les chances de livraison"
-              error={fieldErrors['customer.altPhone']}
-            >
-              <input
-                type="tel"
-                inputMode="tel"
-                dir="ltr"
-                value={form.altPhone}
-                onChange={(event) => setForm({ ...form, altPhone: event.target.value })}
-                className="input-line"
-              />
-            </Field>
-          </div>
+          <Field label={dictionary.contact.phone} error={fieldErrors['customer.phone']} required>
+            <input
+              required
+              type="tel"
+              inputMode="tel"
+              dir="ltr"
+              autoComplete="tel"
+              placeholder="0550 11 22 33"
+              value={form.phone}
+              onChange={(event) => setForm({ ...form, phone: event.target.value })}
+              className="input-line"
+            />
+          </Field>
         </section>
 
         <section className="flex flex-col gap-4">
@@ -303,7 +278,12 @@ export function CheckoutForm({ locale, dictionary }: { locale: Locale; dictionar
                 required
                 value={form.wilayaCode || ''}
                 onChange={(event) =>
-                  setForm({ ...form, wilayaCode: Number(event.target.value), communeId: '', pickupPointId: '' })
+                  setForm({
+                    ...form,
+                    wilayaCode: Number(event.target.value),
+                    communeId: '',
+                    pickupPointId: '',
+                  })
                 }
                 className="input-line"
               >
@@ -473,8 +453,7 @@ export function CheckoutForm({ locale, dictionary }: { locale: Locale; dictionar
                 </div>
               </dl>
 
-              {cart.freeShippingRemainingMinor &&
-              BigInt(cart.freeShippingRemainingMinor) > 0n ? (
+              {cart.freeShippingRemainingMinor && BigInt(cart.freeShippingRemainingMinor) > 0n ? (
                 <p className="text-xs text-muted">
                   {fill(dictionary.cart.freeShippingProgress, {
                     amount: amount(cart.freeShippingRemainingMinor),
