@@ -127,7 +127,8 @@ if [[ $BUILD -eq 1 ]]; then
   if grep -qE '^IMAGE_PREFIX=.+' "$ENV_FILE"; then
     log "Pulling images from the registry"
     docker compose -f "$COMPOSE_BASE" -f "$COMPOSE" --env-file "$ENV_FILE" images --quiet > "${ROOT}/.deploy-previous" 2>/dev/null || true
-    docker compose -f "$COMPOSE_BASE" -f "$COMPOSE" --env-file "$ENV_FILE" pull api worker web admin \n      || fail "Could not pull the images. Has the Publish images workflow finished on GitHub, and did you run docker login ghcr.io on this machine?"
+    docker compose -f "$COMPOSE_BASE" -f "$COMPOSE" --env-file "$ENV_FILE" pull api worker web admin \
+      || fail "Could not pull the images. Has the Publish images workflow finished on GitHub, and did you run docker login ghcr.io on this machine?"
   else
     log "Building images"
     # Recorded before the build so a rollback has somewhere to go.
