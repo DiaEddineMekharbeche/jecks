@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import type { Prisma } from '@jecks/db';
 import {
   type QuickOrderInput,
+  type QuickPromoInput,
   DeliveryType,
   OrderStatus,
   PaymentMethod,
@@ -105,7 +106,62 @@ export class CheckoutService {
       });
     }
 
+    // A code is applied to the cart like any other, so the order is priced by the same
+    // engine, the usage is recorded, and a code the engine refuses comes back with the
+    // sentence the shopper should read. Nothing has been written yet when it does.
+    if (input.promoCode) {
+      await this.cart.applyPromo(cart.token, input.promoCode.toUpperCase(), context.customerId);
+    }
+
     return this.place({ ...rest, cartToken: cart.token, loyaltyPointsToRedeem: 0 }, context);
+  }
+
+  /**
+   * What a code would take off one variant, before anything is ordered.
+   *
+   * Runs the real cart over a cart that exists for the length of the call, so the figure
+   * the shopper sees is the figure the order will carry, and deletes it afterwards: a
+   * shopper trying five codes must not leave five carts behind.
+   */
+  async previewQuickPromo(input: QuickPromoInput, customerId: string | null) {
+    const cart = await this.cart.addItem(
+      undefined,
+      { variantId: input.variantId, quantity: input.quantity },
+      customerId,
+    );
+
+    try {
+      if (
+        cart.items.find((item) => item.variantId === input.variantId)?.quantity !== input.quantity
+      ) {
+        throw new BadRequestException({
+          code: 'NOT_ENOUGH_STOCK',
+          message: 'Not enough stock for that quantity',
+        });
+      }
+
+      if (input.wilayaCode) {
+        await this.cart.setDelivery(
+          cart.token,
+          { wilayaCode: input.wilayaCode, deliveryType: input.deliveryType ?? 'HOME' },
+          customerId,
+        );
+      }
+
+      const priced = await this.cart.applyPromo(cart.token, input.code.toUpperCase(), customerId);
+
+      return {
+        code: priced.appliedCode ?? input.code.toUpperCase(),
+        subtotalMinor: priced.subtotalMinor,
+        discountMinor: priced.discountMinor,
+        shippingMinor: priced.shippingMinor,
+        shippingQuoted: priced.shippingQuoted,
+        totalMinor: priced.totalMinor,
+        freeShipping: priced.freeShipping,
+      };
+    } finally {
+      await this.prisma.cart.delete({ where: { token: cart.token } }).catch(() => undefined);
+    }
   }
 
   async place(input: CheckoutInput, context: CheckoutContext): Promise<CheckoutResult> {

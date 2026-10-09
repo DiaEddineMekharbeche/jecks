@@ -4,8 +4,10 @@ import { Throttle } from '@nestjs/throttler';
 import {
   checkoutSchema,
   quickOrderSchema,
+  quickPromoSchema,
   type CheckoutInput,
   type QuickOrderInput,
+  type QuickPromoInput,
 } from '@jecks/shared';
 import type { Request } from 'express';
 import { Public, type RequestWithUser } from '../../common/decorators/auth.decorators.js';
@@ -46,6 +48,16 @@ export class CheckoutController {
    * The same order from a single page: a variant, a quantity and the delivery details.
    * What an advert's landing page posts, with no cart to build first.
    */
+  /** What a promotion code would take off, before the order is placed. */
+  @Post('quick/promo')
+  @Public()
+  @Throttle({ default: { ttl: 60_000, limit: 20 } })
+  @ApiOperation({ summary: 'Preview a promotion code on one variant, without ordering' })
+  previewQuickPromo(@Body(zod(quickPromoSchema)) body: QuickPromoInput, @Req() request: Request) {
+    const user = (request as RequestWithUser).user;
+    return this.checkout.previewQuickPromo(body, user?.type === 'CUSTOMER' ? user.id : null);
+  }
+
   @Post('quick')
   @Public()
   @Idempotent()

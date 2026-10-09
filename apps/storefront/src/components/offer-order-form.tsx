@@ -2,8 +2,8 @@
 
 import { DeliveryType, format, isValidDzPhone, money, type Locale } from '@jecks/shared';
 import { Button } from '@jecks/ui';
-import { AlertCircle, Building2, Home, Minus, Plus, ShieldCheck } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { AlertCircle, Building2, Home, Minus, Plus, ShieldCheck, Tag } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Confirmation,
   DeliveryChoice,
@@ -15,8 +15,9 @@ import {
 } from './checkout-form';
 import { track } from '@/lib/analytics';
 import { ApiError, clientApi, errorMessage } from '@/lib/client-api';
-import type { Dictionary } from '@/lib/dictionary';
+import { fill, type Dictionary } from '@/lib/dictionary';
 import { readAttribution } from '@/lib/offer';
+import { promoRefusal } from '@/lib/promo-messages';
 
 /**
  * The order form of an advert's landing page.
@@ -77,6 +78,16 @@ export function OfferOrderForm({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [placed, setPlaced] = useState<PlacedOrder | null>(null);
 
+  // A promotion code. `promo` is what the server said the code is worth on this order; it is
+  // asked again whenever the quantity, the variant or the destination changes, because a
+  // minimum spend or a free-delivery code can stop applying.
+  const [promoInput, setPromoInput] = useState('');
+  const [promo, setPromo] = useState<{ code: string; discountMinor: bigint } | null>(null);
+  const [promoError, setPromoError] = useState<string | null>(null);
+  const [promoBusy, setPromoBusy] = useState(false);
+  // What the last answer was for, so a re-check that would repeat it is not sent.
+  const previewed = useRef('');
+
   // One key per mounted form: a double tap on a slow connection sends the same key
   // twice and the server hands back the first order.
   const idempotencyKey = useMemo(
@@ -113,6 +124,70 @@ export function OfferOrderForm({
     format(money(BigInt(value)), { locale: `${locale}-DZ` });
   const subtotal = BigInt(unitPriceMinor) * BigInt(quantity);
 
+  async function previewPromo(code: string): Promise<{ code: string; discountMinor: bigint }> {
+    const result = await clientApi<{ code: string; discountMinor: string }>('/orders/quick/promo', {
+      method: 'POST',
+      body: {
+        variantId,
+        quantity,
+        code,
+        wilayaCode: form.wilayaCode || undefined,
+        deliveryType: form.wilayaCode ? form.deliveryType : undefined,
+      },
+    });
+    previewed.current = previewKey(code);
+    return { code: result.code, discountMinor: BigInt(result.discountMinor) };
+  }
+
+  function previewKey(code: string): string {
+    return [code, variantId, quantity, form.wilayaCode, form.deliveryType].join('|');
+  }
+
+  /** The sentence for a refused code, in the page's language. */
+  function refusal(failure: unknown): string {
+    const details = failure instanceof ApiError ? failure.details : undefined;
+    return promoRefusal(details, locale) ?? errorMessage(failure, dictionary.common.error);
+  }
+
+  /** Returns whether the typed code is now applied, so submit can stop on a refusal. */
+  async function applyPromo(): Promise<boolean> {
+    const code = promoInput.trim().toUpperCase();
+    if (!code || !variantId) return false;
+    setPromoBusy(true);
+    setPromoError(null);
+    try {
+      setPromo(await previewPromo(code));
+      setPromoInput('');
+      return true;
+    } catch (promoFailure) {
+      setPromo(null);
+      setPromoError(refusal(promoFailure));
+      return false;
+    } finally {
+      setPromoBusy(false);
+    }
+  }
+
+  const appliedCode = promo?.code ?? null;
+  useEffect(() => {
+    if (!appliedCode || !variantId) return;
+    // Applying a code just asked the server this very question.
+    if (previewed.current === previewKey(appliedCode)) return;
+    let live = true;
+    previewPromo(appliedCode)
+      .then((fresh) => live && setPromo(fresh))
+      .catch((failure: unknown) => {
+        if (!live) return;
+        setPromo(null);
+        setPromoError(refusal(failure));
+      });
+    return () => {
+      live = false;
+    };
+    // previewPromo reads the same values listed here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appliedCode, variantId, quantity, form.wilayaCode, form.deliveryType]);
+
   const ready =
     variantId !== null &&
     form.fullName.trim().length >= 3 &&
@@ -128,6 +203,13 @@ export function OfferOrderForm({
     setBusy(true);
     setError(null);
     setFieldErrors({});
+
+    // A code typed but never applied would be silently ignored, and the shopper would pay
+    // more than they expected. Apply it now, and stop if the shop refuses it.
+    if (promoInput.trim() && !(await applyPromo())) {
+      setBusy(false);
+      return;
+    }
 
     try {
       const attribution = readAttribution(window.location.search);
@@ -148,6 +230,7 @@ export function OfferOrderForm({
             note: form.note.trim() || undefined,
           },
           payment: { method: 'COD' },
+          promoCode: promo?.code ?? (promoInput.trim().toUpperCase() || undefined),
           source: attribution.source,
           utm: attribution.utm,
         },
@@ -359,11 +442,75 @@ export function OfferOrderForm({
         </div>
       </div>
 
+      <div className="flex flex-col gap-2">
+        {promo ? (
+          <div className="flex items-center justify-between gap-3 rounded-sm border border-success/40 bg-success/5 px-3 py-2 text-sm">
+            <span className="flex items-center gap-2 text-success">
+              <Tag className="h-4 w-4" />
+              {fill(dictionary.cart.promoApplied, { code: promo.code })}
+            </span>
+            <button
+              type="button"
+              className="text-xs text-muted underline"
+              onClick={() => {
+                setPromo(null);
+                setPromoError(null);
+              }}
+            >
+              {dictionary.cart.promoRemove}
+            </button>
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            <input
+              value={promoInput}
+              onChange={(event) => {
+                setPromoInput(event.target.value);
+                setPromoError(null);
+              }}
+              onKeyDown={(event) => {
+                // Enter here applies the code; it must not submit the order.
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  void applyPromo();
+                }
+              }}
+              placeholder={dictionary.cart.promoPlaceholder}
+              aria-label={dictionary.cart.promoPlaceholder}
+              autoCapitalize="characters"
+              autoComplete="off"
+              dir="ltr"
+              className="input-line min-w-0 flex-1 uppercase"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              loading={promoBusy}
+              disabled={!promoInput.trim() || !variantId}
+              onClick={() => void applyPromo()}
+            >
+              {dictionary.cart.promoApply}
+            </Button>
+          </div>
+        )}
+        {promoError ? (
+          <p role="alert" className="text-xs text-danger">
+            {promoError}
+          </p>
+        ) : null}
+      </div>
+
       <dl className="flex flex-col gap-1.5 border-t border-line pt-3 text-sm">
         <div className="flex justify-between">
           <dt className="text-muted">{dictionary.cart.subtotal}</dt>
           <dd className="tabular-nums">{amount(subtotal)}</dd>
         </div>
+        {promo && promo.discountMinor > 0n ? (
+          <div className="flex justify-between text-success">
+            <dt>{dictionary.cart.discount}</dt>
+            <dd className="tabular-nums">−{amount(promo.discountMinor)}</dd>
+          </div>
+        ) : null}
         <div className="flex justify-between">
           <dt className="text-muted">{dictionary.cart.shipping}</dt>
           <dd>{dictionary.cart.shippingLater}</dd>

@@ -91,6 +91,19 @@ export const quickOrderSchema = checkoutBase
   })
   .superRefine(requireDeliveryTarget);
 
+/**
+ * "What would this code take off?" for the one-page order, asked before the order is placed.
+ * The delivery fields are optional: with a destination the answer includes delivery, so a
+ * free-delivery code can be seen to work.
+ */
+export const quickPromoSchema = z.object({
+  variantId: idSchema,
+  quantity: z.coerce.number().int().min(1).max(10).default(1),
+  code: z.string().trim().min(2).max(48),
+  wilayaCode: z.coerce.number().int().min(1).max(58).optional(),
+  deliveryType: z.nativeEnum(DeliveryType).optional(),
+});
+
 export const shippingQuoteSchema = z.object({
   wilayaCode: z.coerce.number().int().min(1).max(58),
   deliveryType: z.nativeEnum(DeliveryType).default(DeliveryType.HOME),
@@ -107,4 +120,5 @@ export const abandonedCartPingSchema = z.object({
 
 export type CheckoutInput = z.infer<typeof checkoutSchema>;
 export type QuickOrderInput = z.infer<typeof quickOrderSchema>;
+export type QuickPromoInput = z.infer<typeof quickPromoSchema>;
 export type ShippingQuoteInput = z.infer<typeof shippingQuoteSchema>;
