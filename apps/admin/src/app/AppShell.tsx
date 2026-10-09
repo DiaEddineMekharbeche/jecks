@@ -1,8 +1,25 @@
-import { Badge, Button, Kbd, Tooltip, cn, useCommandPalette } from '@jecks/ui';
+import {
+  Badge,
+  Button,
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  Kbd,
+  Tooltip,
+  cn,
+  useCommandPalette,
+} from '@jecks/ui';
 import { Bell, BellOff, LogOut, Menu, Moon, Search, Sun, Wifi, WifiOff, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useSession } from '@/features/auth/session';
+import { TONES, isToneId, playTone, unlockAudio } from '@/lib/alert-sound';
 import { useAdminEventStream, useRealtimeStore } from '@/lib/realtime';
 import { CommandPalette } from './CommandPalette';
 import { NotificationsPanel } from './NotificationsPanel';
@@ -25,6 +42,25 @@ export function AppShell() {
   const clearUnseen = useRealtimeStore((state) => state.clearUnseen);
   const soundEnabled = useRealtimeStore((state) => state.soundEnabled);
   const toggleSound = useRealtimeStore((state) => state.toggleSound);
+  const soundTone = useRealtimeStore((state) => state.soundTone);
+  const setTone = useRealtimeStore((state) => state.setTone);
+  const soundBlocked = useRealtimeStore((state) => state.soundBlocked);
+  const setSoundBlocked = useRealtimeStore((state) => state.setSoundBlocked);
+
+  // Browsers keep audio locked until the page has been touched. The first click or key press
+  // anywhere unlocks it, so a new order rings even if nobody opened the sound menu.
+  useEffect(() => {
+    const unlock = () => {
+      unlockAudio();
+      setSoundBlocked(false);
+    };
+    window.addEventListener('pointerdown', unlock, { once: true });
+    window.addEventListener('keydown', unlock, { once: true });
+    return () => {
+      window.removeEventListener('pointerdown', unlock);
+      window.removeEventListener('keydown', unlock);
+    };
+  }, [setSoundBlocked]);
 
   // One stream for the whole session, opened once the user is known.
   useAdminEventStream(Boolean(user));
@@ -114,7 +150,12 @@ export function AppShell() {
             <p className="truncate text-sm font-medium">{user?.name}</p>
             <p className="truncate text-xs text-muted">{user?.roles.join(', ')}</p>
           </div>
-          <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => void signOut()}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start"
+            onClick={() => void signOut()}
+          >
             <LogOut className="h-4 w-4" />
             Se déconnecter
           </Button>
@@ -167,15 +208,61 @@ export function AppShell() {
 
             <NotificationsPanel />
 
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label={soundEnabled ? 'Couper le son des alertes' : 'Activer le son des alertes'}
-              aria-pressed={soundEnabled}
-              onClick={toggleSound}
-            >
-              {soundEnabled ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" aria-label="Son des nouvelles commandes">
+                  {soundEnabled ? <Bell className="h-4 w-4" /> : <BellOff className="h-4 w-4" />}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64">
+                <DropdownMenuLabel>Nouvelle commande</DropdownMenuLabel>
+                <DropdownMenuCheckboxItem
+                  checked={soundEnabled}
+                  onCheckedChange={() => toggleSound()}
+                  onSelect={(event) => event.preventDefault()}
+                >
+                  Jouer un son
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>Tonalité</DropdownMenuLabel>
+                <DropdownMenuRadioGroup
+                  value={soundTone}
+                  onValueChange={(value) => {
+                    if (!isToneId(value)) return;
+                    setTone(value);
+                    // Hearing it is how somebody chooses a sound.
+                    void playTone(value).then((played) => setSoundBlocked(!played));
+                  }}
+                >
+                  {TONES.map((tone) => (
+                    <DropdownMenuRadioItem
+                      key={tone.id}
+                      value={tone.id}
+                      onSelect={(event) => event.preventDefault()}
+                    >
+                      <span className="flex flex-col">
+                        <span>{tone.label}</span>
+                        <span className="text-xs text-muted">{tone.hint}</span>
+                      </span>
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onSelect={(event) => {
+                    event.preventDefault();
+                    void playTone(soundTone).then((played) => setSoundBlocked(!played));
+                  }}
+                >
+                  Tester le son
+                </DropdownMenuItem>
+                {soundBlocked ? (
+                  <p className="px-2 pb-1.5 pt-1 text-xs text-warning">
+                    Le navigateur bloque le son tant que vous n’avez pas cliqué sur la page.
+                  </p>
+                ) : null}
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             <Button
               variant="ghost"

@@ -1,4 +1,4 @@
-import { Controller, Sse, MessageEvent } from '@nestjs/common';
+import { Controller, Header, Sse, MessageEvent } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { interval, merge, Observable } from 'rxjs';
 import { finalize, map, startWith } from 'rxjs/operators';
@@ -23,6 +23,10 @@ export class RealtimeController {
    * One long-lived response per admin tab. Nest handles the SSE framing; the
    * heartbeat and the permission filter are ours.
    */
+  // Whatever proxy sits in front, an event must leave at once: nginx buffers a response unless
+  // told not to, and a buffered new-order alert is one that rings late.
+  @Header('X-Accel-Buffering', 'no')
+  @Header('Cache-Control', 'no-cache, no-transform')
   @Sse()
   @RawResponse()
   @RequirePermissions('orders.read')

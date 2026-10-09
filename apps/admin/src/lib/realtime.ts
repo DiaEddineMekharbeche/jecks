@@ -1,7 +1,10 @@
 import type { AdminEvent, AdminEventName } from '@jecks/shared';
+import { format, money } from '@jecks/shared';
+import { notify } from '@jecks/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { create } from 'zustand';
 import { useEffect, useRef } from 'react';
+import { DEFAULT_TONE, isToneId, playTone, type ToneId } from './alert-sound';
 import { getAccessToken } from './api';
 
 /**
@@ -19,10 +22,15 @@ interface RealtimeState {
   /** Unseen counts per nav badge, cleared when the operator opens the module. */
   unseen: Record<string, number>;
   soundEnabled: boolean;
+  soundTone: ToneId;
+  /** The browser refused the last sound: nobody has clicked on this page yet. */
+  soundBlocked: boolean;
   setStatus: (status: RealtimeState['status']) => void;
   bump: (module: string) => void;
   clearUnseen: (module: string) => void;
   toggleSound: () => void;
+  setTone: (tone: ToneId) => void;
+  setSoundBlocked: (blocked: boolean) => void;
 }
 
 export const useRealtimeStore = create<RealtimeState>((set) => ({
@@ -30,6 +38,8 @@ export const useRealtimeStore = create<RealtimeState>((set) => ({
   lastEventAt: null,
   unseen: {},
   soundEnabled: readSoundPreference(),
+  soundTone: readTonePreference(),
+  soundBlocked: false,
 
   setStatus: (status) => set({ status }),
   bump: (module) =>
@@ -53,14 +63,33 @@ export const useRealtimeStore = create<RealtimeState>((set) => ({
       }
       return { soundEnabled };
     }),
+  setTone: (soundTone) => {
+    try {
+      localStorage.setItem('jk-admin-tone', soundTone);
+    } catch {
+      // Private browsing: the choice holds for this session.
+    }
+    set({ soundTone });
+  },
+  setSoundBlocked: (soundBlocked) => set({ soundBlocked }),
 }));
 
 function readSoundPreference(): boolean {
   try {
-    // Off by default: a shop with a hundred orders a day should opt in to the noise.
-    return localStorage.getItem('jk-admin-sound') === 'true';
+    // On until somebody turns it off. A shop that wants to know about an order the moment
+    // it arrives should not have to find a switch first; one that does not can mute it.
+    return localStorage.getItem('jk-admin-sound') !== 'false';
   } catch {
-    return false;
+    return true;
+  }
+}
+
+function readTonePreference(): ToneId {
+  try {
+    const stored = localStorage.getItem('jk-admin-tone');
+    return isToneId(stored) ? stored : DEFAULT_TONE;
+  } catch {
+    return DEFAULT_TONE;
   }
 }
 
@@ -209,5 +238,23 @@ function dispatch(event: AdminEvent, queryClient: ReturnType<typeof useQueryClie
     void queryClient.invalidateQueries({ queryKey: ['admin', 'inventory'] });
   }
 
+  if (event.name === 'order.created') announceNewOrder(event);
+
   for (const handler of handlers) handler(event);
+}
+
+/** The chime and the toast for an order that has just been placed. */
+function announceNewOrder(event: AdminEvent): void {
+  const { soundEnabled, soundTone, setSoundBlocked } = useRealtimeStore.getState();
+  const order = event.payload as { number?: string; totalMinor?: string; customerName?: string };
+
+  const amount = order.totalMinor
+    ? format(money(BigInt(order.totalMinor)), { locale: 'fr-DZ' })
+    : '';
+  notify.info(`Nouvelle commande ${order.number ?? ''}`.trim(), {
+    description: [order.customerName, amount].filter(Boolean).join(' · ') || undefined,
+    duration: 10_000,
+  });
+
+  if (soundEnabled) void playTone(soundTone).then((played) => setSoundBlocked(!played));
 }
