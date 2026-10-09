@@ -177,6 +177,25 @@ describe('the owner is e-mailed a new order', () => {
     expect(mail.body).toContain('https://admin.example/orders/order-1');
   });
 
+  it('sends it designed as well as in plain text, with what the customer typed made safe', async () => {
+    const w = world({
+      'notifications.email_driver': 'smtp',
+      'notifications.owner_email': 'owner@shop.test',
+    });
+    await dispatchNotification(
+      { event: 'owner.new_order', orderId: 'order-1' },
+      deps(makePrisma(w)),
+    );
+
+    const mail = smtp!.messages[0]!;
+    expect(mail.html).toContain('JK-261008-0001');
+    expect(mail.html).toContain('Amel Zidane');
+    expect(mail.html).toContain('href="tel:+213550112233"');
+    expect(mail.html).toContain('https://admin.example/orders/order-1');
+    // The same facts are in the plain text, for a client that shows only that.
+    expect(mail.body).toContain('Amel Zidane');
+  });
+
   it('writes the customer-visible total in dinars, not centimes', async () => {
     const w = world({
       'notifications.email_driver': 'smtp',

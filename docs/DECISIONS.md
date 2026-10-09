@@ -1500,3 +1500,11 @@ paths are proven against the fake server and the protocol, not against Google.
 **Decision.** `rebuildDailyStats` moved from the worker into `@jecks/db` and both processes run it. `DashboardService.summary` first backfills the whole window when any day has no row, otherwise recomputes the last three days at most every 30 seconds (one rebuild shared by concurrent visits). A failed refresh is logged and the stored figures are shown.
 
 **Consequence.** The first dashboard visit after a long gap scans that window's orders once. Revenue is still booked on the delivery date (F-AD-70), so a shop whose parcels are not yet delivered sees orders but no revenue.
+
+## D116 — E-mails are sent designed, with the plain text beside them (M7)
+
+**Context.** Every e-mail the shop sent was `text/plain`: the owner's new-order alert was a block of unstyled lines, hard to scan on a phone and with no tappable phone number.
+
+**Decision.** An e-mail now goes out as `multipart/alternative`: the template's text first, a designed HTML version last. The owner's new-order e-mail is laid out from the order itself (total to collect, customer with a dial link, address, items, note, source such as Instagram, a button to the order); any other e-mail is its template's text set in the same frame, so templates stay editable as plain text in the admin. HTML is table-based with inline styles and no images, because mail clients render nothing else dependably. Every value that came from a customer is HTML-escaped. SMS, Telegram and in-app messages are untouched.
+
+**Consequence.** The designed layout of the owner's alert is code, not the admin template: editing that template changes the plain-text alternative only.

@@ -33,6 +33,8 @@ export interface Received {
   to: string[];
   /** The decoded text/plain body. */
   body: string;
+  /** The decoded text/html alternative, when the message has one. */
+  html: string | null;
   headers: Record<string, string>;
   raw: string;
 }
@@ -127,16 +129,36 @@ export async function startFakeSmtp(options: FakeSmtpOptions = {}): Promise<Fake
             const at = row.indexOf(':');
             if (at > 0) headers[row.slice(0, at).toLowerCase()] = row.slice(at + 1).trim();
           }
-          const encoded = rest.join('\r\n').replace(/\s+/g, '');
+          const bodyText = rest.join('\r\n\r\n');
+          const decode = (encoding: string | undefined, text: string): string =>
+            encoding === 'base64'
+              ? Buffer.from(text.replace(/\s+/g, ''), 'base64').toString('utf8')
+              : text;
+
+          // multipart/alternative: one decoded string per part, keyed by its content type.
+          const boundary = /boundary="?([^";]+)"?/.exec(headers['content-type'] ?? '')?.[1];
+          const parts = new Map<string, string>();
+          if (boundary) {
+            for (const part of bodyText.split(`--${boundary}`).slice(1)) {
+              if (part.startsWith('--')) break;
+              const [partHead = '', ...partRest] = part.replace(/^\r\n/, '').split('\r\n\r\n');
+              const type = /content-type:\s*([^;\r\n]+)/i.exec(partHead)?.[1]?.trim().toLowerCase();
+              const encoding = /content-transfer-encoding:\s*(\S+)/i
+                .exec(partHead)?.[1]
+                ?.toLowerCase();
+              if (type) parts.set(type, decode(encoding, partRest.join('\r\n\r\n')));
+            }
+          }
+
           messages.push({
             from: mailFrom,
             to: rcpt,
             headers,
             raw,
-            body:
-              headers['content-transfer-encoding'] === 'base64'
-                ? Buffer.from(encoded, 'base64').toString('utf8')
-                : rest.join('\r\n'),
+            body: boundary
+              ? (parts.get('text/plain') ?? '')
+              : decode(headers['content-transfer-encoding'], bodyText),
+            html: parts.get('text/html') ?? null,
           });
           data = null;
           say('250 queued');

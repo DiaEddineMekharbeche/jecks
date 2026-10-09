@@ -230,9 +230,35 @@ export async function sendOverSmtp(config: SmtpConfig, message: OutgoingMessage)
     await session.command('DATA', [354], 'DATA');
 
     const messageId = `<${Date.now().toString(36)}.${Math.random().toString(36).slice(2)}@${domainOf(sender)}>`;
-    const body = Buffer.from(message.body, 'utf8')
-      .toString('base64')
-      .replace(/(.{76})/g, '$1\r\n');
+    const wrap = (text: string): string =>
+      Buffer.from(text, 'utf8')
+        .toString('base64')
+        .replace(/(.{76})/g, '$1\r\n');
+    const boundary = `jecks-${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
+    // Text first, HTML last: a client shows the last part it understands.
+    const content = message.html
+      ? {
+          type: `multipart/alternative; boundary="${boundary}"`,
+          encoding: [],
+          body: [
+            `--${boundary}`,
+            'Content-Type: text/plain; charset=utf-8',
+            'Content-Transfer-Encoding: base64',
+            '',
+            wrap(message.body),
+            `--${boundary}`,
+            'Content-Type: text/html; charset=utf-8',
+            'Content-Transfer-Encoding: base64',
+            '',
+            wrap(message.html),
+            `--${boundary}--`,
+          ].join('\r\n'),
+        }
+      : {
+          type: 'text/plain; charset=utf-8',
+          encoding: ['Content-Transfer-Encoding: base64'],
+          body: wrap(message.body),
+        };
 
     session.write(
       [
@@ -242,10 +268,10 @@ export async function sendOverSmtp(config: SmtpConfig, message: OutgoingMessage)
         `Date: ${new Date().toUTCString().replace('GMT', '+0000')}`,
         `Message-ID: ${messageId}`,
         'MIME-Version: 1.0',
-        'Content-Type: text/plain; charset=utf-8',
-        'Content-Transfer-Encoding: base64',
+        `Content-Type: ${content.type}`,
+        ...content.encoding,
         '',
-        body,
+        content.body,
         '.',
       ].join('\r\n'),
     );

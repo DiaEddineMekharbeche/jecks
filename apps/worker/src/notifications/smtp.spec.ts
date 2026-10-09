@@ -55,6 +55,29 @@ describe('sendOverSmtp — plain connection', () => {
     expect(server.messages[0]!.body).toBe(message().body);
   });
 
+  it('sends the designed version alongside the plain text, not instead of it', async () => {
+    server = await startFakeSmtp();
+    await sendOverSmtp(
+      config(server),
+      message({ html: '<p style="color:red">Nouvelle commande — 4 200 DA</p>' }),
+    );
+
+    const mail = server.messages[0]!;
+    expect(mail.headers['content-type']).toMatch(/^multipart\/alternative; boundary=/);
+    expect(mail.body).toBe(message().body);
+    expect(mail.html).toBe('<p style="color:red">Nouvelle commande — 4 200 DA</p>');
+    // Plain text first: a client shows the last alternative it understands.
+    expect(mail.raw.indexOf('text/plain')).toBeLessThan(mail.raw.indexOf('text/html'));
+  });
+
+  it('sends a message with no designed version as plain text, as before', async () => {
+    server = await startFakeSmtp();
+    await sendOverSmtp(config(server), message());
+
+    expect(server.messages[0]!.headers['content-type']).toBe('text/plain; charset=utf-8');
+    expect(server.messages[0]!.html).toBeNull();
+  });
+
   it('encodes a non-ASCII subject and keeps the display name readable', async () => {
     server = await startFakeSmtp();
     await sendOverSmtp(config(server), message({ subject: 'Commande à confirmer' }));

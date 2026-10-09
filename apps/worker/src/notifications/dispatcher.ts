@@ -8,6 +8,7 @@ import {
   WhatsAppCloudNotifier,
 } from './adapters.js';
 import type { Channel, Notifier, OutgoingMessage } from './notifier.js';
+import { renderOwnerOrderEmail, renderTextEmail, type OwnerOrderEmail } from './email-html.js';
 
 /**
  * Notification dispatch — PRD Section 6.1.
@@ -143,6 +144,7 @@ async function dispatchOne(job: DispatchJob, deps: DispatchDeps): Promise<Dispat
     recipient,
     subject,
     body,
+    html: channel === 'EMAIL' ? htmlFor(job.event, context, body, subject) : undefined,
     locale: context.locale ?? locale,
     event: job.event,
   };
@@ -205,6 +207,8 @@ interface Context {
   email: string | null;
   locale: string | null;
   userId: string | null;
+  /** The order as data, for the designed owner e-mail; the text template cannot be laid out. */
+  owner?: OwnerOrderEmail;
 }
 
 /**
@@ -271,6 +275,34 @@ async function buildContext(job: DispatchJob, deps: DispatchDeps): Promise<Conte
         shipping: formatDa(order.shippingTotal),
         noteBlock: order.note ? `\nNote du client : ${order.note}` : '',
         orderLink: adminUrl ? `\nOuvrir la commande : ${adminUrl}/orders/${order.id}` : '',
+      },
+      owner: {
+        storeName,
+        orderNumber: order.number,
+        placedAt: new Intl.DateTimeFormat('fr-DZ', {
+          dateStyle: 'medium',
+          timeStyle: 'short',
+          timeZone: 'Africa/Algiers',
+        }).format(order.createdAt),
+        source: SOURCE_LABELS[order.source] ?? null,
+        customerName: order.customerName,
+        customerPhone: order.customerPhone,
+        wilaya: order.wilayaName,
+        commune: order.communeName ?? '',
+        deliveryType: order.deliveryType,
+        address: order.address,
+        items: order.items.map((item) => ({
+          quantity: item.quantity,
+          name: nameOf(item.productName),
+          variant: item.variantName,
+          total: formatDa(item.lineTotal),
+        })),
+        subtotal: formatDa(order.itemsSubtotal),
+        discount: order.discountTotal > 0n ? formatDa(order.discountTotal) : null,
+        shipping: formatDa(order.shippingTotal),
+        total: formatDa(order.total),
+        note: order.note,
+        orderUrl: adminUrl ? `${adminUrl}/orders/${order.id}` : null,
       },
     };
   }
@@ -548,6 +580,33 @@ function builtInTemplate(
   ].join('\n');
 
   return { active: true, subject: { fr: subject }, body: { fr: body } };
+}
+
+/** Shown on the owner's e-mail so an order from an advert is recognisable as one. */
+const SOURCE_LABELS: Record<string, string> = {
+  WEB: 'Site web',
+  INSTAGRAM: 'Instagram',
+  FACEBOOK: 'Facebook',
+  TIKTOK: 'TikTok',
+  WHATSAPP: 'WhatsApp',
+  PHONE: 'Téléphone',
+};
+
+/**
+ * The designed e-mail. The owner's new-order mail is laid out from the order itself; any
+ * other e-mail is its template's text in the same frame. The text stays the plain
+ * alternative either way, and is what the shop edits in the admin.
+ */
+function htmlFor(event: string, context: Context, body: string, subject: string | null): string {
+  if (event === 'owner.new_order' && context.owner) return renderOwnerOrderEmail(context.owner);
+
+  const locale = context.locale ?? 'fr';
+  return renderTextEmail({
+    storeName: 'Jeck’s',
+    subject,
+    text: body,
+    rtl: locale === 'ar',
+  });
 }
 
 async function readSettings(prisma: PrismaClient): Promise<Record<string, unknown>> {
